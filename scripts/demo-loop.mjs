@@ -13,14 +13,16 @@
  */
 import { mkdir } from "node:fs/promises";
 import { chromium } from "playwright";
+import AxeBuilder from "@axe-core/playwright";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const OUT = new URL("../docs/screenshots/step-0/", import.meta.url).pathname;
+const OUT = new URL(`../docs/screenshots/${process.env.SHOTS ?? "step-1"}/`, import.meta.url).pathname;
 const DESKTOP = { width: 1280, height: 900 };
 const MOBILE = { width: 375, height: 812 };
 
 const log = (...a) => console.log("•", ...a);
 const errors = [];
+const a11y = [];
 
 async function launch() {
   try {
@@ -56,7 +58,7 @@ async function openDemoPanel(page) {
     await demoBtn.click();
   } else {
     await page.getByRole("button", { name: "Account" }).click();
-    await page.getByRole("menuitem", { name: "Demo settings…" }).click();
+    await page.getByRole("menuitem", { name: /^Demo settings/ }).click();
   }
   await page.getByRole("heading", { name: "Demo settings" }).waitFor();
 }
@@ -108,7 +110,7 @@ async function main() {
   await page.goto(`${BASE}/markets`);
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle" });
-  await page.getByTestId("matchday-card").waitFor();
+  await page.getByTestId("matchday-strip").waitFor();
   await shot(page, "markets-signed-out-desktop");
 
   // Restricted country is blocked
@@ -136,7 +138,7 @@ async function main() {
 
   // Launch buy on a curve
   await page.goto(`${BASE}/player/haaland`, { waitUntil: "networkidle" });
-  await page.getByText("Launch progress").waitFor();
+  await page.getByRole("heading", { name: "Launch curve" }).waitFor();
   await page.locator("#amt-haaland").fill("400");
   await page.getByTestId("trade-submit").click();
   await toast(page, /Bought .* HAALAND/);
@@ -237,6 +239,7 @@ async function main() {
     ["docs-stats", "/docs/stats"],
     ["docs-scoring", "/docs/scoring"],
     ["docs-boards", "/docs/boards"],
+    ["docs-fees", "/docs/fees"],
     ["terms", "/terms"],
   ];
   for (const [label, viewport] of [
@@ -251,6 +254,32 @@ async function main() {
       await p.waitForTimeout(1200);
       const overflow = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       if (overflow > 1) errors.push(`horizontal overflow ${overflow}px on ${path} (${label})`);
+      // Scroll once so scroll-triggered reveals run before the full-page capture.
+      const h = await p.evaluate(() => document.documentElement.scrollHeight);
+      for (let y = 0; y < h; y += 600) {
+        await p.evaluate((yy) => window.scrollTo(0, yy), y);
+        await p.waitForTimeout(40);
+      }
+      await p.evaluate(() => window.scrollTo(0, 0));
+      await p.waitForTimeout(500);
+      // Let entrance fades finish so contrast is measured at rest, not mid-animation.
+      // Only document-timeline animations can finish (scroll-driven ones never do); cap the wait at 1.5s.
+      await p.evaluate(() =>
+        Promise.race([
+          Promise.all(
+            document
+              .getAnimations()
+              .filter((a) => a.timeline === document.timeline && a.effect?.getTiming().iterations !== Infinity)
+              .map((a) => a.finished.catch(() => {}))
+          ),
+          new Promise((r) => setTimeout(r, 1500)),
+        ])
+      );
+      // WCAG 2 A/AA with axe-core (incl. colour contrast).
+      const axe = await new AxeBuilder({ page: p }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+      for (const v of axe.violations.filter((x) => x.impact === "serious" || x.impact === "critical")) {
+        a11y.push(`${label} ${path}: [${v.id}] ${v.help} (${v.nodes.length}×) e.g. ${v.nodes[0]?.target?.join(" ")}`);
+      }
       await shot(p, `${name}-${label}`);
     }
     await c.close();
@@ -265,6 +294,7 @@ async function main() {
   await c2.close();
 
   await browser.close();
+  console.log("\nAccessibility (axe, serious/critical):", a11y.length ? `\n${[...new Set(a11y)].join("\n")}` : "none");
   console.log("\nErrors:", errors.length ? `\n${[...new Set(errors)].join("\n")}` : "none");
   if (errors.length) process.exitCode = 1;
 }

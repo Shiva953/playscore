@@ -73,8 +73,8 @@ export function YourPosition({ player }: { player: PlayerDetail }) {
 
 function Overview({ player }: { player: PlayerDetail }) {
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-2">
-      <Card size="sm">
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card size="sm" className="lg:col-span-2">
         <CardHeader>
           <CardTitle>Your position</CardTitle>
         </CardHeader>
@@ -126,7 +126,7 @@ function Overview({ player }: { player: PlayerDetail }) {
           />
         </CardContent>
       </Card>
-      <Card size="sm">
+      <Card size="sm" className="lg:col-span-2">
         <CardHeader>
           <CardTitle>{player.pool ? "Pool depth & price impact" : "Launch curve"}</CardTitle>
         </CardHeader>
@@ -171,7 +171,7 @@ function Form({ player }: { player: PlayerDetail }) {
       {rows.length === 0 ? (
         <EmptyState title="No matchdays yet">Scores appear here after each settled round.</EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="rounded-2xl bg-surface px-5 py-2">
           <Table>
             <TableHeader>
               <TableRow>
@@ -192,7 +192,7 @@ function Form({ player }: { player: PlayerDetail }) {
           </Table>
         </div>
       )}
-      <p className="text-xs text-muted-foreground">Score is 0–10 for display (10·P/(P+6)). Boards rank on raw points. Top 5 on any board get paid.</p>
+      <p className="text-xs text-soft">Score is 0–10 for display (10·P/(P+6)). Boards rank on raw points. Top 5 on any board get paid.</p>
     </div>
   );
 }
@@ -216,7 +216,7 @@ function Dividends({ player }: { player: PlayerDetail }) {
           {player.status === "trading" ? "When this player finishes top 5 on a board, holders at kickoff share the payout." : "Dividends start after the player bonds."}
         </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="rounded-2xl bg-surface px-5 py-2">
           <Table>
             <TableHeader>
               <TableRow>
@@ -229,7 +229,7 @@ function Dividends({ player }: { player: PlayerDetail }) {
               {player.dividendHistory.map((d) => (
                 <TableRow key={d.round}>
                   <TableCell>
-                    Round {d.round} · <span className="text-muted-foreground">{d.label}</span>
+                    Round {d.round} · <span className="text-soft">{d.label}</span>
                   </TableCell>
                   <TableCell className="num text-right">{formatUsd(d.playerPayout)}</TableCell>
                   <TableCell className="num text-right">{formatUsd(d.per10kTokens)}</TableCell>
@@ -239,7 +239,7 @@ function Dividends({ player }: { player: PlayerDetail }) {
           </Table>
         </div>
       )}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-soft">
         Dividends are not guaranteed. Each round pays a share of the dividend vault, set by a controller, split across boards and then pro rata
         to tokens held at kickoff.
       </p>
@@ -251,7 +251,7 @@ function Holders({ player }: { player: PlayerDetail }) {
   if (!player.holders.length) return <EmptyState title="No holders yet">Holders appear once the launch opens.</EmptyState>;
   return (
     <div className="flex flex-col gap-2">
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="rounded-2xl bg-surface px-5 py-2">
         <Table>
           <TableHeader>
             <TableRow>
@@ -271,7 +271,7 @@ function Holders({ player }: { player: PlayerDetail }) {
           </TableBody>
         </Table>
       </div>
-      <p className="text-xs text-muted-foreground">Other holder names are illustrative in this demo.</p>
+      <p className="text-xs text-soft">Other holder names are illustrative in this demo.</p>
     </div>
   );
 }

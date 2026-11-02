@@ -70,11 +70,11 @@ export function RecentTrades({ playerId, limit = 15 }: { playerId: string; limit
               <TableRow key={t.id}>
                 <TableCell className={cn(t.side === "buy" ? "text-up" : "text-down")}>
                   {t.side === "buy" ? "Buy" : "Sell"}
-                  {t.mine ? <span className="ml-1 text-xs text-muted-foreground">(you)</span> : null}
+                  {t.mine ? <span className="ml-1 text-xs text-soft">(you)</span> : null}
                 </TableCell>
                 <TableCell className="num text-right">{formatUsd(t.usdc)}</TableCell>
                 <TableCell className="num text-right">{formatPrice(t.price)}</TableCell>
-                <TableCell className="num hidden text-right text-muted-foreground sm:table-cell">{now ? formatRelative(t.at, now) : ""}</TableCell>
+                <TableCell className="num hidden text-right text-soft sm:table-cell">{now ? formatRelative(t.at, now) : ""}</TableCell>
               </TableRow>
             ))}
           </TableBody>

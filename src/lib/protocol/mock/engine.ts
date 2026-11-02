@@ -551,7 +551,6 @@ export function ambientTick(ctx: EngineCtx): void {
 export function kickoff(ctx: EngineCtx): void {
   const s = ctx.s;
   const r = s.round;
-  const w = windowForRound(r.round);
   const bonded = Object.values(s.players).filter((p) => p.status === "trading");
   const eligibleSupply: Record<string, number> = {};
   for (const p of bonded) eligibleSupply[p.id] = eligibleSupplyAtSnapshot(holderTokens(p), p.pool);

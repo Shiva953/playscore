@@ -93,7 +93,7 @@ export function MatchdayStrip({ round: r, showPool = true, className }: { round:
         />
       </div>
       <div className="relative -mt-2 h-4 text-xs text-faint">
-        <span className="absolute left-0">Trading open</span>
+        <span className="absolute left-0 hidden sm:inline">Trading open</span>
         <span className="absolute -translate-x-1/2 text-ink" style={{ left: `${liveStart * 100}%` }}>
           Snapshot · {firstSlot}
         </span>

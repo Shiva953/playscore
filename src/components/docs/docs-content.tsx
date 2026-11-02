@@ -43,8 +43,8 @@ export function DocsNav({ active }: { active: DocSlug }) {
           href={`/docs/${s.slug}`}
           aria-current={s.slug === active ? "page" : undefined}
           className={cn(
-            "shrink-0 rounded-md px-3 py-1.5 text-sm whitespace-nowrap text-muted-foreground hover:text-foreground",
-            s.slug === active && "bg-muted text-foreground"
+            "shrink-0 py-1.5 pr-4 text-sm whitespace-nowrap transition-colors duration-150 lg:py-2",
+            s.slug === active ? "text-ink" : "text-[#bbbbbb] hover:text-ink"
           )}
         >
           {s.title}
@@ -62,7 +62,7 @@ function Cards({ items }: { items: [string, string][] }) {
           <CardHeader>
             <CardTitle>{t}</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">{b}</CardContent>
+          <CardContent className="text-sm leading-relaxed text-soft">{b}</CardContent>
         </Card>
       ))}
     </div>
@@ -94,13 +94,13 @@ function StatsDoc() {
   const q = useStats();
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-muted-foreground">Live protocol stats for this demo session.</p>
+      <p className="text-soft">Live protocol stats for this demo session.</p>
       {q.isPending ? (
         <LoadingRows rows={4} />
       ) : q.isError || !q.data ? (
         <ErrorState error={q.error} onRetry={() => void q.refetch()} />
       ) : (
-        <div className="grid grid-cols-2 gap-4 rounded-lg border p-4 sm:grid-cols-3 lg:grid-cols-4" data-testid="stats">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 rounded-2xl bg-surface p-5 sm:grid-cols-3 lg:grid-cols-4" data-testid="stats">
           <Stat label="Platform TVL" value={formatUsd(q.data.tvl, { decimals: 0 })} />
           <Stat label="Dividend vault" value={formatUsd(q.data.vault, { decimals: 0 })} />
           <Stat label="Runway" value={Number.isFinite(q.data.runwayRounds) ? `${q.data.runwayRounds.toFixed(0)} rounds` : "n/a (no payouts yet)"} />
@@ -123,7 +123,7 @@ function StatsDoc() {
           <Stat label="Third-party LP depth" value={formatUsd(q.data.externalLpDepth, { decimals: 0 })} />
         </div>
       )}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-soft">
         TVL here is the controller&apos;s definition: $17,500 per bonded player (the locked seed) plus the dividend vault. It ignores pool growth and
         curve funds. Runway = vault ÷ average payout of the last 8 rounds.
       </p>
@@ -148,7 +148,7 @@ function ScoreCalculator() {
     return (
       <div key={code} className="grid grid-cols-[minmax(0,10rem)_1fr_2rem] items-center gap-3 text-sm">
         <span className="truncate">
-          {EVENT_MATRIX[code].label} <span className="text-muted-foreground">×{EVENT_MATRIX[code].points[POSITIONS.indexOf(pos)]}</span>
+          {EVENT_MATRIX[code].label} <span className="text-soft">×{EVENT_MATRIX[code].points[POSITIONS.indexOf(pos)]}</span>
         </span>
         <Slider value={[counts[code] ?? 0]} min={0} max={max} step={code === "xgCreated" ? 0.1 : 1} onValueChange={(v) => set(code, v[0] ?? 0)} aria-label={EVENT_MATRIX[code].label} />
         <span className="num text-right">{counts[code] ?? 0}</span>
@@ -195,7 +195,7 @@ function ScoreCalculator() {
           </div>
         </div>
         <div className="grid grid-cols-[minmax(0,10rem)_1fr_2rem] items-center gap-3 text-sm">
-          <span>Minutes <span className="text-muted-foreground">×0.012</span></span>
+          <span>Minutes <span className="text-soft">×0.012</span></span>
           <Slider value={[minutes]} min={0} max={90} step={1} onValueChange={(v) => setMinutes(v[0] ?? 0)} aria-label="Minutes" />
           <span className="num text-right">{minutes}</span>
         </div>
@@ -209,11 +209,11 @@ function ScoreCalculator() {
           <CollapsibleContent className="mt-2 flex flex-col gap-3">{EVENT_CODES.filter((c) => !MAIN_EVENTS.includes(c)).map(row)}</CollapsibleContent>
         </Collapsible>
         <div className="flex flex-wrap items-end justify-between gap-2 border-t pt-3">
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-soft">
             {(points / coef).toFixed(2)} raw × {coef} = <span className="num">{points.toFixed(2)}</span> points
           </span>
           <span className="num text-2xl font-semibold" data-testid="calc-score">
-            {displayScore(points).toFixed(1)} <span className="text-sm font-normal text-muted-foreground">/ 10</span>
+            {displayScore(points).toFixed(1)} <span className="text-sm font-normal text-soft">/ 10</span>
           </span>
         </div>
       </CardContent>
@@ -224,13 +224,13 @@ function ScoreCalculator() {
 function ScoringDoc() {
   return (
     <div className="flex flex-col gap-6">
-      <p className="text-muted-foreground">
+      <p className="text-soft">
         Every player is scored on their own contribution, by position, then multiplied by a competition coefficient. Champions League is an extra
         fixture in midweek windows. Live scores are provisional; payouts use data frozen 12 hours after the window&apos;s last whistle.
       </p>
       <ScoreCalculator />
       <h2 className="text-lg font-semibold">Points per event</h2>
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="rounded-2xl bg-surface px-5 py-2">
         <Table>
           <TableHeader>
             <TableRow>
@@ -273,12 +273,12 @@ function ScoringDoc() {
                 {COEFFICIENTS[c].toFixed(2)}
                 {c === "MLS" || c === "SPL" ? "*" : ""}
               </span>
-              <span className="text-xs text-muted-foreground">{c === "UCL" ? "Champions League" : LEAGUE_NAMES[c]}</span>
+              <span className="text-xs text-soft">{c === "UCL" ? "Champions League" : LEAGUE_NAMES[c]}</span>
             </CardContent>
           </Card>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-soft">
         Display score = 10 × P ÷ (P + 6), shown 0–10. Boards rank on raw points P. *Provisional. Data from a licensed provider (the demo uses a
         simulator).
       </p>
@@ -304,7 +304,7 @@ function BoardsDoc() {
         ]}
       />
       <h2 className="text-lg font-semibold">Board multipliers</h2>
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="rounded-2xl bg-surface px-5 py-2">
         <Table>
           <TableHeader>
             <TableRow>
@@ -334,19 +334,19 @@ function BoardsDoc() {
         <CardHeader>
           <CardTitle>Worked example</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
+        <CardContent className="text-sm text-soft">
           League weekend, every board has 5+ ranked players, round pool $10,000. Weights: 4 × 5.00 + 32.05 = 52.05. Premier League board = $10,000 ×
           5 ÷ 52.05 = $960.61; #1 gets 35% = $336.22. A player who is #1 FWD and #1 Premier League earns $672.43. A holder with 1% of that
           player&apos;s eligible tokens gets $6.72.
         </CardContent>
       </Card>
       <h2 className="text-lg font-semibold">Round pool matrix</h2>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-soft">
         Each round pays a share of the dividend vault, set by runway (vault ÷ average payout, in rounds) and the vault&apos;s share of TVL. Changes
         are limited to ±10% a round, bounded 0.20–2.50%, and payouts can&apos;t exceed 12% of TVL a year. Dividends are never promised: the vault can
         shrink but never hit zero.
       </p>
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="rounded-2xl bg-surface px-5 py-2">
         <Table>
           <TableHeader>
             <TableRow>
@@ -373,7 +373,7 @@ function BoardsDoc() {
         </Table>
       </div>
       {stats.data ? (
-        <div className="grid grid-cols-2 gap-4 rounded-lg border p-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 rounded-2xl bg-surface p-5 sm:grid-cols-4">
           <Stat label="Pool this round" value={formatUsd(stats.data.roundPool.usd, { decimals: 0 })} hint={`${formatPct(stats.data.roundPool.effectiveRate)} of vault`} />
           <Stat label="Runway" value={Number.isFinite(stats.data.runwayRounds) ? `${stats.data.runwayRounds.toFixed(0)} rounds` : "n/a"} />
         </div>

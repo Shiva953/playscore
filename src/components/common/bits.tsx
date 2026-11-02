@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import type * as React from "react";
 import type { PositionCode } from "@score/core";
 import { Badge } from "@/components/ui/badge";
 import { formatCountdown, formatPct } from "@/lib/format";
@@ -77,9 +78,15 @@ export function Stat({ label, value, hint, className, size = "md" }: { label: Re
 }
 
 /** One container split into equal columns by dividers (KPIs are type, not tiles). */
-export function StatStrip({ children, className }: { children: ReactNode; className?: string }) {
+export function StatStrip({ children, className, ...rest }: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-rule sm:grid-flow-col sm:auto-cols-fr sm:grid-cols-none", className)}>
+    <div
+      {...rest}
+      className={cn(
+        "grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-rule max-sm:[&>*:last-child:nth-child(odd)]:col-span-2 sm:grid-flow-col sm:auto-cols-fr sm:grid-cols-none",
+        className
+      )}
+    >
       {children}
     </div>
   );
@@ -174,4 +181,23 @@ export function LiveFigure({
       {format(shown)}
     </span>
   );
+}
+
+/** Counts up from zero once on mount (a moment, not routine feedback). Instant under reduced motion. */
+export function TickUp({ value, format, className, duration = 700 }: { value: number; format: (n: number) => string; className?: string; duration?: number }) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    // Reduced motion: zero duration, so the first frame lands on the final value.
+    const d = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : duration;
+    const start = performance.now();
+    let raf = 0;
+    const step = (t: number) => {
+      const k = d === 0 ? 1 : Math.min(1, (t - start) / d);
+      setShown(value * (1 - Math.pow(1 - k, 4)));
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return <span className={cn("num", className)}>{format(shown)}</span>;
 }

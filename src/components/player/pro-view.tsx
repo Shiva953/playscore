@@ -111,10 +111,10 @@ function Watchlist({ selected }: { selected: string }) {
                   aria-current={p.id === selected ? "page" : undefined}
                   className={cn("flex items-center justify-between gap-2 rounded-xl px-3 py-2 transition-colors duration-150 hover:bg-raised", p.id === selected && "bg-raised")}
                 >
-                  <span className="font-mono text-xs font-semibold">${p.ticker}</span>
+                  <span className="text-[13px] font-semibold text-ink">${p.ticker}</span>
                   <span className="flex flex-col items-end">
                     <span className="num text-xs">{formatPrice(p.price)}</span>
-                    {p.status === "trading" ? <Delta value={p.change24h} decimals={1} className="text-xs" /> : <span className="text-xs text-muted-foreground">{formatPct(p.bondProgress, { decimals: 0 })} bonded</span>}
+                    {p.status === "trading" ? <Delta value={p.change24h} decimals={1} className="text-xs" /> : <span className="text-xs text-soft">{formatPct(p.bondProgress, { decimals: 0 })} bonded</span>}
                   </span>
                 </Link>
               </li>
@@ -152,7 +152,7 @@ function PositionsMini() {
               {d!.positions.map((p) => (
                 <TableRow key={p.playerId}>
                   <TableCell>
-                    <Link href={`/player/${p.playerId}`} className="font-mono text-xs font-semibold hover:underline">
+                    <Link href={`/player/${p.playerId}`} className="text-[13px] font-semibold text-ink hover:underline">
                       ${p.ticker}
                     </Link>
                   </TableCell>

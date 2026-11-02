@@ -4,22 +4,44 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { LEAGUES, LEAGUE_NAMES, POSITIONS, type LeagueCode, type PositionCode } from "@score/core";
 import { Card, CardContent } from "@/components/ui/card";
+
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Delta, PositionBadge, Section, Sparkline, StatusBadge } from "@/components/common/bits";
+import { Delta, PositionBadge, Section, Sparkline, StatusBadge, Ticker } from "@/components/common/bits";
 import { EmptyState, QueryState, LoadingRows } from "@/components/common/states";
 import { formatDateTime, formatPct, formatPrice, formatScore, formatUsd, formatUsdCompact } from "@/lib/format";
 import type { PlayerStatus, PlayerSummary } from "@/lib/protocol/types";
 import { usePlayers } from "@/lib/protocol/react/hooks";
-import { MatchdayCard } from "./matchday-card";
+import { LiveMatchdayStrip } from "@/components/common/matchday-strip";
+import { Button } from "@/components/ui/button";
 
 export function MarketsPage() {
+  const all = usePlayers({ status: "all" });
+  const counts = all.data
+    ? { trading: all.data.filter((p) => p.status === "trading").length, launching: all.data.filter((p) => p.status === "launching").length }
+    : null;
   return (
-    <div className="flex flex-col gap-8">
-      <h1 className="sr-only">Markets</h1>
-      <MatchdayCard />
+    <div className="flex flex-col gap-12">
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl leading-8 font-semibold tracking-[-0.02em] text-ink">Markets</h1>
+            <p className="text-sm text-soft">
+              {counts ? `${counts.trading} players trading · ${counts.launching} launching now` : "Players trading and launching"}
+            </p>
+          </div>
+          <Button asChild variant="secondary" size="sm">
+            <Link href="/matchday">Open matchday</Link>
+          </Button>
+        </div>
+        <Card>
+          <CardContent>
+            <LiveMatchdayStrip />
+          </CardContent>
+        </Card>
+      </div>
       <LaunchesInProgress />
       <TopMovers />
       <AllPlayers />
@@ -43,25 +65,27 @@ function LaunchesInProgress() {
             {[...list]
               .sort((a, b) => b.bondProgress - a.bondProgress)
               .map((p) => (
-                <Link key={p.id} href={`/player/${p.id}`} className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Card size="sm" className="h-full hover:bg-muted/40">
-                    <CardContent className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-xs font-semibold">${p.ticker}</span>
-                        <PositionBadge position={p.position} />
-                      </div>
-                      <span className="font-medium">{p.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {p.club} · {p.leagueName}
-                      </span>
-                      <Progress value={p.bondProgress * 100} aria-label={`${p.name} bonding progress`} />
-                      <div className="flex justify-between text-xs">
-                        <span className="num">{formatUsd(p.raised, { decimals: 0 })} of $25,000</span>
-                        <span className="num">{formatPct(p.bondProgress, { decimals: 0 })}</span>
-                      </div>
-                      <span className="num text-sm">{formatPrice(p.price)}</span>
-                    </CardContent>
-                  </Card>
+                <Link key={p.id} href={`/player/${p.id}`} className="group flex flex-col gap-3 rounded-2xl bg-surface px-5 py-4 transition-colors duration-150 hover:bg-[#161616]">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2">
+                      <Ticker ticker={p.ticker} className="text-[13px] text-ink" />
+                      <PositionBadge position={p.position} />
+                    </span>
+                    <span className="num text-sm text-ink">{formatPrice(p.price)}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-base font-medium text-ink">{p.name}</span>
+                    <span className="text-xs text-faint">
+                      {p.club} · {p.leagueName}
+                    </span>
+                  </div>
+                  <Progress value={p.bondProgress * 100} tone="up" aria-label={`${p.name} bonding progress`} />
+                  <div className="num flex justify-between text-xs text-soft">
+                    <span>
+                      <span className="text-ink">{formatUsd(p.raised, { decimals: 0 })}</span> of $25,000
+                    </span>
+                    <span className="text-ink">{formatPct(p.bondProgress, { decimals: 0 })}</span>
+                  </div>
                 </Link>
               ))}
           </div>
@@ -82,20 +106,20 @@ function TopMovers() {
         empty={<EmptyState title="No bonded players yet">Players appear here once they bond and start trading.</EmptyState>}
       >
         {(list) => (
-          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid gap-px overflow-hidden rounded-2xl bg-rule sm:grid-cols-2 lg:grid-cols-3">
             {[...list]
               .sort((a, b) => Math.abs(b.change24h) - Math.abs(a.change24h))
               .slice(0, 6)
               .map((p) => (
                 <li key={p.id}>
-                  <Link href={`/player/${p.id}`} className="flex items-center justify-between gap-3 rounded-lg border p-3 hover:bg-muted/40">
+                  <Link href={`/player/${p.id}`} className="flex h-full items-center justify-between gap-3 bg-surface px-5 py-3.5 transition-colors duration-150 hover:bg-[#161616]">
                     <span className="flex min-w-0 flex-col">
-                      <span className="font-mono text-xs font-semibold">${p.ticker}</span>
-                      <span className="truncate text-sm">{p.name}</span>
+                      <Ticker ticker={p.ticker} className="text-[13px] text-ink" />
+                      <span className="truncate text-sm text-soft">{p.name}</span>
                     </span>
                     <Sparkline values={p.sparkline} />
                     <span className="flex flex-col items-end">
-                      <span className="num text-sm">{formatPrice(p.price)}</span>
+                      <span className="num text-sm text-ink">{formatPrice(p.price)}</span>
                       <Delta value={p.change24h} className="text-xs" />
                     </span>
                   </Link>
@@ -197,7 +221,7 @@ function AllPlayers() {
         empty={<EmptyState title="No players match">Try clearing a filter or the search.</EmptyState>}
       >
         {() => (
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="rounded-2xl bg-surface px-5 py-2">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -228,15 +252,15 @@ function PlayerRow({ p }: { p: PlayerSummary }) {
   return (
     <TableRow>
       <TableCell>
-        <Link href={`/player/${p.id}`} className="flex min-w-0 items-center gap-2 hover:underline">
-          <span className="font-mono text-xs font-semibold">${p.ticker}</span>
-          <span className="truncate">{p.name}</span>
+        <Link href={`/player/${p.id}`} className="flex min-w-0 items-center gap-2.5 hover:text-ink">
+          <Ticker ticker={p.ticker} className="w-[92px] text-[13px] text-ink" />
+          <span className="truncate text-soft">{p.name}</span>
           <PositionBadge position={p.position} />
         </Link>
       </TableCell>
-      <TableCell className="hidden text-muted-foreground md:table-cell">{p.leagueName}</TableCell>
+      <TableCell className="hidden text-soft md:table-cell">{p.leagueName}</TableCell>
       <TableCell className="num text-right">{p.status === "scheduled" ? "—" : formatPrice(p.price)}</TableCell>
-      <TableCell className="text-right">{p.status === "trading" ? <Delta value={p.change24h} /> : <span className="text-muted-foreground">—</span>}</TableCell>
+      <TableCell className="text-right">{p.status === "trading" ? <Delta value={p.change24h} /> : <span className="text-soft">—</span>}</TableCell>
       <TableCell className="num hidden text-right sm:table-cell">{p.status === "scheduled" ? "—" : formatUsdCompact(p.volume24h)}</TableCell>
       <TableCell className="num hidden text-right lg:table-cell">{p.status === "scheduled" ? "—" : formatUsdCompact(p.marketCap)}</TableCell>
       <TableCell className="num hidden text-right md:table-cell">{formatScore(p.liveScore ?? p.lastScore)}</TableCell>
@@ -251,7 +275,7 @@ function LaunchSchedule() {
   const q = usePlayers({ status: "scheduled" });
   return (
     <Section title="Launch schedule" id="schedule">
-      <p className="text-sm text-muted-foreground">Two curated launches each weekday at 14:00 and 20:00 UTC until 200 players, then one a week by holder vote.</p>
+      <p className="text-sm text-soft">Two curated launches each weekday at 14:00 and 20:00 UTC until 200 players, then one a week by holder vote.</p>
       <QueryState
         query={q}
         loading={<LoadingRows rows={4} />}
@@ -259,7 +283,7 @@ function LaunchSchedule() {
         empty={<EmptyState title="Everyone has launched">New launches are chosen by holder vote from Season 1.</EmptyState>}
       >
         {(list) => (
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="rounded-2xl bg-surface px-5 py-2">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -273,15 +297,15 @@ function LaunchSchedule() {
                   .sort((a, b) => (a.launchAt ?? 0) - (b.launchAt ?? 0))
                   .map((p) => (
                     <TableRow key={p.id}>
-                      <TableCell className="num whitespace-nowrap text-muted-foreground">{p.launchAt ? formatDateTime(p.launchAt) : "—"}</TableCell>
+                      <TableCell className="num whitespace-nowrap text-soft">{p.launchAt ? formatDateTime(p.launchAt) : "—"}</TableCell>
                       <TableCell>
-                        <Link href={`/player/${p.id}`} className="flex items-center gap-2 hover:underline">
-                          <span className="font-mono text-xs font-semibold">${p.ticker}</span>
-                          <span>{p.name}</span>
+                        <Link href={`/player/${p.id}`} className="flex items-center gap-2 hover:text-ink">
+                          <Ticker ticker={p.ticker} className="text-[13px] text-ink" />
+                          <span className="text-soft">{p.name}</span>
                           <PositionBadge position={p.position} />
                         </Link>
                       </TableCell>
-                      <TableCell className="hidden text-muted-foreground sm:table-cell">{p.club}</TableCell>
+                      <TableCell className="hidden text-soft sm:table-cell">{p.club}</TableCell>
                     </TableRow>
                   ))}
               </TableBody>

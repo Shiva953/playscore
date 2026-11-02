@@ -40,16 +40,16 @@ export default function Page() {
   return (
     <article className="mx-auto flex max-w-3xl flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold">Terms &amp; Conditions</h1>
-        <p className="text-sm text-muted-foreground">Draft for legal review. Not final and not legal advice. Last updated 28 Oct 2026.</p>
+        <h1 className="text-2xl leading-8 font-semibold tracking-[-0.02em] text-ink">Terms &amp; Conditions</h1>
+        <p className="text-sm text-soft">Draft for legal review. Not final and not legal advice. Last updated 28 Oct 2026.</p>
       </header>
       {SECTIONS.map(([h, b]) => (
         <section key={h} className="flex flex-col gap-2">
-          <h2 className="font-semibold">{h}</h2>
-          <p className="text-sm leading-relaxed text-muted-foreground">{b}</p>
+          <h2 className="text-base font-medium text-ink">{h}</h2>
+          <p className="max-w-[68ch] text-[15px] leading-relaxed text-soft">{b}</p>
         </section>
       ))}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-soft">
         Open item for counsel: section 4 doesn&apos;t yet mention the proposed 0.25% liquidity-provider fee on pool swaps (see docs/ANALYSIS.md, SQ-22).
       </p>
     </article>

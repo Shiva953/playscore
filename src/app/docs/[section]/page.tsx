@@ -20,12 +20,12 @@ export default async function Page({ params }: { params: Promise<{ section: stri
   const s = DOC_SECTIONS.find((x) => x.slug === section);
   if (!s) notFound();
   return (
-    <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
+    <div className="grid gap-8 lg:grid-cols-[180px_minmax(0,1fr)]">
       <aside>
         <DocsNav active={s.slug as DocSlug} />
       </aside>
       <article className="flex min-w-0 flex-col gap-4">
-        <h1 className="text-2xl font-semibold">{s.title}</h1>
+        <h1 className="text-2xl leading-8 font-semibold tracking-[-0.02em] text-ink">{s.title}</h1>
         <DocSection slug={s.slug as DocSlug} />
       </article>
     </div>

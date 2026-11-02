@@ -8,7 +8,7 @@ import { Slot } from "radix-ui"
  * Press scales to 0.96 over 150ms (better-ui); never when disabled. Hover compiles under (hover: hover).
  */
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-transparent text-sm font-medium whitespace-nowrap outline-none select-none transition-[transform,background-color,color,opacity] duration-150 ease-out-strong enabled:active:scale-[0.96] [a]:active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40 aria-invalid:border-down [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-transparent text-sm font-medium whitespace-nowrap outline-none select-none transition-[transform,background-color,color,opacity] duration-150 ease-out-strong motion-safe:enabled:active:scale-[0.96] motion-safe:[a]:active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40 aria-invalid:border-down [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

@@ -61,7 +61,7 @@ function DemoPanelBody() {
             <Label htmlFor="clock-cal">Real calendar (fixture windows)</Label>
           </div>
         </RadioGroup>
-        <p className="text-xs text-muted-foreground">Switching clocks abandons the current round without settling it.</p>
+        <p className="text-xs text-soft">Switching clocks abandons the current round without settling it.</p>
         <div className="grid grid-cols-3 gap-2">
           {(
             [
@@ -174,7 +174,7 @@ function DemoPanelBody() {
 
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-2 text-sm font-medium">Time</legend>
-        <p className="text-xs text-muted-foreground">Hold-age clock is {settings.timeOffsetDays} days ahead. Only affects hold age and sell tax.</p>
+        <p className="text-xs text-soft">Hold-age clock is {settings.timeOffsetDays} days ahead. Only affects hold age and sell tax.</p>
         <Button
           variant="outline"
           onClick={() => {
@@ -192,7 +192,7 @@ function DemoPanelBody() {
 
       <div className="flex flex-col gap-2">
         {confirmReset ? (
-          <div className="flex flex-col gap-2 rounded-lg border border-destructive/40 p-3 text-sm">
+          <div className="flex flex-col gap-2 rounded-2xl bg-down-tint p-4 text-sm">
             <p>Reset the demo? This clears your account, positions and every round.</p>
             <div className="flex gap-2">
               <Button

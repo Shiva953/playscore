@@ -4,7 +4,7 @@ import Link from "next/link";
 import { PLAYERS_BY_ID } from "@score/core";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { KeyValue } from "@/components/common/bits";
+import { KeyValue, TickUp } from "@/components/common/bits";
 import { ClaimPanel } from "@/components/portfolio/claim-panel";
 import { DemoPanel } from "@/components/shell/demo-panel";
 import { formatUsd } from "@/lib/format";
@@ -23,9 +23,13 @@ function BondedDialog() {
             <DialogHeader>
               <DialogTitle>${p.ticker} bonded</DialogTitle>
               <DialogDescription>
-                {p.name} reached $25,000 raised. The launch curve is closed and a permanent trading pool is open.
+                {p.name} reached $25,000. The launch curve is closed and a trading pool that can never be withdrawn is open.
               </DialogDescription>
             </DialogHeader>
+            <div className="flex items-baseline gap-3">
+              <TickUp value={bonded.split.pool} format={(n) => formatUsd(n, { decimals: 0 })} className="text-[40px] leading-none font-medium tracking-[-0.02em] text-ink" />
+              <span className="text-sm text-soft">locked in the pool</span>
+            </div>
             <KeyValue
               rows={[
                 ["Locked pool seed (70%)", formatUsd(bonded.split.pool)],
@@ -33,7 +37,7 @@ function BondedDialog() {
                 ["Treasury (10%)", formatUsd(bonded.split.treasury)],
               ]}
             />
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-soft">
               From now on, holders at each kickoff can earn dividends. Selling pays a tax that falls from 5% to 0.5% over 90 days of holding.
             </p>
             <DialogFooter>
@@ -58,10 +62,12 @@ function FullTimeDialog() {
           <>
             <DialogHeader>
               <DialogTitle>Full time · round {ft.round}</DialogTitle>
-              <DialogDescription>
-                Your players finished on the boards. You earned <span className="num font-semibold">{formatUsd(ft.amount)}</span> this round.
-              </DialogDescription>
+              <DialogDescription>Your players finished on the boards. The data is final.</DialogDescription>
             </DialogHeader>
+            <div className="flex items-baseline gap-3">
+              <TickUp value={ft.amount} format={(n) => formatUsd(n)} className="text-[40px] leading-none font-medium tracking-[-0.02em] text-up" />
+              <span className="text-sm text-soft">earned this round</span>
+            </div>
             <ClaimPanel compact onClaimed={() => close(null)} />
             <DialogFooter className="sm:justify-start">
               <Button variant="ghost" asChild onClick={() => close(null)}>

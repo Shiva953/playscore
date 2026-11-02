@@ -15,6 +15,7 @@ const TABS = [
 /** Phone navigation: four destinations, active by brightness alone (hidden ≥ md). */
 export function BottomTabBar() {
   const path = usePathname();
+  if (path === "/") return null;
   return (
     <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 bg-ground pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_var(--rule)] md:hidden">
       <ul className="grid grid-cols-4">

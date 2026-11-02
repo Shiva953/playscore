@@ -140,7 +140,7 @@ function StandardLayout({ player: p }: { player: PlayerDetail }) {
             {p.status === "trading" ? <RangeControl value={range} onChange={setRange} /> : null}
           </div>
           {p.status === "trading" ? (
-            <PriceChart playerId={p.id} range={range} />
+            <PriceChart playerId={p.id} range={range} height={420} />
           ) : p.status === "launching" ? (
             <>
               <div className="flex flex-col gap-2">

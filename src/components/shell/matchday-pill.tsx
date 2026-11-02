@@ -23,10 +23,7 @@ export function MatchdayPill({ className }: { className?: string }) {
     >
       {phase === "live" ? (
         <>
-          <span className="relative flex size-2" aria-hidden="true">
-            <span className="absolute inline-flex size-full rounded-full bg-up opacity-60 motion-safe:animate-ping" />
-            <span className="relative inline-flex size-2 rounded-full bg-up" />
-          </span>
+          <span className="size-2 rounded-full bg-up" aria-hidden="true" />
           <span className="font-medium text-ink">Live</span>
           <span className="hidden sm:inline">MD {round}</span>
         </>

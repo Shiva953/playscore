@@ -8,26 +8,48 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KeyValue, Stat } from "@/components/common/bits";
 import { EmptyState } from "@/components/common/states";
 import { formatPct, formatTokens, formatUsd, parseAmount } from "@/lib/format";
 import type { PlayerDetail } from "@/lib/protocol/types";
-import { useAddLiquidity, useLiquidityQuote, useRemoveLiquidity, useSession } from "@/lib/protocol/react/hooks";
+import {
+  useAddLiquidity,
+  useLiquidityQuote,
+  useRemoveLiquidity,
+  useSession,
+} from "@/lib/protocol/react/hooks";
 import { useUi } from "@/lib/protocol/react/ui-store";
 
 export function LiquidityPanel({ player }: { player: PlayerDetail }) {
   if (!player.pool) {
-    return <EmptyState title="Liquidity opens after bonding">Once {player.name} bonds, anyone can add USDC and tokens to the pool.</EmptyState>;
+    return (
+      <EmptyState title="Liquidity opens after bonding">
+        Once {player.name} bonds, anyone can add USDC and tokens to the pool.
+      </EmptyState>
+    );
   }
   const lp = player.lpPosition;
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Pool depth" value={formatUsd(player.pool.depthUsd, { decimals: 0 })} />
-        <Stat label="Fee APR (demo volume)" value={formatPct(player.pool.feeAprDemo, { decimals: 0 })} hint="Overstated, see note" />
-        <Stat label="Your position" value={lp ? formatUsd(lp.valueUsd) : "None"} />
-        <Stat label="Fees earned" value={lp ? formatUsd(lp.feesEarnedUsd) : "$0.00"} />
+        <Stat
+          label="Pool depth"
+          value={formatUsd(player.pool.depthUsd, { decimals: 0 })}
+        />
+        <Stat
+          label="Fee APR (demo volume)"
+          value={formatPct(player.pool.feeAprDemo, { decimals: 0 })}
+          hint="Overstated, see note"
+        />
+        <Stat
+          label="Your position"
+          value={lp ? formatUsd(lp.valueUsd) : "None"}
+        />
+        <Stat
+          label="Fees earned"
+          value={lp ? formatUsd(lp.feesEarnedUsd) : "$0.00"}
+        />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <AddLiquidity player={player} />
@@ -36,11 +58,14 @@ export function LiquidityPanel({ player }: { player: PlayerDetail }) {
           <IlCalculator ticker={player.ticker} />
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">
-        You earn 0.25% of every swap (proposed), added to the pool. Fees and APR use demo trading volume, far above modelled turnover: at 5%
-        weekly turnover a 0.25% fee yields only about 1.3% a year. You also earn dividends on your share of the pool&apos;s tokens as recorded at
-        kickoff. The protocol&apos;s locked seed earns none. Adding or removing liquidity stays open during matchdays, and your tokens keep their
-        hold age through the pool.
+      <p className="text-xs text-soft">
+        You earn 0.25% of every swap (proposed), added to the pool. Fees and APR
+        use demo trading volume, far above modelled turnover: at 5% weekly
+        turnover a 0.25% fee yields only about 1.3% a year. You also earn
+        dividends on your share of the pool&apos;s tokens as recorded at
+        kickoff. The protocol&apos;s locked seed earns none. Adding or removing
+        liquidity stays open during matchdays, and your tokens keep their hold
+        age through the pool.
       </p>
     </div>
   );
@@ -59,47 +84,83 @@ function AddLiquidity({ player }: { player: PlayerDetail }) {
       <CardHeader>
         <CardTitle>Add liquidity</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <Tabs value={mode} onValueChange={(v) => setMode(v as "pair" | "zap")}>
+      <CardContent>
+        <Tabs
+          className="gap-3"
+          value={mode}
+          onValueChange={(v) => setMode(v as "pair" | "zap")}
+        >
           <TabsList variant="segmented" className="w-full">
             <TabsTrigger value="pair">USDC + {player.ticker}</TabsTrigger>
             <TabsTrigger value="zap">USDC only</TabsTrigger>
           </TabsList>
+          <TabsContent value={mode} className="flex flex-col gap-3">
+            <p className="text-xs text-soft">
+              {mode === "pair"
+                ? `Add USDC and ${player.ticker} together at the pool ratio.`
+                : `We swap half your USDC into ${player.ticker} first (fees apply), then add both.`}
+            </p>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`lp-${player.id}`}>USDC amount</Label>
+              <Input
+                id={`lp-${player.id}`}
+                inputMode="decimal"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="num"
+              />
+            </div>
+            {quote ? (
+              <KeyValue
+                className="rounded-2xl bg-raised/50 px-4 py-3 text-xs"
+                rows={[
+                  [
+                    mode === "pair"
+                      ? `${player.ticker} needed`
+                      : `${player.ticker} deposited`,
+                    formatTokens(quote.tokens),
+                  ],
+                  [
+                    "Your pool share after",
+                    formatPct(quote.poolShareAfter, { decimals: 3 }),
+                  ],
+                  [
+                    "Counted at kickoff",
+                    `${formatTokens(quote.lpTokens)} ${player.ticker}`,
+                  ],
+                  ...(mode === "zap"
+                    ? ([["Swap fees", formatUsd(quote.swapFees)]] as [
+                        string,
+                        string,
+                      ][])
+                    : []),
+                ]}
+              />
+            ) : null}
+            {quote?.error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{quote.error.message}</AlertDescription>
+              </Alert>
+            ) : null}
+            <Button
+              disabled={!!session.data && (!quote?.ok || add.isPending)}
+              onClick={() => {
+                if (!session.data) return openSignIn();
+                add.mutate(
+                  { id: player.id, usdc, mode },
+                  { onSuccess: () => setAmount("") }
+                );
+              }}
+            >
+              {!session.data
+                ? "Sign in to add liquidity"
+                : add.isPending
+                  ? "Confirming…"
+                  : "Add liquidity"}
+            </Button>
+          </TabsContent>
         </Tabs>
-        <p className="text-xs text-muted-foreground">
-          {mode === "pair"
-            ? `Add USDC and ${player.ticker} together at the pool ratio.`
-            : `We swap half your USDC into ${player.ticker} first (fees apply), then add both.`}
-        </p>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`lp-${player.id}`}>USDC amount</Label>
-          <Input id={`lp-${player.id}`} inputMode="decimal" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} className="num" />
-        </div>
-        {quote ? (
-          <KeyValue
-            className="rounded-md border p-2 text-xs"
-            rows={[
-              [mode === "pair" ? `${player.ticker} needed` : `${player.ticker} deposited`, formatTokens(quote.tokens)],
-              ["Your pool share after", formatPct(quote.poolShareAfter, { decimals: 3 })],
-              ["Counted at kickoff", `${formatTokens(quote.lpTokens)} ${player.ticker}`],
-              ...(mode === "zap" ? ([["Swap fees", formatUsd(quote.swapFees)]] as [string, string][]) : []),
-            ]}
-          />
-        ) : null}
-        {quote?.error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{quote.error.message}</AlertDescription>
-          </Alert>
-        ) : null}
-        <Button
-          disabled={!!session.data && (!quote?.ok || add.isPending)}
-          onClick={() => {
-            if (!session.data) return openSignIn();
-            add.mutate({ id: player.id, usdc, mode }, { onSuccess: () => setAmount("") });
-          }}
-        >
-          {!session.data ? "Sign in to add liquidity" : add.isPending ? "Confirming…" : "Add liquidity"}
-        </Button>
       </CardContent>
     </Card>
   );
@@ -128,12 +189,21 @@ function YourLp({ player }: { player: PlayerDetail }) {
         />
         <div className="flex flex-wrap gap-2">
           {[0.25, 0.5, 1].map((f) => (
-            <Button key={f} size="sm" variant="outline" disabled={remove.isPending} onClick={() => remove.mutate({ id: player.id, fraction: f })}>
+            <Button
+              key={f}
+              size="sm"
+              variant="outline"
+              disabled={remove.isPending}
+              onClick={() => remove.mutate({ id: player.id, fraction: f })}
+            >
               Remove {f === 1 ? "all" : `${f * 100}%`}
             </Button>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">If the price moved, you get back more of one side than you put in. Withdrawn tokens keep their hold age.</p>
+        <p className="text-xs text-soft">
+          If the price moved, you get back more of one side than you put in.
+          Withdrawn tokens keep their hold age.
+        </p>
       </CardContent>
     </Card>
   );
@@ -148,13 +218,29 @@ export function IlCalculator({ ticker }: { ticker: string }) {
         <CardTitle>Impermanent loss</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <p className="text-xs text-muted-foreground">If {ticker}&apos;s price moves, an LP ends up holding less of whichever side rose.</p>
+        <p className="text-xs text-soft">
+          If {ticker}&apos;s price moves, an LP ends up holding less of
+          whichever side rose.
+        </p>
         <div className="flex items-center gap-3">
-          <Slider value={[move]} min={-60} max={300} step={5} onValueChange={(v) => setMove(v[0] ?? 0)} aria-label="Price change" />
-          <span className="num w-16 text-right text-sm">{move > 0 ? "+" : ""}{move}%</span>
+          <Slider
+            value={[move]}
+            min={-60}
+            max={300}
+            step={5}
+            onValueChange={(v) => setMove(v[0] ?? 0)}
+            aria-label="Price change"
+          />
+          <span className="num w-16 text-right text-sm">
+            {move > 0 ? "+" : ""}
+            {move}%
+          </span>
         </div>
         <p className="text-sm">
-          <span className="num text-lg font-semibold">{formatPct(il, { decimals: 1 })}</span> <span className="text-muted-foreground">less than just holding</span>
+          <span className="num text-lg font-semibold">
+            {formatPct(il, { decimals: 1 })}
+          </span>{" "}
+          <span className="text-soft">less than just holding</span>
         </p>
       </CardContent>
     </Card>

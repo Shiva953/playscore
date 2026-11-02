@@ -116,7 +116,7 @@ function SignInBody({ onDone }: { onDone: () => void }) {
             Connect Phantom
           </Button>
         </div>
-        {!country || !accepted ? <p className="text-xs text-muted-foreground">Choose your country and accept the Terms to continue.</p> : null}
+        {!country || !accepted ? <p className="text-xs text-soft">Choose your country and accept the Terms to continue.</p> : null}
       </div>
     </>
   );
