@@ -2,24 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, CandlestickChart, Trophy, Wallet } from "lucide-react";
+import { BookOpen, ChartLine, Trophy, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/markets", label: "Markets", icon: CandlestickChart, match: "/markets" },
+  { href: "/markets", label: "Markets", icon: ChartLine, match: "/markets" },
   { href: "/matchday", label: "Matchday", icon: Trophy, match: "/matchday" },
   { href: "/portfolio", label: "Portfolio", icon: Wallet, match: "/portfolio" },
   { href: "/docs/stats", label: "Docs", icon: BookOpen, match: "/docs" },
 ];
 
-/** Mobile bottom tab bar (hidden ≥ md). */
+/** Phone navigation: four destinations, active by brightness alone (hidden ≥ md). */
 export function BottomTabBar() {
   const path = usePathname();
   return (
-    <nav
-      aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
-    >
+    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 bg-ground pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_var(--rule)] md:hidden">
       <ul className="grid grid-cols-4">
         {TABS.map((t) => {
           const active = path.startsWith(t.match);
@@ -29,9 +26,9 @@ export function BottomTabBar() {
               <Link
                 href={t.href}
                 aria-current={active ? "page" : undefined}
-                className={cn("flex h-14 flex-col items-center justify-center gap-0.5 text-xs text-muted-foreground", active && "text-foreground")}
+                className={cn("flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors duration-150", active ? "text-ink" : "text-faint")}
               >
-                <Icon className="size-5" aria-hidden="true" />
+                <Icon className="size-5" strokeWidth={1.75} aria-hidden="true" />
                 {t.label}
               </Link>
             </li>

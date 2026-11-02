@@ -15,6 +15,13 @@
 5. **Keep a decision log** in `docs/DECISIONS.md` (date, decision, alternatives, why).
 6. **Small, reviewable commits** per milestone with clear messages. Keep `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` green.
 7. **Licensing:** no player photos, club crests or league logos anywhere (including placeholders and generated imagery). Player identity is typographic.
+8. **Creative freedom on UI libraries — no single-library lock-in.** shadcn/ui comes with the template, but it is a starting point, not a rule. Pick the best tool for each component and each design direction, and experiment with what the design skills recommend. Mixing is expected, e.g. Radix / React Aria / Base UI primitives for accessible behaviour; shadcn, Origin UI, Magic UI or Aceternity-style components where they fit; Motion, GSAP or react-spring for animation; NumberFlow for animated numbers; Lightweight Charts, visx, Recharts or ECharts for data; Rive/Lottie or React Three Fiber for hero moments; Vaul, Sonner, cmdk for drawers, toasts, command menus; or hand-built components when nothing fits. Guardrails, so freedom doesn't become chaos:
+   - **Accessibility first:** complex widgets (dialogs, menus, tabs, comboboxes, sliders) must sit on an accessible primitive or be fully keyboard/screen-reader tested.
+   - **Deliberate, not duplicated:** within one screen, don't use two libraries for the same job without a reason (e.g. two toast systems).
+   - **Performance:** watch bundle size and lazy-load heavy pieces (3D, Lottie, big chart libraries); interaction must stay smooth on a mid-range phone.
+   - **Licences:** open-source licences compatible with a commercial product; ask before using anything paid.
+   - **Tokens still rule:** whatever the library, colours, type and spacing come from the direction's tokens, not library defaults.
+   - **Record every library choice** and why in `docs/DECISIONS.md`.
 
 ---
 
@@ -58,7 +65,7 @@ Keep it rigorous and specific. This document is how the user checks you understo
 - Put the prototype at `docs/concept/score-terminal-v4.html` (the user will provide it — ask if it's missing).
 - Add `packages/core` as a pnpm workspace package (see `ARCHITECTURE.md` §8; keep the template layout if a full monorepo conversion fights its scripts).
 - Tooling: TypeScript strict, ESLint, Prettier, Vitest, path aliases, `pnpm lint | typecheck | test | build | dev` scripts at root.
-- Add TanStack Query, Zustand, Lightweight Charts, and a motion library (Motion/Framer Motion by default).
+- Add TanStack Query and Zustand. UI, chart and motion libraries are chosen freely in Step 1 (ground rule 8); add only what the wireframe needs now.
 - `README.md`: what score is (3 lines), how to run, demo mode, repo map.
 
 ### 0.3 Domain logic → `packages/core` (pure TypeScript, fully tested)
@@ -92,6 +99,8 @@ Where the prototype has a known bug or ambiguity (e.g. dividend denominator, Q1)
 ### 0.5 App shell + dummy UI layout (wireframe quality)
 
 Build every route and global element from `ARCHITECTURE.md` §7.3 with **real data from the mock**, using plain shadcn defaults and simple layout. Do **not** design yet: no custom colours, fonts, backgrounds, illustrations or motion. The goal is correct structure, hierarchy and states that Step 1 can style.
+
+The shadcn components here are **scaffolding, not a commitment** — Step 1 may replace any of them. So keep presentation thin: data fetching, state and behaviour live in hooks (`usePlayer`, `useTradeQuote`, `useRound`…), and page components only lay out what the hooks return. Then swapping a UI library later only touches presentation.
 
 - Global: header (logo text, nav, matchday pill with countdown/live, DEVNET badge, balance, account menu + faucet + reset demo), mobile bottom tab bar, toasts, modals (sign-in, bonded, full-time/claim).
 - `/` landing · `/markets` · `/player/[id]` (launching + trading states, trade panel, tabs, Pro view toggle) · `/matchday` · `/portfolio` · `/docs/[section]` (port content + calculators) · `/terms` (port draft).
@@ -184,7 +193,7 @@ Write a **skill → area mapping table** in `docs/UI_SKILLS.md` and follow it fo
 | Copy + visual cliché audit, final gate per screen | anti-slop | Remove generic AI patterns in words and visuals |
 | Audit pass at the end | improve-ui | Finds verified problems; you then implement the fixes |
 
-- If two skills conflict (e.g. different animation libraries), resolve it once, record it in `DECISIONS.md`, and stick to it.
+- If two skills conflict *within a direction* (e.g. they assume different animation libraries for the same job), resolve it for that direction and record it in `DECISIONS.md`. Different directions are free to make different library choices; that is part of the exploration (ground rule 8).
 
 ### 1.5 Four directions → `/lab`
 
@@ -215,13 +224,14 @@ Do not build the other routes for the directions. That comes after the user choo
 
 **Implementation:**
 - Each direction lives in its own folder, e.g. `src/directions/<a-broadcast>/`, with its **own tokens and its own components**. Share only data hooks, `packages/core`, formatting utilities and the `ProtocolClient`. No shared styled components between directions.
+- **Each direction picks its own UI, chart and motion libraries** (ground rule 8). Don't default all four to shadcn + one chart library; let the direction and its lead skill decide. For example, a broadcast direction might lean on GSAP and bespoke components, a fintech one on Radix primitives and visx. Use each library through the direction's tokens.
 - Routes: `/lab` (index with a direction switcher) and `/lab/<direction>/{player,matchday,landing}`.
 - All four read from the same mock state. Add a lab control to **pin the demo at a chosen moment** (e.g. a specific player, mid-live matchday) so the user compares the same moment across directions.
 - Don't modify the Step 0 production routes during exploration.
 - Before presenting, give every direction its better-ui polish, motion pass and anti-slop pass, so none loses because it was less finished.
 
 **Deliverables:**
-- `docs/DIRECTIONS.md`: one card per direction (name, one-line idea, inspiration sources, lead skill, palette, type pairing, key components, motion personality, strengths, weaknesses, who it suits best).
+- `docs/DIRECTIONS.md`: one card per direction (name, one-line idea, inspiration sources, lead skill, **libraries used and why**, palette, type pairing, key components, motion personality, bundle-size impact, strengths, weaknesses, who it suits best).
 - Screenshots: `docs/screenshots/lab/<direction>/` (each screen, desktop + mobile), plus one side-by-side comparison image per screen.
 - Your recommendation, with reasons tied to the product and the Breakpoint audience.
 
@@ -229,7 +239,7 @@ Do not build the other routes for the directions. That comes after the user choo
 
 ### 1.6 Design system for the chosen direction → `docs/DESIGN.md`
 
-Turn the chosen direction into a full system before applying it everywhere: colour tokens (light, and dark if the direction includes it), typography scale, spacing and radius scales, surface elevations, position colours, chart styling, motion tokens (durations, easings), component inventory. Keep the shared non-negotiables from 1.5. Implement as Tailwind theme tokens / CSS variables + shadcn theme; no hard-coded colours in components.
+Turn the chosen direction into a full system before applying it everywhere: colour tokens (light, and dark if the direction includes it), typography scale, spacing and radius scales, surface elevations, position colours, chart styling, motion tokens (durations, easings), component inventory. Keep the shared non-negotiables from 1.5. Implement as Tailwind theme tokens / CSS variables, mapped into whichever component libraries the direction uses; no hard-coded colours in components. List the libraries the system relies on (and for what) in `DESIGN.md`.
 
 ### 1.7 Apply, area by area (in this order)
 

@@ -352,6 +352,8 @@ export interface RoundState {
   clockMode: ClockMode;
   /** 0..1 through the live window. */
   liveProgress: number;
+  /** Club matches this window: kickoff position (0..1 of the live phase) and length, for the matchday strip. */
+  fixtures: { club: string; slot: string; kickoff: number; span: number }[];
   pool: RoundPoolView;
   /** Boards are a projection from form ratings while OPEN. */
   projection: boolean;

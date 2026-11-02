@@ -68,3 +68,11 @@ Format: **date · decision** · alternatives · why. Newest at the bottom. Spec 
 
 ### 2026-11-02 · Browser verification uses Playwright with a system-Chrome fallback
 - `scripts/demo-loop.mjs` launches Playwright's Chromium, or the local Google Chrome if that build isn't downloaded. This avoids a 150MB browser download on machines that already have Chrome.
+
+### 2026-11-02 · Step 1 design direction (taste skill as primary)
+- **App style:** `true-black-flat`, dealt by `design-taste-frontend` (seed 1063017092) over `data-terminal`. The first user is a fan on a phone following a matchday, an event. `data-terminal`'s "no colour on numbers" also contradicts PLAN's green/red for P&L.
+- **Landing direction:** `split-stage` (seed 1760845758). The fixed half is the live matchday board. The proof section was redrawn to `proof-recognition-table` because there are no partner logos, and club or league logos are banned.
+- **Accent:** lime `#c6ff3d` kept but only on data (gains, earnings, live state, bonding fill, the mark), never on buttons, tabs or nav. Lime is also the positive colour, so green appears only on gains (taste: a second green beside a yellow-green accent reads as two greens).
+- **Type:** Instrument Sans instead of the dealt Inter. Schibsted Grotesk was rejected after measuring: its tabular figures widen punctuation. Monospace (Geist Mono) only for wallet addresses and IDs.
+- **Signature element:** the matchday strip (snapshot → live → freeze with every kickoff marked).
+- **Skills that could not be installed:** `better-accessibility`, `better-typography`, `better-colors` (permission policy blocked the download into `.claude/skills/`). Accessibility is checked with `@axe-core/playwright` instead.

@@ -10,15 +10,22 @@ export const CLUSTERS: ClusterMoniker[] = [
   "localnet",
 ];
 
+const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_DEVNET || "https://api.devnet.solana.com";
+
+/** Websocket endpoint for an http(s) RPC URL (Helius serves both on the same host and query string). */
+function toWs(url: string): string {
+  return url.replace(/^http/, "ws");
+}
+
 const CLUSTER_URLS: Record<ClusterMoniker, string> = {
-  devnet: "https://api.devnet.solana.com",
+  devnet: DEVNET_RPC,
   testnet: "https://api.testnet.solana.com",
   mainnet: "https://api.mainnet-beta.solana.com",
   localnet: "http://localhost:8899",
 };
 
 const WS_URLS: Record<ClusterMoniker, string> = {
-  devnet: "wss://api.devnet.solana.com",
+  devnet: toWs(DEVNET_RPC),
   testnet: "wss://api.testnet.solana.com",
   mainnet: "wss://api.mainnet-beta.solana.com",
   localnet: "ws://localhost:8900",

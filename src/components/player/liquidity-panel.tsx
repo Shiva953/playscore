@@ -61,7 +61,7 @@ function AddLiquidity({ player }: { player: PlayerDetail }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <Tabs value={mode} onValueChange={(v) => setMode(v as "pair" | "zap")}>
-          <TabsList className="w-full">
+          <TabsList variant="segmented" className="w-full">
             <TabsTrigger value="pair">USDC + {player.ticker}</TabsTrigger>
             <TabsTrigger value="zap">USDC only</TabsTrigger>
           </TabsList>

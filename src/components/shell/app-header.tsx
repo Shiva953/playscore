@@ -2,59 +2,62 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { AccountMenu, HeaderBalance } from "./account-menu";
 import { MatchdayPill } from "./matchday-pill";
 
 export const NAV = [
-  { href: "/markets", label: "Markets" },
-  { href: "/matchday", label: "Matchday" },
-  { href: "/portfolio", label: "Portfolio" },
+  { href: "/markets", label: "Markets", match: "/markets" },
+  { href: "/matchday", label: "Matchday", match: "/matchday" },
+  { href: "/portfolio", label: "Portfolio", match: "/portfolio" },
   { href: "/docs/stats", label: "Docs", match: "/docs" },
 ] as const;
 
-export function Logo() {
+/** The product's mark: the name, and the scoreboard cell from the prototype logo in the data hue. */
+export function Logo({ className }: { className?: string }) {
   return (
-    <Link href="/" className="text-lg font-bold tracking-tight" aria-label="score home">
-      score<span aria-hidden="true">▮</span>
+    <Link href="/" className={cn("inline-flex items-center gap-[3px] text-[19px] leading-none font-semibold tracking-[-0.02em] text-ink", className)} aria-label="score, home">
+      score
+      <span aria-hidden="true" className="inline-block h-[15px] w-[8px] translate-y-[1px] rounded-[2px] bg-up" />
     </Link>
   );
 }
 
 export function AppHeader() {
   const path = usePathname();
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 4);
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
-      <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-3 px-4">
+    <header className={cn("sticky top-0 z-40 bg-ground pt-[env(safe-area-inset-top)] transition-[box-shadow] duration-150", scrolled && "shadow-[0_1px_0_var(--rule)]")}>
+      <div className="mx-auto flex h-12 w-full max-w-[1200px] items-center gap-6 px-4 md:px-6">
         <Logo />
-        <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
+        <nav className="hidden items-center gap-5 md:flex" aria-label="Main">
           {NAV.map((n) => {
-            const active = path.startsWith("match" in n ? n.match : n.href);
+            const active = path.startsWith(n.match);
             return (
               <Link
                 key={n.href}
                 href={n.href}
                 aria-current={active ? "page" : undefined}
-                className={cn("rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground", active && "bg-muted text-foreground")}
+                className={cn("text-[14px] font-medium transition-colors duration-150", active ? "text-ink" : "text-[#bbbbbb] hover:text-ink")}
               >
                 {n.label}
               </Link>
             );
           })}
         </nav>
-        <div className="ml-auto flex items-center gap-2">
-          <MatchdayPill className="hidden sm:inline-flex" />
-          <Badge variant="outline" className="hidden sm:inline-flex">
-            DEVNET
-          </Badge>
+        <div className="ml-auto flex items-center gap-3">
+          <MatchdayPill />
+          <span className="hidden rounded-full border border-control px-2 py-0.5 text-[11px] leading-4 font-medium text-soft sm:inline">Devnet</span>
           <HeaderBalance />
           <AccountMenu />
         </div>
-      </div>
-      <div className="flex items-center justify-between gap-2 border-t px-4 py-1.5 sm:hidden">
-        <MatchdayPill />
-        <Badge variant="outline">DEVNET</Badge>
       </div>
     </header>
   );

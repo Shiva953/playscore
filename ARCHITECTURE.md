@@ -352,8 +352,7 @@ Tokens: one SPL mint per player, program PDA as mint authority; user balances tr
 - **Scaffold:** `create-solana-dapp` template `gill-next-tailwind-basic` (Next.js, Tailwind, shadcn/ui, gill on @solana/kit, Wallet UI, Anchor example, Codama). The template's Anchor example **stays untouched**.
 - TypeScript strict, pnpm, ESLint, Prettier, Vitest.
 - Data/state: TanStack Query (wrapping the `ProtocolClient`), Zustand for session/demo state.
-- Charts: TradingView **Lightweight Charts** (price) + custom SVG (bonding curve).
-- Motion: one library (Framer Motion/Motion by default; Step 1 may justify otherwise — record it in `docs/DECISIONS.md`).
+- **UI, chart and motion libraries: deliberately not fixed.** shadcn/ui ships with the template but is not a mandate. Components, charts and animation are chosen per design direction and per component (`PLAN.md` ground rule 8), e.g. Radix / React Aria / Base UI primitives, shadcn / Origin UI / Magic UI / Aceternity-style components, Motion / GSAP / react-spring, NumberFlow, Lightweight Charts / visx / Recharts / ECharts, Rive / Lottie / React Three Fiber, or hand-built. Guardrails: accessible primitives for complex widgets, no duplicate libraries for the same job on one screen, lazy-load heavy pieces, commercial-compatible licences, all styling through design tokens, every choice logged in `docs/DECISIONS.md`.
 - Wallet: Wallet UI for Phantom now; embedded wallet (Privy) mocked by a sign-in modal until we have an app ID.
 
 ### 7.2 The `ProtocolClient` seam (most important frontend decision)
@@ -433,7 +432,8 @@ score/
 │                                      # boards, controller, claims, demo simulator + tests
 └─ src/ (or apps/web/)                 # Next.js app from the template
    ├─ app/ (routes above; /lab/* = design exploration, dev-only)
-   ├─ components/ (ui/ = shadcn, feature folders per page)
+   ├─ components/ (shared primitives + feature folders per page; library mix per DECISIONS.md)
+   ├─ hooks/ (data + behaviour, presentation-free, so UI libraries can be swapped)
    ├─ directions/ (Step 1.5: one folder per design direction, own tokens + components)
    ├─ lib/protocol/ (ProtocolClient, MockProtocolClient, DemoClock)
    └─ lib/format/ (numbers, prices, time)

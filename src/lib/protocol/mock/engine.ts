@@ -13,7 +13,6 @@ import {
   eligibleSupplyAtSnapshot,
   eligibleTokens,
   eventValue,
-  hashString,
   holdAgeDays,
   holderPayout,
   initialSimState,
@@ -21,7 +20,6 @@ import {
   mergeAcquisition,
   momentumImpulse,
   nextAmbientIntent,
-  planRound,
   poisson,
   priceAt,
   pushPayHistory,
@@ -52,6 +50,8 @@ import {
   holdNow,
   holderTokens,
   nextId,
+  planFor,
+  planSeed,
   profile,
   simInputs,
   spot,
@@ -567,8 +567,8 @@ export function kickoff(ctx: EngineCtx): void {
     }
   }
   r.snapshot = { at: ctx.now, bonded: bonded.map((p) => p.id), eligibleSupply, user };
-  const seed = hashString(`${s.createdAt}:${r.round}`);
-  r.plan = planRound({ round: r.round, kind: w.kind, mode: s.settings.clockMode, players: simInputs(s), seed });
+  const seed = planSeed(s);
+  r.plan = planFor(s);
   r.sim = initialSimState(r.plan, seed ^ 0x5f3759df);
   r.liveProgress = 0;
   r.events = [];

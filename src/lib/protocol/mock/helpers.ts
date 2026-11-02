@@ -1,5 +1,9 @@
 import {
   COEFFICIENTS,
+  hashString,
+  planRound,
+  windowForRound,
+  type MatchPlan,
   EVENT_MATRIX,
   PLAYERS,
   PLAYERS_BY_ID,
@@ -92,4 +96,16 @@ export function eventLabel(code: EventCode | "kickoff" | "fulltime"): string {
 
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/** The round's fixtures, deterministic per world + round, so they can be shown before kickoff. */
+export function planFor(s: MockState): MatchPlan {
+  const r = s.round;
+  const w = windowForRound(r.round);
+  const seed = hashString(`${s.createdAt}:${r.round}`);
+  return planRound({ round: r.round, kind: w.kind, mode: s.settings.clockMode, players: simInputs(s), seed });
+}
+
+export function planSeed(s: MockState): number {
+  return hashString(`${s.createdAt}:${s.round.round}`);
 }

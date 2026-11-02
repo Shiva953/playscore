@@ -11,7 +11,7 @@ import { formatPct, formatPrice, formatTokens, formatUsd } from "@/lib/format";
 import type { PlayerDetail, PriceRange } from "@/lib/protocol/types";
 import { usePlayers, usePortfolio, useSession } from "@/lib/protocol/react/hooks";
 import { cn } from "@/lib/utils";
-import { BondingCurveChart, PriceChart, type Indicators } from "./charts";
+import { BondingCurveChart, PriceChart, RangeControl, type Indicators } from "./charts";
 import { ImpactLadder, RecentTrades } from "./market-depth";
 import { TradePanel } from "./trade-panel";
 
@@ -21,7 +21,7 @@ export function ProView({ player }: { player: PlayerDetail }) {
   const [ind, setInd] = useState<Indicators>({ ma: true, ema: false, bb: false, rsi: false });
   const toggle = (k: keyof Indicators) => setInd((s) => ({ ...s, [k]: !s[k] }));
   return (
-    <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_300px]">
+    <div className="grid gap-4 lg:grid-cols-[200px_minmax(0,1fr)_340px]">
       <Card size="sm" className="order-3 lg:order-1">
         <CardHeader>
           <CardTitle>Watchlist</CardTitle>
@@ -35,7 +35,8 @@ export function ProView({ player }: { player: PlayerDetail }) {
           <CardContent className="flex flex-col gap-2">
             {player.status === "trading" ? (
               <>
-                <div className="flex flex-wrap gap-1" aria-label="Indicators">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap gap-1" role="group" aria-label="Indicators">
                   {(
                     [
                       ["ma", "MA 7"],
@@ -44,12 +45,14 @@ export function ProView({ player }: { player: PlayerDetail }) {
                       ["rsi", "RSI 14"],
                     ] as const
                   ).map(([k, label]) => (
-                    <Toggle key={k} size="sm" variant="outline" pressed={ind[k]} onPressedChange={() => toggle(k)}>
+                    <Toggle key={k} size="sm" pressed={ind[k]} onPressedChange={() => toggle(k)} className="h-7 px-3 text-xs">
                       {label}
                     </Toggle>
                   ))}
                 </div>
-                <PriceChart playerId={player.id} range={range} onRange={setRange} indicators={ind} height={ind.rsi ? 380 : 320} />
+                <RangeControl value={range} onChange={setRange} />
+                </div>
+                <PriceChart playerId={player.id} range={range} indicators={ind} height={ind.rsi ? 400 : 340} />
               </>
             ) : player.status === "launching" ? (
               <BondingCurveChart sold={player.curve.sold} />
@@ -97,7 +100,7 @@ function Watchlist({ selected }: { selected: string }) {
   return (
     <QueryState query={q} loading={<LoadingRows rows={8} className="p-3" />}>
       {(list) => (
-        <ul className="max-h-[560px] overflow-y-auto text-sm">
+        <ul className="max-h-[600px] overflow-y-auto overscroll-contain px-2 pb-2 text-sm">
           {list
             .filter((p) => p.status !== "scheduled")
             .sort((a, b) => b.volume24h - a.volume24h)
@@ -106,7 +109,7 @@ function Watchlist({ selected }: { selected: string }) {
                 <Link
                   href={`/player/${p.id}`}
                   aria-current={p.id === selected ? "page" : undefined}
-                  className={cn("flex items-center justify-between gap-2 px-3 py-1.5 hover:bg-muted", p.id === selected && "bg-muted")}
+                  className={cn("flex items-center justify-between gap-2 rounded-xl px-3 py-2 transition-colors duration-150 hover:bg-raised", p.id === selected && "bg-raised")}
                 >
                   <span className="font-mono text-xs font-semibold">${p.ticker}</span>
                   <span className="flex flex-col items-end">

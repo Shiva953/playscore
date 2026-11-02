@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { AppHeader } from "@/components/shell/app-header";
@@ -8,7 +8,7 @@ import { SiteFooter } from "@/components/shell/site-footer";
 import { GlobalModals } from "@/components/modals/global-modals";
 import { cn } from "@/lib/utils";
 
-const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
+const instrument = Instrument_Sans({ subsets: ["latin"], axes: ["wdth"], variable: "--font-instrument" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
@@ -25,12 +25,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn(geistSans.variable, geistMono.variable)}>
+    <html lang="en" suppressHydrationWarning className={cn("dark", instrument.variable, geistMono.variable)}>
       <body className="min-h-dvh antialiased">
         <Providers>
           <div className="flex min-h-dvh flex-col">
             <AppHeader />
-            <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 pt-4 pb-24 md:pb-10">
+            <main id="main" className="mx-auto w-full max-w-[1200px] flex-1 px-4 pt-6 pb-24 md:px-6 md:pt-8 md:pb-16">
               {children}
             </main>
             <SiteFooter />

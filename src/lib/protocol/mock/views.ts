@@ -73,6 +73,7 @@ import {
   getPlayer,
   holdNow,
   holderTokens,
+  planFor,
   profile,
   spot,
   userTokens,
@@ -453,6 +454,10 @@ export function roundStateOf(s: MockState): RoundState {
   const boards = buildBoardViews(alloc, (id) => mine[id] ?? 0);
 
   const plan = r.plan;
+  const fixturePlan = plan ?? planFor(s);
+  const fixtures = Object.values(fixturePlan.clubs)
+    .map((c) => ({ club: c.club, slot: c.label, kickoff: c.kickoff, span: fixturePlan.span }))
+    .sort((a, b) => a.kickoff - b.kickoff);
   const playerIds = Object.values(s.players)
     .filter((p) => p.status !== "scheduled")
     .map((p) => p.id);
@@ -517,6 +522,7 @@ export function roundStateOf(s: MockState): RoundState {
     phaseEndsAt: r.phaseEndsAt,
     clockMode: s.settings.clockMode,
     liveProgress: r.liveProgress,
+    fixtures,
     pool: { vault: s.vault, usd: ctrl.roundPool, bps: ctrl.bps, effectiveRate: ctrl.effectiveRate, capped: ctrl.capped },
     projection,
     scores,
