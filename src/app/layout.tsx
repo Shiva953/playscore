@@ -1,41 +1,43 @@
-import type { Metadata } from "next";
-import { Geist_Mono, Inter, Geist } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { AppHeader } from "@/components/shell/app-header";
+import { BottomTabBar } from "@/components/shell/bottom-tab-bar";
+import { SiteFooter } from "@/components/shell/site-footer";
+import { GlobalModals } from "@/components/modals/global-modals";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
-  title: "Solana dApp Starter",
-  description: "A minimal Next.js starter powered by @solana/kit",
-  icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
-  },
+  title: { default: "score · own the players", template: "%s · score" },
+  description: "Own the players. Earn when they perform. A football player trading protocol on Solana (devnet demo).",
+  icons: { icon: "/icon.svg" },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
-      <body className={`${inter.variable} ${geistMono.variable} antialiased`}>
-        <Providers>{children}</Providers>
+    <html lang="en" suppressHydrationWarning className={cn(geistSans.variable, geistMono.variable)}>
+      <body className="min-h-dvh antialiased">
+        <Providers>
+          <div className="flex min-h-dvh flex-col">
+            <AppHeader />
+            <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 pt-4 pb-24 md:pb-10">
+              {children}
+            </main>
+            <SiteFooter />
+          </div>
+          <BottomTabBar />
+          <GlobalModals />
+        </Providers>
       </body>
     </html>
   );

@@ -199,3 +199,20 @@ describe("MockProtocolClient end to end", () => {
     expect((await client.getProtocolStats()).vault).toBe(60_000);
   });
 });
+
+describe("bonding buy balance check", () => {
+  it("only needs the USDC actually used up to the threshold", async () => {
+    const { client } = makeClient();
+    await client.signIn({ method: "google", country: "Germany", acceptedTerms: true });
+    client.simulateLaunchDemand("olise", 0.97);
+    const before = (await client.getPortfolio())!.usdc; // 1,000
+    // Typing more than the balance is fine when the fill needs less than the balance
+    const q = client.quoteBuy("olise", 5_000);
+    expect(q.bonds).toBe(true);
+    expect(q.usdc).toBeLessThan(before);
+    expect(q.ok).toBe(true);
+    const r = await client.buy("olise", 5_000);
+    expect(r.bonded).toBe("olise");
+    expect((await client.getPortfolio())!.usdc).toBeCloseTo(before - q.usdc, 6);
+  });
+});

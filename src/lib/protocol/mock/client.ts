@@ -223,12 +223,12 @@ export class MockProtocolClient implements ProtocolClient, AuthClient, DemoContr
   }
 
   getRound(): Promise<RoundState> {
-    return this.read(() => roundStateOf(this.s, this.clockNow()));
+    return this.read(() => roundStateOf(this.s));
   }
 
   getRoundHistory(limit: number): Promise<RoundResult[]> {
     // Strip internal per-player data from stored results.
-    return this.read(() => this.s.results.slice(0, limit).map(({ perPlayer: _perPlayer, ...r }) => r));
+    return this.read(() => this.s.results.slice(0, limit).map(publicResult));
   }
 
   getPortfolio(): Promise<Portfolio | null> {
@@ -398,6 +398,12 @@ export class MockProtocolClient implements ProtocolClient, AuthClient, DemoContr
   get state(): MockState {
     return this.s;
   }
+}
+
+function publicResult(r: MockState["results"][number]): RoundResult {
+  const { perPlayer, ...rest } = r;
+  void perPlayer;
+  return rest;
 }
 
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";

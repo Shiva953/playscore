@@ -56,3 +56,15 @@ Format: **date · decision** · alternatives · why. Newest at the bottom. Spec 
 
 ### 2026-11-02 · Reserve trimmed by 40 tokens at bonding (SQ-35)
 - **Why:** the spec's curve constants give S_max = 6,400,040, so float + full reserve = 10,000,040. `reserveAfterBond()` caps the reserve at `10M − sold − 1.6M`, which keeps the 10M invariant without touching any price.
+
+### 2026-11-02 · Wireframe UI choices (Step 0)
+- **Rarity tiers dropped** ("Legendary/Epic/Rare/Core" from the prototype). Player identity is typographic: ticker, position badge, form rating, sparkline, board rank.
+- **Pro view indicators:** MA 7, EMA 14, Bollinger (20, 2σ) and RSI 14 in a second pane. The prototype's "Bollinger" was SMA10 ± 8%, which isn't Bollinger. The prototype's volume bars were derived from price changes, not volume; dropped until the indexer provides real per-bar volume.
+- **Chart colours** are a neutral placeholder palette in `charts.tsx`: canvas charts can't read the oklch CSS tokens directly. Step 1 maps them to the theme.
+- **Only two colour tokens added** (`--up`, `--down`) so P&L direction is visible in the wireframe. Everything else is shadcn's neutral default.
+- **Pro view preference** persists per viewer (Zustand + guarded localStorage). Everything else in the UI store is session-only.
+- **Live updates:** protocol events invalidate only the affected TanStack Query keys, batched every 350ms. Countdowns use a shared 1s clock hook, so only the countdown text re-renders each second.
+- **Next.js dev indicator off** (`devIndicators: false`) so screenshots match production.
+
+### 2026-11-02 · Browser verification uses Playwright with a system-Chrome fallback
+- `scripts/demo-loop.mjs` launches Playwright's Chromium, or the local Google Chrome if that build isn't downloaded. This avoids a 150MB browser download on machines that already have Chrome.

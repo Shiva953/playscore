@@ -216,7 +216,7 @@ export function userBuy(ctx: EngineCtx, id: string, usdc: number): TxResult {
   const u = requireUser(s);
   const p = getPlayer(s, id);
   const pr = profile(id);
-  checkUsdc(u, usdc);
+  if (!(usdc > 0) || !Number.isFinite(usdc)) throw new ProtocolError("INVALID_AMOUNT", "Enter an amount.");
   if (p.status === "scheduled") throw new ProtocolError("NOT_LAUNCHED", `${pr.name} hasn't launched yet.`);
   const pos = positionOf(u, id);
   const t = holdNow(s, ctx.now);
@@ -227,6 +227,8 @@ export function userBuy(ctx: EngineCtx, id: string, usdc: number): TxResult {
       const e = curveErrorMessage(q.error!, { maxUsdc: q.cap.maxUsdcNow, maxTokens: q.cap.maxTokensNow, ticker: pr.ticker });
       throw new ProtocolError(e.code as ProtocolError["code"], e.message);
     }
+    // The bonding buy only spends what reaches $25k; the rest is never taken, so check what's used.
+    checkUsdc(u, q.usdcUsed);
     u.usdc -= q.usdcUsed;
     acquire(pos, q.tokensOut, t);
     pos.costBasis += q.usdcUsed;
@@ -257,6 +259,7 @@ export function userBuy(ctx: EngineCtx, id: string, usdc: number): TxResult {
     };
   }
 
+  checkUsdc(u, usdc);
   const q = quotePoolBuy(p.pool!, usdc);
   if (!q.ok) throw new ProtocolError("INVALID_AMOUNT", "Enter an amount.");
   u.usdc -= usdc;

@@ -1,167 +1,63 @@
-# nextjs-anchor
+# score▮
 
-Next.js starter with Tailwind CSS, `@solana/kit`, and an Anchor vault program example.
+Own the players. Earn when they perform.
+Real footballers launch as tokens on a bonding curve, graduate into a permanent trading pool at $25k raised, and every matchday the holders of players who finish top 5 on a leaderboard share USDC dividends from a funded vault.
+This repo is the devnet demo: a Next.js app over a mock protocol that runs the real economics in TypeScript. Solana programs come later (see `PLAN.md`).
 
-## Getting Started
+> **Status: Step 0 (foundation).** Wireframe UI on shadcn defaults, full domain logic, mock protocol. Design polish is Step 1. Nothing touches a chain yet.
 
-```shell
-npx -y create-solana-dapp@latest -t solana-foundation/templates/kit/nextjs-anchor
-```
+## Run it
 
-```shell
-npm install
-npm run setup   # Builds the Anchor program and generates the TypeScript client
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000), connect your wallet, and interact with the vault.
-
-## What's Included
-
-- **Wallet connection** via wallet-standard with auto-discovery and dropdown UI
-- **Cluster switching** — devnet, testnet, mainnet, and localnet from the header
-- **Wallet balance** display with airdrop button (devnet/testnet/localnet)
-- **SOL Vault program** — deposit and withdraw SOL from a personal PDA vault
-- **Toast notifications** with explorer links for every transaction
-- **Error handling** — human-readable messages for common Solana and program errors
-- **Codama-generated client** — type-safe program interactions using `@solana/kit`
-- **Tailwind CSS v4** with light/dark mode toggle
-
-## Stack
-
-| Layer          | Technology                       |
-| -------------- | -------------------------------- |
-| Frontend       | Next.js 16, React 19, TypeScript |
-| Styling        | Tailwind CSS v4                  |
-| Solana Client  | `@solana/kit`, wallet-standard   |
-| Program Client | Codama-generated, `@solana/kit`  |
-| Program        | Anchor (Rust)                    |
-
-## Project Structure
-
-```
-├── app/
-│   ├── components/
-│   │   ├── cluster-context.tsx  # Cluster state (React context + localStorage)
-│   │   ├── cluster-select.tsx   # Cluster switcher dropdown
-│   │   ├── grid-background.tsx  # Solana-branded decorative grid
-│   │   ├── providers.tsx        # Wallet + theme providers
-│   │   ├── theme-toggle.tsx     # Light/dark mode toggle
-│   │   ├── vault-card.tsx       # Vault deposit/withdraw UI
-│   │   └── wallet-button.tsx    # Wallet connect/disconnect dropdown
-│   ├── generated/vault/        # Codama-generated program client
-│   ├── lib/
-│   │   ├── wallet/             # Wallet-standard connection layer
-│   │   │   ├── types.ts        # Wallet types
-│   │   │   ├── standard.ts     # Wallet discovery + session creation
-│   │   │   ├── signer.ts       # WalletSession → TransactionSigner
-│   │   │   └── context.tsx     # WalletProvider + useWallet() hook
-│   │   ├── hooks/
-│   │   │   ├── use-balance.ts  # SWR-based balance fetching
-│   │   │   └── use-send-transaction.ts  # Transaction send with loading state
-│   │   ├── cluster.ts          # Cluster endpoints + RPC factory
-│   │   ├── lamports.ts         # SOL/lamports conversion
-│   │   ├── send-transaction.ts # Transaction build + sign + send pipeline
-│   │   ├── errors.ts           # Transaction error parsing
-│   │   └── explorer.ts         # Explorer URL builder + address helpers
-│   └── page.tsx                # Main page
-├── anchor/                     # Anchor workspace
-│   └── programs/vault/         # Vault program (Rust)
-└── codama.json                 # Codama client generation config
-```
-
-## Local Development
-
-To test against a local validator instead of devnet:
-
-1. **Start a local validator**
-
-   ```bash
-   solana-test-validator
-   ```
-
-2. **Deploy the program locally**
-
-   ```bash
-   solana config set --url localhost
-   cd anchor
-   anchor build
-   anchor deploy
-   cd ..
-   npm run codama:js   # Regenerate client with local program ID
-   ```
-
-3. **Switch to localnet** in the app using the cluster selector in the header.
-
-## Deploy Your Own Vault
-
-The included vault program is already deployed to devnet. To deploy your own:
-
-> **Note:** `npm run setup` and `npm run anchor-build` pass `--ignore-keys` to `anchor build` so the program keeps the devnet program ID shipped with this template (`F4jZpgbtTb6RWNWq6v35fUeiAsRJMrDczVPv9U23yXjB`). Anchor 1.x otherwise generates a fresh program keypair on build and rewrites `declare_id!`. The steps below build without that flag on purpose, so Anchor syncs your own program ID before deploying.
-
-### Prerequisites
-
-- [Rust](https://rustup.rs/)
-- [Solana CLI](https://solana.com/docs/intro/installation)
-- [Anchor](https://www.anchor-lang.com/docs/installation)
-
-### Steps
-
-1. **Configure Solana CLI for devnet**
-
-   ```bash
-   solana config set --url devnet
-   ```
-
-2. **Create a wallet (if needed) and fund it**
-
-   ```bash
-   solana-keygen new
-   solana airdrop 2
-   ```
-
-3. **Build and deploy the program**
-
-   ```bash
-   cd anchor
-   anchor build
-   anchor keys sync    # Updates program ID in source
-   anchor build        # Rebuild with new ID
-   anchor deploy
-   cd ..
-   ```
-
-4. **Regenerate the client and restart**
-   ```bash
-   npm run setup   # Rebuilds program and regenerates client
-   npm run dev
-   ```
-
-## Testing
-
-Tests use [LiteSVM](https://github.com/LiteSVM/litesvm), a fast lightweight Solana VM for testing.
+Requires Node 20+ and [bun](https://bun.sh) 1.2+.
 
 ```bash
-npm run anchor-build   # Build the program first
-npm run anchor-test    # Run tests
+bun install
+bun run dev          # http://localhost:3000
 ```
 
-The tests are in `anchor/programs/vault/src/tests.rs` and automatically use the program ID from `declare_id!`.
+| Command | What it does |
+|---|---|
+| `bun run dev` | Next.js dev server (Turbopack) |
+| `bun run build` | Production build |
+| `bun run lint` | ESLint |
+| `bun run typecheck` | `tsc` for the app and `packages/core` |
+| `bun run test` | Vitest: core maths, §9 test vectors, property tests, mock end-to-end |
+| `bun run demo:loop` | Drives the full loop in a real browser and saves screenshots to `docs/screenshots/step-0/` (needs `bun run dev` running; `BASE_URL` to override) |
 
-## Regenerating the Client
+## Demo mode
 
-If you modify the program, regenerate the TypeScript client:
+Everything runs in your browser with simulated funds. State persists in `localStorage` (`score:mock:v1`).
 
-```bash
-npm run setup   # Or: npm run anchor-build && npm run codama:js
+- **Sign in** with Google, email or Phantom (all simulated). Pick a country: restricted ones (UK, US, …) are blocked. You get 1,000 test USDC, plus a faucet in the account menu.
+- **Demo clock:** each matchday is compressed to 40s before kickoff, 50s live, then 5s "data freeze" before it settles. The header pill shows where you are.
+- **Demo settings** (account menu, or "Demo" when signed out): switch to the real fixture calendar, skip to the next phase, turn the simulated market on/off, simulate network errors or latency, fill a launch curve to 96% so your buy can bond it, launch the next scheduled players, fast-forward hold age by 30 days, reset everything.
+
+A 2-minute demo: sign in → buy a launching player → *Fill to 96%* → buy again to bond it → buy a bonded player → wait for kickoff (or skip) → watch the live board → full time → take dividends as USDC or +10% tokens → Portfolio.
+
+## Repo map
+
+```
+├─ PLAN.md · ARCHITECTURE.md        product spec and build plan
+├─ docs/
+│  ├─ concept/score-terminal-v4.html   founder prototype (source of numbers)
+│  ├─ ANALYSIS.md                      Step 0 analysis + open questions (SQ-n)
+│  ├─ DECISIONS.md                     decision log
+│  └─ screenshots/step-0/              verification screenshots
+├─ anchor/                           template example program, untouched (contracts come in Step 3)
+├─ packages/core/                    pure TS domain logic + tests
+│  └─ src/  config · curve · bonding · pool · fees · holdAge · scoring · boards
+│           controller · claims · snapshot · calendar · points · sim/ (seed, match sim, ambient market)
+├─ src/
+│  ├─ app/                           routes: / · /markets · /player/[id] · /matchday · /portfolio · /docs/[section] · /terms
+│  ├─ components/                    ui/ (shadcn) · shell · modals · markets · player · matchday · portfolio · docs · landing · common
+│  ├─ lib/protocol/                  ProtocolClient seam, MockProtocolClient, DemoClock, React hooks
+│  ├─ lib/format/                    numbers, prices, time
+│  └─ lib/solana/                    template wallet-standard + RPC client (for the later on-chain client)
+└─ scripts/demo-loop.mjs             browser verification
 ```
 
-This uses [Codama](https://github.com/codama-idl/codama) to generate a type-safe client from the Anchor IDL.
+The UI only talks to `ProtocolClient` (`src/lib/protocol/types.ts`). The mock implements it with `packages/core`. A later `OnchainProtocolClient` (Codama client + indexer) implements the same interface.
 
-## Learn More
+## Not in this step
 
-- [Solana Docs](https://solana.com/docs) — core concepts and guides
-- [Anchor Docs](https://www.anchor-lang.com/docs/introduction) — program development framework
-- [Deploying Programs](https://solana.com/docs/programs/deploying) — deployment guide
-- [@solana/kit](https://github.com/anza-xyz/kit) — Solana JavaScript SDK
-- [Codama](https://github.com/codama-idl/codama) — client generation from IDL
+No Solana program, oracle, real match data, indexer or production wallet keys. Dividends are a product mechanic, not a promise: see `/docs` and `/terms` (draft for legal review).

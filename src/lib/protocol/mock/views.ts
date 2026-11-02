@@ -443,7 +443,7 @@ function eligibleSupplyNow(s: MockState, id: string): number {
   return eligibleSupplyAtSnapshot(holderTokens(p), p.pool);
 }
 
-export function roundStateOf(s: MockState, now: number): RoundState {
+export function roundStateOf(s: MockState): RoundState {
   const r = s.round;
   const w = windowForRound(r.round);
   const ctrl = controllerNow(s);
