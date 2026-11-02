@@ -118,11 +118,30 @@ Build every route and global element from `ARCHITECTURE.md` §7.3 with **real da
 
 ---
 
-## Step 1 — UI polish with design skills
+## Step 1 — Design: research, four directions, then build the chosen one
 
-Goal: turn the wireframe into a **full-fledged consumer DeFi product** — a distinctive theme, considered colour grading, backgrounds and visual elements where they earn their place, smooth motion, flawless on mobile. Use the installed design skills deliberately: **each skill only where it fits best.**
+Goal: a **full-fledged consumer DeFi product** with a distinctive, considered design. We get there in two phases with a gate between them:
 
-### 1.1 Inventory the skills already installed
+1. **Explore:** research existing products, then build **four genuinely different design directions** on the three screens that define the product. The user picks one (or a mix).
+2. **Build out:** take the chosen direction across every route, state and breakpoint.
+
+**Mandate for everything in Step 1:** every direction and every screen follows design-engineering principles and the installed design skills, each skill used where it fits best (1.4). The four directions are *different designs*, not theme switches of one design.
+
+### 1.1 Inspiration research → `docs/INSPIRATION.md`
+
+Before any design work, study what exists. Use the browser (Playwright or the available browser tools) to visit, screenshot (desktop + mobile width) and analyse:
+
+- **Direct comps:** Football.fun / Sport.fun, Sorare, Playr, Fantasy Premier League, Football Index (archived pages/screenshots if the site is gone)
+- **Football data & live:** FotMob, Sofascore, OneFootball
+- **Markets & trading:** Polymarket, Kalshi, Hyperliquid, Jupiter, pump.fun, Meteora
+- **Consumer finance:** Robinhood, Coinbase, Phantom
+- Anything else you find that does a relevant screen especially well
+
+For each product, record: what it is; its visual language (type, colour, density, shape, motion); **patterns worth borrowing per score screen** (player page, trade panel, live matchday, markets list, portfolio, claim moment, onboarding); what to avoid; and what makes it feel premium or cheap. End with a synthesis: the five to ten ideas that should shape score's directions.
+
+Screenshots go in `docs/inspiration/` for internal reference only. **Never copy logos, brand assets, illustrations or proprietary layouts wholesale.** We borrow patterns, not identities.
+
+### 1.2 Inventory the skills already installed
 
 - List every skill available to you. Check **all** of these locations — skills are split across them:
   - `~/.claude/skills/` (global Claude Code skills)
@@ -134,49 +153,87 @@ Goal: turn the wireframe into a **full-fledged consumer DeFi product** — a dis
 - **Read each relevant `SKILL.md` in full** (and any files it references) before deciding anything. Note: purpose, what it's good at, what it forbids, any stack it assumes (e.g. a specific animation library), and whether it edits code or only audits/plans.
 - Record the inventory in `docs/UI_SKILLS.md`, with the path each skill was found at.
 
-### 1.2 Add more skills from ui-skills.com where they fill a gap
+### 1.3 Add more skills from ui-skills.com where they fill a gap
 
 - Browse the catalogue (`npx ui-skills` CLI, the MCP, or https://www.ui-skills.com/skills). Shortlist only skills that fill a gap in what's installed. Candidates worth evaluating for this product:
   - `ibelick/ui-skills-root` — router to the right UI skill per task
   - `ibelick/improve-ui` — audit surfaces and write fix plans (read-only)
+  - `0xdesign/design-lab` — generating and comparing variants (**directly relevant to 1.5**)
   - `Dammyjay93/interface-design` — dashboards, data-dense app screens
   - `jakubkrehel/better-ui` — detail polish (borders, shadows, radius, hover, optical alignment, micro-interactions)
   - `emilkowalski/improve-animations`, `raphaelsalaja/12-principles-of-animation`, `wshobson/interaction-design` — motion
-  - `anthropics/frontend-design`, `pbakaus/impeccable`, `Leonxlnx/gpt-tasteskill` — overall aesthetic direction (pick **one** primary)
+  - `anthropics/frontend-design`, `pbakaus/impeccable`, `Leonxlnx/gpt-tasteskill` — overall aesthetic direction
   - `benjitaylor/stageshow` — faux product UI for marketing/hero illustrations
-  - `0xdesign/design-lab` — generating and comparing variants
-- Before installing, check that the skill isn't already in any of the 1.1 locations (including `~/.agents/skills/`). Install new ones to the **project** (`.claude/skills/`) unless the user says otherwise. Read every new skill's files before using it; don't run bundled scripts you haven't reviewed. Log what you installed and why in `docs/UI_SKILLS.md`.
+- Before installing, check that the skill isn't already in any of the 1.2 locations (including `~/.agents/skills/`). Install new ones to the **project** (`.claude/skills/`) unless the user says otherwise. Read every new skill's files before using it; don't run bundled scripts you haven't reviewed. Log what you installed and why in `docs/UI_SKILLS.md`.
 
-### 1.3 Map skills to areas — before touching any UI
+### 1.4 Map skills to areas — before touching any UI
 
-Write a **skill → area mapping table** in `docs/UI_SKILLS.md` and follow it. Rules:
-- **One primary aesthetic-direction skill** (taste-skill or equivalent) owns the design system: typography, colour grading, layout rhythm, backgrounds. Others must not override it.
-- Each other skill gets a scoped job. Starting point (verify against what each skill actually says, then adjust):
+Write a **skill → area mapping table** in `docs/UI_SKILLS.md` and follow it for **all four directions and the final build-out**. Rules:
+
+- **Each direction has one lead aesthetic skill** (taste-skill, impeccable, frontend-design or equivalent) that owns its typography, colour grading, layout rhythm and backgrounds. Different directions may be led by different aesthetic skills; that is a good way to get real variety. Within a direction, other skills must not override the lead.
+- The scoped skills below apply to **every** direction, so all four are equally well crafted and the comparison is fair. Starting point (verify against what each skill actually says, then adjust):
 
 | Area | Skill (proposed) | Why |
 |---|---|---|
-| Design system: type, colour, spacing, backgrounds | taste-skill (primary) | Single source of aesthetic truth |
+| Overall aesthetic of a direction | taste-skill / impeccable / frontend-design (one per direction) | Single source of aesthetic truth per direction |
+| Generating and comparing the directions | design-lab | Built for variant exploration |
 | Landing hero + feature cards + "how it works" visuals | stageshow | Faux product UI that shows the real terminal/board in marketing contexts — never used on real app screens |
 | Data-dense app screens: Markets table, Pro terminal, Portfolio, Matchday boards | interface-design | Dashboard craft and consistency |
 | Component detail polish everywhere | better-ui | Borders, radius, shadows, hover/focus, optical alignment |
 | Motion: price flashes, number tickers, bonding progress, live events, full-time/claim moment | improve-animations / 12-principles / interaction-design | Motion that carries meaning, respects reduced motion |
-| Copy + visual cliché audit, final gate per page | anti-slop | Remove generic AI patterns in words and visuals |
+| Copy + visual cliché audit, final gate per screen | anti-slop | Remove generic AI patterns in words and visuals |
 | Audit pass at the end | improve-ui | Finds verified problems; you then implement the fixes |
 
 - If two skills conflict (e.g. different animation libraries), resolve it once, record it in `DECISIONS.md`, and stick to it.
 
-### 1.4 Design direction & system → `docs/DESIGN.md`
+### 1.5 Four directions → `/lab`
 
-Define the system first, then apply it. Non-negotiables (the skills decide everything else):
-- **Dark-first** product UI with a distinctive brand accent (the prototype logo's lime `#c6ff3d` is a strong candidate). **Green/red are reserved for P&L and up/down only.**
-- **Position colours** (FWD / MID / DEF / GK) as a quiet secondary identity system for player badges.
-- Clean sans for UI and prose; monospace **only** for prices, amounts, addresses; `tabular-nums` everywhere numbers align. Sentence case; uppercase only for tiny labels.
-- One radius scale, one spacing scale, three surface elevations. Backgrounds, gradients, glows and textures are allowed **where they add atmosphere without hurting legibility** (e.g. landing hero, matchday header) — keep data surfaces calm.
-- **Typographic player identity** (ticker, position colour, form sparkline, current board rank). Drop "Legendary/Epic" rarity tiers unless the analysis argues for them.
+**Scope.** Each direction designs and builds the same three screens, each at desktop (1440px) and mobile (375px):
+1. **Player hub, trading state**, including the trade panel (shows how it handles money, charts and density)
+2. **Matchday live centre** (shows energy, motion and the "sports" feel)
+3. **Landing hero and first fold** (shows brand, type and personality)
+
+Do not build the other routes for the directions. That comes after the user chooses.
+
+**Briefs.** Use these as starting points so the directions stay far apart. Reshape them after the inspiration research if you have a better idea, but keep four clearly different answers. **The user prefers light, white backgrounds with coloured elements** (buttons, charts, chips), and is also open to something close to Sport.fun's look.
+
+| | Direction | Background | Feel | References to study |
+|---|---|---|---|---|
+| **A** | **Broadcast** | Light | Bold condensed sports typography, huge numbers, position-coloured chips, scoreboard energy. Fan-first. | FotMob, Sofascore, sports TV graphics |
+| **B** | **Clean fintech** | Light | Airy, one saturated brand colour, charts front and centre, calm data surfaces. | Polymarket, Robinhood, Kalshi |
+| **C** | **Collectible** | Light or Sport.fun-like (research its actual look first) | Vibrant, card-forward, gamey but disciplined; player cards as the hero object. | Sport.fun, Sorare |
+| **D** | **Pro terminal** (wildcard) | Dark | Dense, trader-first; a refined, coherent version of the prototype. | Hyperliquid, Jupiter |
+
+**Must differ on:** layout and information hierarchy, typography, colour palette, density, component shapes, chart style, and motion personality. If two directions could be produced from each other by swapping colour tokens, they are not different enough — redo one.
+
+**Shared non-negotiables for every direction:**
+- Green/red reserved for P&L and up/down only. Brand colours are something else.
+- Monospace (or tabular figures) only for prices, amounts and addresses; `tabular-nums` wherever numbers align.
+- Typographic player identity: no photos, club crests or league logos.
 - WCAG AA contrast, visible focus rings, 44px touch targets, `prefers-reduced-motion` honoured.
-- Implement as Tailwind theme tokens / CSS variables + shadcn theme; no hard-coded colours in components.
+- The live score is labelled provisional; the current sell tax is visible before any sell.
 
-### 1.5 Apply, area by area (in this order)
+**Implementation:**
+- Each direction lives in its own folder, e.g. `src/directions/<a-broadcast>/`, with its **own tokens and its own components**. Share only data hooks, `packages/core`, formatting utilities and the `ProtocolClient`. No shared styled components between directions.
+- Routes: `/lab` (index with a direction switcher) and `/lab/<direction>/{player,matchday,landing}`.
+- All four read from the same mock state. Add a lab control to **pin the demo at a chosen moment** (e.g. a specific player, mid-live matchday) so the user compares the same moment across directions.
+- Don't modify the Step 0 production routes during exploration.
+- Before presenting, give every direction its better-ui polish, motion pass and anti-slop pass, so none loses because it was less finished.
+
+**Deliverables:**
+- `docs/DIRECTIONS.md`: one card per direction (name, one-line idea, inspiration sources, lead skill, palette, type pairing, key components, motion personality, strengths, weaknesses, who it suits best).
+- Screenshots: `docs/screenshots/lab/<direction>/` (each screen, desktop + mobile), plus one side-by-side comparison image per screen.
+- Your recommendation, with reasons tied to the product and the Breakpoint audience.
+
+**🛑 STOP — design choice.** Present the directions (link to `/lab`, the comparison images, the cards and your recommendation). Wait for the user to choose. They may pick one or combine elements ("A's layout with B's colours"). Record the decision in `DECISIONS.md`.
+
+### 1.6 Design system for the chosen direction → `docs/DESIGN.md`
+
+Turn the chosen direction into a full system before applying it everywhere: colour tokens (light, and dark if the direction includes it), typography scale, spacing and radius scales, surface elevations, position colours, chart styling, motion tokens (durations, easings), component inventory. Keep the shared non-negotiables from 1.5. Implement as Tailwind theme tokens / CSS variables + shadcn theme; no hard-coded colours in components.
+
+### 1.7 Apply, area by area (in this order)
+
+Reuse the lab work for the three explored screens; build the rest in the same language.
 
 1. Tokens, typography, base components (buttons, inputs, tabs, tables, cards, badges, toasts, modals)
 2. App shell: header, matchday pill, account menu, mobile bottom tab bar
@@ -192,16 +249,20 @@ Define the system first, then apply it. Non-negotiables (the skills decide every
 
 After each area: run the anti-slop check on that area, screenshot it, and fix before moving on.
 
-### 1.6 Review
+### 1.8 Review
 
 - Run the `improve-ui` audit (or equivalent) across all surfaces; implement the verified fixes.
 - Final screenshots (mobile + desktop) into `docs/screenshots/step-1/`.
 - Re-run the full demo loop; nothing in the mock/logic should have changed except where a UI need required it (log those).
+- Keep `/lab` behind a dev-only flag (excluded from the production build) so the unchosen directions remain available for reference.
 
 ### ✅ Step 1 — Definition of done
 
-- [ ] `docs/UI_SKILLS.md` (inventory, installs, mapping) and `docs/DESIGN.md` (system) written and followed
-- [ ] Every route polished per the order above; mobile verified at 375px
+- [ ] `docs/INSPIRATION.md` written with screenshots and a synthesis
+- [ ] `docs/UI_SKILLS.md` (inventory with paths, installs, mapping) written and followed
+- [ ] Four directions built in `/lab` on the three screens, desktop + mobile; `docs/DIRECTIONS.md` and comparison screenshots delivered; **user's choice recorded**
+- [ ] `docs/DESIGN.md` written for the chosen direction and followed
+- [ ] Every route built in the chosen direction per 1.7; mobile verified at 375px
 - [ ] Motion meaningful and reduced-motion safe; no layout shift on live updates
 - [ ] AA contrast, focus states, touch targets verified
 - [ ] Anti-slop pass done on every page; audit fixes applied

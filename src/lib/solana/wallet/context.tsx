@@ -14,7 +14,7 @@ import type { TransactionSigner } from "@solana/kit";
 import type { WalletConnector, WalletSession } from "./types";
 import { discoverWallets, watchWallets } from "./standard";
 import { createWalletSigner } from "./signer";
-import { useCluster } from "../../components/cluster-context";
+import { useCluster } from "@/lib/solana/cluster-context";
 
 const WALLET_STATUS = {
   DISCONNECTED: "disconnected",

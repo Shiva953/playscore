@@ -423,15 +423,18 @@ score/
 │  ├─ concept/score-terminal-v4.html   # prototype (source of numbers)
 │  ├─ ANALYSIS.md                      # Step 0.1 output
 │  ├─ DECISIONS.md                     # running decision log
+│  ├─ INSPIRATION.md + inspiration/    # Step 1.1 research of existing products (screenshots: internal only)
 │  ├─ UI_SKILLS.md                     # Step 1 skill inventory + mapping
-│  └─ DESIGN.md                        # Step 1 design system
+│  ├─ DIRECTIONS.md                    # Step 1.5 the four design directions
+│  └─ DESIGN.md                        # Step 1.6 design system of the chosen direction
 ├─ anchor/                             # template example program — DO NOT TOUCH (contracts come later)
 ├─ packages/
 │  └─ core/                            # pure TS: config, curve, fees, sell tax, pool math, scoring,
 │                                      # boards, controller, claims, demo simulator + tests
 └─ src/ (or apps/web/)                 # Next.js app from the template
-   ├─ app/ (routes above)
+   ├─ app/ (routes above; /lab/* = design exploration, dev-only)
    ├─ components/ (ui/ = shadcn, feature folders per page)
+   ├─ directions/ (Step 1.5: one folder per design direction, own tokens + components)
    ├─ lib/protocol/ (ProtocolClient, MockProtocolClient, DemoClock)
    └─ lib/format/ (numbers, prices, time)
 ```

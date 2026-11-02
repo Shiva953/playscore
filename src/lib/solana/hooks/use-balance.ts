@@ -3,8 +3,8 @@
 import { useEffect } from "react";
 import useSWR from "swr";
 import { type Address, type Lamports } from "@solana/kit";
-import { useCluster } from "../../components/cluster-context";
-import { useSolanaClient } from "../solana-client-context";
+import { useCluster } from "@/lib/solana/cluster-context";
+import { useSolanaClient } from "@/lib/solana/solana-client-context";
 
 export function useBalance(address?: Address) {
   const { cluster } = useCluster();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useCluster, CLUSTERS } from "./cluster-context";
+import { useCluster, CLUSTERS } from "@/lib/solana/cluster-context";
 
 export function ClusterSelect() {
   const { cluster, setCluster } = useCluster();

@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["ws"],
+  transpilePackages: ["@score/core"],
   // @solana/kit-plugin-payer's browser bundle has a spurious `import 'fs'`
   // from the payerFromFile export. Stub it out for the client bundle.
   turbopack: {

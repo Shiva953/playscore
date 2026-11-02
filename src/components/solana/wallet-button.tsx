@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useWallet } from "../lib/wallet/context";
-import { useBalance } from "../lib/hooks/use-balance";
-import { lamportsToSolString } from "../lib/lamports";
-import { ellipsify } from "../lib/explorer";
-import { useCluster } from "./cluster-context";
+import { useWallet } from "@/lib/solana/wallet/context";
+import { useBalance } from "@/lib/solana/hooks/use-balance";
+import { lamportsToSolString } from "@/lib/solana/lamports";
+import { ellipsify } from "@/lib/solana/explorer";
+import { useCluster } from "@/lib/solana/cluster-context";
 
 export function WalletButton() {
   const { connectors, connect, disconnect, wallet, status, error } =

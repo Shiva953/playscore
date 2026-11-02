@@ -4,7 +4,9 @@
     "js": [
       {
         "from": "@codama/renderers-js",
-        "args": ["./app/generated/vault"]
+        "args": [
+          "./src/generated/vault"
+        ]
       }
     ]
   }
