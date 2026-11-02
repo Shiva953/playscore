@@ -6,6 +6,7 @@ import { AppHeader } from "@/components/shell/app-header";
 import { BottomTabBar } from "@/components/shell/bottom-tab-bar";
 import { SiteFooter } from "@/components/shell/site-footer";
 import { GlobalModals } from "@/components/modals/global-modals";
+import { ChromeGate } from "@/components/shell/chrome-gate";
 import { cn } from "@/lib/utils";
 
 const instrument = Instrument_Sans({ subsets: ["latin"], axes: ["wdth"], variable: "--font-instrument" });
@@ -29,14 +30,20 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="min-h-dvh antialiased">
         <Providers>
           <div className="flex min-h-dvh flex-col">
-            <AppHeader />
+            <ChromeGate>
+              <AppHeader />
+            </ChromeGate>
             <main id="main" className="mx-auto w-full max-w-[1200px] flex-1 px-4 pt-6 pb-24 md:px-6 md:pt-8 md:pb-16 has-[>[data-fullbleed]]:max-w-none has-[>[data-fullbleed]]:px-0 has-[>[data-fullbleed]]:pt-0 has-[>[data-fullbleed]]:pb-0">
               {children}
             </main>
-            <SiteFooter />
+            <ChromeGate>
+              <SiteFooter />
+            </ChromeGate>
           </div>
-          <BottomTabBar />
-          <GlobalModals />
+          <ChromeGate>
+            <BottomTabBar />
+            <GlobalModals />
+          </ChromeGate>
         </Providers>
       </body>
     </html>
