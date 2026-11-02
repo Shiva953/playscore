@@ -1,0 +1,67 @@
+/*
+ * Direction B · Clean fintech. Lead skill: design-taste-frontend, app style `accent-ladder` (light),
+ * seed 370616198 (.taste-skill/lab-b/direction.json). The move: one hue at full strength only on
+ * small marks (the filled button, the data series, the active nav icon); its pale tints carry every
+ * area. Hue swapped from the dealt raspberry to blue: raspberry sits too close to the loss red.
+ * Type redrawn from DM Sans to Hanken Grotesk: Google's DM Sans has no tabular figures (measured).
+ */
+.dir-b {
+  --b-ground: #f8faff; /* one level toward the hue's palest tint */
+  --b-surface: #ffffff;
+  --b-raised: #f3f5fa;
+  --b-border: #e4e8f0;
+  --b-rule: #eef1f6;
+  --b-control: #cbd3e1;
+  --b-text: #111827;
+  --b-muted: #5f6672;
+  --b-accent: #2148d6; /* white on it 7.1:1 */
+  --b-accent-hover: #1c3dba;
+  --b-accent-soft: #eef3ff;
+  --b-accent-track: #d9e3fd;
+  --b-accent-ink: #1d347f; /* 10.2:1 on the soft tint */
+  --b-positive: #1f7a4d;
+  --b-negative: #c4242a;
+  --b-pill-pos-bg: #dcfce7;
+  --b-pill-pos-ink: #14532d;
+  --b-pill-neg-bg: #ffedea;
+  --b-pill-neg-ink: #831c1e;
+  --b-pill-neutral-bg: #f3f4f6;
+  --b-pill-neutral-ink: #374151;
+  --b-radius-card: 8px;
+  --b-radius-control: 6px;
+  --b-row: 45px;
+  --b-gap: 24px;
+  --b-ease: cubic-bezier(0.23, 1, 0.32, 1);
+
+  color-scheme: light;
+  background: var(--b-ground);
+  color: var(--b-text);
+  font-family: var(--b-font), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.dir-b :focus-visible {
+  outline: 2px solid var(--b-accent);
+  outline-offset: 2px;
+}
+
+.dir-b .b-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.dir-b .b-card {
+  background: var(--b-surface);
+  border: 1px solid var(--b-border);
+  border-radius: var(--b-radius-card);
+}
+
+/* Controls are 32px (the sheet) on a mouse, 44px under a finger. */
+.dir-b .b-control {
+  height: 32px;
+}
+@media (pointer: coarse) {
+  .dir-b .b-control {
+    height: 44px;
+  }
+}
