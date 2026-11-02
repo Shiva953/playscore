@@ -76,3 +76,22 @@ Format: **date · decision** · alternatives · why. Newest at the bottom. Spec 
 - **Type:** Instrument Sans instead of the dealt Inter. Schibsted Grotesk was rejected after measuring: its tabular figures widen punctuation. Monospace (Geist Mono) only for wallet addresses and IDs.
 - **Signature element:** the matchday strip (snapshot → live → freeze with every kickoff marked).
 - **Skills that could not be installed:** `better-accessibility`, `better-typography`, `better-colors` (permission policy blocked the download into `.claude/skills/`). Accessibility is checked with `@axe-core/playwright` instead.
+
+### 2026-11-03 · Step 1 course correction: the four-direction gate was skipped
+- **What happened:** Step 1 went straight from the skill inventory to one dark direction (`true-black-flat`, above) and applied it to every production route. That skipped 1.1 (inspiration research), 1.5 (four directions in `/lab`) and the 🛑 design-choice stop, and it ignored the stated preference for light backgrounds. `docs/UI_SKILLS.md` recorded the reason ("a variant lab would fork the system"), but PLAN.md mandates the exploration and the user never waived it.
+- **Correction:** the work is kept, not reverted. The dark build on the production routes (commit `f9d6db0`) becomes **Direction D (dark wildcard)**. Directions A, B and C are built in `/lab` from fresh tokens and components after the research in `docs/INSPIRATION.md`. Then Step 1 stops for the user's choice. If the user picks A, B or C (or a mix), 1.6 and 1.7 rebuild the production routes in that direction.
+- **Exception to "don't modify the Step 0 production routes during exploration":** they were already modified before this was caught. They stay as Direction D and are not touched further until the user chooses.
+
+### 2026-11-03 · Design lab (/lab) setup
+- **Dev only.** Lab routes are `page.dev.tsx` / `layout.dev.tsx`; `next.config.ts` adds the `dev.tsx` page extension only under `next dev`, so production builds have no `/lab` route and none of `src/directions/` (checked: no lab code in `.next/static`). The build type-checks with `tsconfig.build.json`, which leaves out the dev server's generated route types (they list the lab routes) and the lab code; `bun run typecheck` still checks everything.
+- **Product chrome off on /lab.** `ChromeGate` hides the header, footer, tab bar, global modals and the toaster under `/lab`; each direction brings its own header and toaster. No other production code changed.
+- **Mock changes for a UI need (logged per 1.8):** `DemoSettings.pinned`, `setPinned()` and `seekPhase()` on the demo controls, and a `clock` protocol event that refreshes only the round query. Pinned, the round's time left and the live match's progress are held while the clock runs; releasing resumes from the same point. Used by the lab's "pin a moment" control so all four directions show the same instant. Covered by a unit test. Reset unpins.
+- **Shared between directions:** data hooks, `packages/core`, the formatters, the `ProtocolClient`, and a headless `useTradeTicket` (same rules as the production panel, so directions differ in design, not behaviour). Nothing styled is shared.
+
+### 2026-11-03 · Direction libraries (each direction picks its own, ground rule 8)
+- **A · Broadcast:** GSAP (crawl, headline wipe) and d3-shape (stepped SVG chart). 30 KB gzipped.
+- **B · Clean fintech:** visx (scrubbable chart) and NumberFlow (digit roll). 21 KB gzipped.
+- **C · Collectible:** Motion (tilt, flip, deal, layout reorders) and Recharts (two small charts). 173 KB gzipped, 122 of it Recharts; if C is chosen, redraw those two charts in SVG/visx before the build-out.
+- **D · Night terminal:** shadcn/ui on Radix and Lightweight Charts, as built.
+- All installed as devDependencies: only the dev-only lab imports them today.
+- **B's dealt values redrawn:** raspberry accent → blue `#2148d6` (raspberry sits next to the loss red; the exact Tailwind blue was avoided too); DM Sans → Hanken Grotesk (Google's DM Sans has no tabular figures, measured).
