@@ -29,6 +29,8 @@ function keysFor(e: ProtocolEvent): QueryKey[] {
       return [qk.players(), qk.stats(), qk.player(e.trade.playerId), qk.historyAll(e.trade.playerId), qk.trades(e.trade.playerId), qk.trades(null)];
     case "match":
       return [qk.round(), qk.players()];
+    case "clock":
+      return [qk.round()];
     case "snapshot":
       return [qk.round(), qk.portfolio(), qk.playersAll()];
     case "bonded":

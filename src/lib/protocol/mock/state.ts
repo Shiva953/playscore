@@ -98,6 +98,8 @@ export interface MockState {
   tape: TradeRecord[];
   user: UserRuntime | null;
   settings: DemoSettings;
+  /** Lab pin: phase time already elapsed and still remaining when the moment was pinned. */
+  pin?: { elapsed: number; remaining: number } | null;
 }
 
 export const DEFAULT_SETTINGS: DemoSettings = {
@@ -109,6 +111,7 @@ export const DEFAULT_SETTINGS: DemoSettings = {
   failureRate: 0,
   latencyMs: 120,
   timeOffsetDays: 0,
+  pinned: false,
 };
 
 export function createInitialState(now: number, settings: DemoSettings = DEFAULT_SETTINGS): MockState {

@@ -489,6 +489,8 @@ export type ProtocolEvent =
   | { type: "launched"; playerIds: PlayerId[] }
   | { type: "settled"; round: number; pool: number; myDividends: number }
   | { type: "user" }
+  /** Round timing moved without a phase change (lab pin). */
+  | { type: "clock" }
   | { type: "session" }
   | { type: "reset" };
 
@@ -537,14 +539,20 @@ export interface DemoSettings {
   latencyMs: number;
   /** Days added to the hold-age clock (demo fast-forward). */
   timeOffsetDays: number;
+  /** Lab: the clock, live match and ambient market are held at one moment. */
+  pinned: boolean;
 }
 
 /** Demo-only controls. Never part of the production client. */
 export interface DemoControls {
   getDemoSettings(): DemoSettings;
-  updateDemoSettings(patch: Partial<Omit<DemoSettings, "timeOffsetDays">>): void;
+  updateDemoSettings(patch: Partial<Omit<DemoSettings, "timeOffsetDays" | "pinned">>): void;
   fastForwardDays(days: number): void;
   skipPhase(): void;
+  /** Lab: hold (or release) the current moment. Phase time left and live progress stay where they are. */
+  setPinned(pinned: boolean): void;
+  /** Lab: move to a point (0..1) inside the current phase, playing the live match forward to it. Demo clock only. */
+  seekPhase(progress: number): void;
   simulateLaunchDemand(id: PlayerId, targetProgress?: number): void;
   launchNextScheduled(): void;
   reset(): void;

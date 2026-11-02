@@ -216,3 +216,28 @@ describe("bonding buy balance check", () => {
     expect((await client.getPortfolio())!.usdc).toBeCloseTo(before - q.usdc, 6);
   });
 });
+
+describe("lab pin and seek", () => {
+  it("holds a mid-live moment, then resumes from it", async () => {
+    const { client, advance, now } = makeClient();
+    client.skipPhase(); // open → live
+    expect((await client.getRound()).phase).toBe("live");
+    client.seekPhase(0.5);
+    const at = await client.getRound();
+    expect(at.liveProgress).toBeCloseTo(0.5, 1);
+    const events = at.events.length;
+    expect(events).toBeGreaterThan(0);
+
+    client.setPinned(true);
+    const left = at.phaseEndsAt - now();
+    advance(120); // longer than the whole live phase
+    const held = await client.getRound();
+    expect(held.phase).toBe("live");
+    expect(held.events.length).toBe(events);
+    expect(held.phaseEndsAt - now()).toBe(left);
+
+    client.setPinned(false);
+    advance(Math.ceil(left / 1000));
+    expect((await client.getRound()).phase).toBe("ended");
+  });
+});

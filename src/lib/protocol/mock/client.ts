@@ -111,6 +111,18 @@ export class MockProtocolClient implements ProtocolClient, AuthClient, DemoContr
 
   /** One clock step: phase transitions, live sim, ambient market. Public for tests. */
   tick(now = this.clockNow()): void {
+    const pin = this.s.settings.pinned ? this.s.pin : null;
+    if (pin) {
+      // Pinned (lab): slide the phase window along with the clock so nothing moves.
+      this.s.round.phaseStartedAt = now - pin.elapsed;
+      this.s.round.phaseEndsAt = now + pin.remaining;
+      this.emit({ type: "clock" });
+      return;
+    }
+    this.step(now);
+  }
+
+  private step(now: number): void {
     const ctx = this.ctx(now);
     const r = this.s.round;
     const { steps, restarted } = this.clock.catchUp(
@@ -332,7 +344,7 @@ export class MockProtocolClient implements ProtocolClient, AuthClient, DemoContr
     return { ...this.s.settings };
   }
 
-  updateDemoSettings(patch: Partial<Omit<DemoSettings, "timeOffsetDays">>): void {
+  updateDemoSettings(patch: Partial<Omit<DemoSettings, "timeOffsetDays" | "pinned">>): void {
     const modeChanged = patch.clockMode && patch.clockMode !== this.s.settings.clockMode;
     this.s.settings = { ...this.s.settings, ...patch };
     this.clock.mode = this.s.settings.clockMode;
@@ -362,7 +374,34 @@ export class MockProtocolClient implements ProtocolClient, AuthClient, DemoContr
     if (this.s.settings.clockMode !== "demo") return;
     const now = this.clockNow();
     this.s.round.phaseEndsAt = now;
-    this.tick(now);
+    this.step(now);
+    // A skip while pinned holds the start of the next phase.
+    if (this.s.settings.pinned) this.s.pin = { elapsed: 0, remaining: this.s.round.phaseEndsAt - now };
+  }
+
+  setPinned(pinned: boolean): void {
+    const now = this.clockNow();
+    const r = this.s.round;
+    this.s.settings.pinned = pinned;
+    this.s.pin = pinned ? { elapsed: Math.max(0, now - r.phaseStartedAt), remaining: Math.max(0, r.phaseEndsAt - now) } : null;
+    this.dirty = true;
+    this.save(true);
+    this.emit({ type: "user" });
+  }
+
+  seekPhase(progress: number): void {
+    if (this.s.settings.clockMode !== "demo") return;
+    const now = this.clockNow();
+    const r = this.s.round;
+    const span = r.phaseEndsAt - r.phaseStartedAt;
+    const k = Math.min(0.99, Math.max(0, progress));
+    r.phaseStartedAt = now - k * span;
+    r.phaseEndsAt = r.phaseStartedAt + span;
+    this.step(now);
+    if (this.s.settings.pinned) this.s.pin = { elapsed: k * span, remaining: (1 - k) * span };
+    this.dirty = true;
+    this.save(true);
+    this.emit({ type: "user" });
   }
 
   simulateLaunchDemand(id: PlayerId, targetProgress = 0.96): void {
@@ -378,7 +417,7 @@ export class MockProtocolClient implements ProtocolClient, AuthClient, DemoContr
   }
 
   reset(): void {
-    const settings = { ...this.s.settings, timeOffsetDays: 0 };
+    const settings = { ...this.s.settings, timeOffsetDays: 0, pinned: false };
     removeKey(STORAGE_KEY);
     this.s = createInitialState(this.clockNow(), settings);
     this.clock = new DemoClock(settings.clockMode, settings);
