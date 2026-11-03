@@ -23,6 +23,7 @@
 | Font looks squashed | Unbounded + Figtree replaced by one minimal geometric family, **Sora** (normal width, default tracking; tabular digits 27.0px, punctuation 10.5px). |
 | Hover and flip not smooth | **Flip:** was an exit-then-enter swap (`AnimatePresence mode="wait"`) that paused at 90°; now one element with two faces and a single CSS `transform` transition (520ms, strong ease-in-out, interruptible), cross-fade under reduced motion. **Tilt:** was JS springs on Motion's shorthands (main thread); now written straight to `transform` in a `requestAnimationFrame`, smoothed by a 220ms ease-out transition, mouse and fine pointers only, off under reduced motion. **Hover lift** in the fanned hands: a CSS transition behind `(hover: hover) and (pointer: fine)`. Board reorders keep Motion's layout animation (transform-based), under `MotionConfig reducedMotion="user"`. |
 | Too big, too long | Body 14px, headline figures 22–30px, panels 16px radius with hairlines, 12–16px gaps. Each screen now fits about one desktop screen; the landing is one hero panel plus one strip. |
+| Half the screen empty (round three) | On desktop the screens fill the window's height with content: the player's columns run to the bottom (card + this matchday, market with a chart that grows into the space, ticket + top holders); the landing hero stretches and its card fan scales with it. |
 
 **Palette:** ground `#f2f4f7`, white panels, ink `#0e1116`. Card faces: GK `#f5b82e`, DEF `#2a63f0`, MID `#7c45e8`, FWD `#f2662a`. Money: `#0b7139` / `#b4202a` (contrast measured in `tokens.css`).
 **Libraries:** Motion (board reorders only). Recharts removed: the price area and form bars are hand-drawn SVG.
@@ -45,11 +46,12 @@
 | Toast too high, blends in | Desktop offset 24px (the 84px offset was meant for the phone's tab bar and is now phone-only at 76px). Toasts sit on the raised surface `#2a2a2a` with a float shadow, so they read above the cards. |
 | Stats too small | Market cap, 24h volume, pool depth or raised, and last score now 24px figures with 12px labels in the softer grey; market cap leads. |
 | Account menu reads like machine text | Rebuilt: avatar, "Your devnet wallet", "Signed in with Google, Germany"; the balance as the biggest thing in the menu; actions with icons and verbs (Add 1,000 test USDC, Copy address with the short address, Portfolio, Demo settings, Sign out). The same action keeps one name everywhere. |
-| Number font | **Chivo** for figures (`.fig` and numeric table cells); Instrument Sans stays for text, Geist Mono for addresses. Azeret Mono was tried and rejected: a monospace gives the point a digit's width. |
+| Number font | **Funnel Sans** for figures (`.fig` and numeric table cells), chosen from an in-context comparison of eight faces; Instrument Sans stays for text, Geist Mono for addresses. Rejected: Azeret Mono (point takes a digit's width), Chivo (too wide and heavy beside the labels). |
+| Header and menu (round three) | The USDC coin mark replaces the "USDC" text; a generated avatar per wallet replaces the initial; the menu opens on your address (tap to copy) with Devnet/Google chips, then the balance with dollars large and cents quiet, and two pill actions. |
 | Landing too long | Two screens: headline, line, button and three real figures beside the live board; then how it works in four short steps. The landing uses the same header as the app now. |
 
 **Libraries:** shadcn/ui on Radix, Lightweight Charts, CSS transitions.
-**Bundle:** 71 KB gzipped JS (Lightweight Charts) on the shared shadcn/Radix base · fonts: Instrument Sans 57 KB, Chivo 33 KB, Geist Mono.
+**Bundle:** 71 KB gzipped JS (Lightweight Charts) plus boring-avatars (a few KB) on the shared shadcn/Radix base · fonts: Instrument Sans 57 KB, Funnel Sans, Geist Mono.
 **Inspector (taste):** markets, matchday and portfolio 0 FAIL / 0 WARN; player 0 FAIL / 1 WARN (tab detail below the fold, by design). Landing: 2 FAIL / 1 WARN left, all from the page rules that want a longer, richer page (≥4 pictures, more scroll motion, a video). They contradict the review's "shorter and more minimal" and the no-photos rule, so the review wins.
 **Strengths:** complete across every route, state and width; dense; Pro view.
 **Weaknesses:** dark, against the stated light preference; near-black with one acid accent is the common look of Solana trading apps.
@@ -64,7 +66,7 @@
 |---|---|---|
 | Ground | Cool grey + white panels | True black |
 | Colour carries | Card faces by position | Lime on data, price by direction |
-| Type | Sora | Instrument Sans + Chivo figures |
+| Type | Sora | Instrument Sans + Funnel Sans figures |
 | Shape | 16px panels, hairlines | 16px surfaces, no borders |
 | Chart | Hand-drawn SVG in the card's colour | Lightweight Charts |
 | Motion | Card flip, tilt, hand lift, board reorders | Price flashes, count-ups |

@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Countdown, KeyValue } from "@/components/common/bits";
+import { UsdcIcon } from "@/components/common/usdc";
 import {
   formatDateTime,
   formatPct,
@@ -172,7 +173,10 @@ export function TradePanel({
                   className="num w-full min-w-0 bg-transparent text-2xl font-medium text-ink outline-none placeholder:text-faint"
                   autoComplete="off"
                 />
-                <span className="text-sm text-faint">USDC</span>
+                <span className="flex items-center gap-1.5 text-sm text-faint">
+                  <UsdcIcon />
+                  USDC
+                </span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {side === "buy"

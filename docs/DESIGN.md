@@ -47,7 +47,9 @@ Rules: colour share stays under ~3% of a screen. The accent never touches button
 ## 4. Type
 
 - **Instrument Sans** for all text. `.num` keeps tabular figures on mixed rows.
-- **Chivo** for the figures themselves (`.fig`, and `td.num` cells): prices, stat values, balances, earnings, table numbers. Added 3 Nov after review ("use a different suitable font for numbers"): tabular digits (24.6px) with narrow punctuation (10.2px), so `$0.01016` reads as one number. Azeret Mono was tried first and rejected: in a monospace the point takes a full digit's width ("$0 . 01016").
+- **Funnel Sans** for the figures themselves (`.fig`, and `td.num` cells): prices, stat values, balances, earnings, table numbers. Chosen 3 Nov from an in-context comparison on the player header: compact, tabular by default (22.0px digits), narrow punctuation (8.9px), and close to Instrument Sans in proportion, so the figures stand out without looking borrowed. Rejected on the way: Azeret Mono (a monospace gives the point a digit's width, "$0 . 01016") and Chivo (too wide and heavy beside the labels).
+- **USDC** is shown with the USDC coin mark (`<UsdcIcon>`, path from the CC0 `cryptocurrency-icons` set) in the header balance, the account menu and the ticket.
+- **Avatars** are generated per wallet address with boring-avatars ("beam", palette lime, pink, blue, amber, lilac), never an initial.
 - **Geist Mono** only for wallet addresses and transaction IDs.
 - **Player header (3 Nov):** the ticker is a white chip (`<Ticker chip>`), the price 44px in Chivo coloured by its 24h move (lime up, pink down, white flat) with the change in a tinted pill; the four stats under it at 24px.
 - App scale: 12 (meta) · 14 (body, cells, nav) · 16 (card titles) · 20 (screen title, h1) · 24 (key figures) · 32 (the one answer figure: player price, portfolio total). Nothing above 600 weight; no tracking on text under 16px; −0.02em from 24px.

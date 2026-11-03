@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Chivo, Geist_Mono, Instrument_Sans } from "next/font/google";
+import { Funnel_Sans, Geist_Mono, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { AppHeader } from "@/components/shell/app-header";
@@ -10,9 +10,10 @@ import { ChromeGate } from "@/components/shell/chrome-gate";
 import { cn } from "@/lib/utils";
 
 const instrument = Instrument_Sans({ subsets: ["latin"], axes: ["wdth"], variable: "--font-instrument" });
-// Figures (prices, amounts, stats): a sturdy grotesque with tabular digits and narrow punctuation,
-// so "$0.01066" reads as one number. A monospace was tried and rejected: its point takes a digit's width.
-const chivo = Chivo({ subsets: ["latin"], variable: "--font-num" });
+// Figures (prices, amounts, stats): Funnel Sans. Compact, tabular by default, narrow punctuation, and close
+// to Instrument Sans in proportion, so figures stand out without looking borrowed. Chivo (too wide and heavy
+// beside the labels) and Azeret Mono (the point takes a digit's width) were tried and rejected.
+const funnel = Funnel_Sans({ subsets: ["latin"], variable: "--font-num" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
@@ -29,7 +30,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn("dark", instrument.variable, chivo.variable, geistMono.variable)}>
+    <html lang="en" suppressHydrationWarning className={cn("dark", instrument.variable, funnel.variable, geistMono.variable)}>
       <body className="min-h-dvh antialiased">
         <Providers>
           <div className="flex min-h-dvh flex-col">

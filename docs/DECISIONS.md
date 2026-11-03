@@ -110,3 +110,9 @@ Format: **date · decision** · alternatives · why. Newest at the bottom. Spec 
 - **D account menu:** rebuilt with human wording and a clear hierarchy; "Add 1,000 test USDC" is the one name for the faucet everywhere.
 - **D landing:** two screens; the giant wordmark and scroll choreography are gone, so the landing uses the app header. Remaining taste inspector FAILs on the landing (few pictures, still page) and the WARN (no footage) are overridden by the review ("shorter and more minimal") and the no-photos rule.
 - **Lab layouts:** the lab no longer uses `layout.dev.tsx`; each lab page wraps its own shell. A dev-only layout put a second, conflicting `LayoutProps` global into the generated route types after a production build.
+
+### 2026-11-03 · Round three (user review)
+- **C fills the screen:** desktop screens take the window's height with content (player: card + this matchday, market with a growing chart, ticket + top holders; landing hero stretches and the fan scales). Top holders replaced "latest trades", which is often empty early in a session.
+- **D number font:** Funnel Sans for figures, chosen from an in-context comparison (Instrument Sans, Chivo, Geist, Host Grotesk, Funnel Sans, Rethink Sans, IBM Plex Sans, Hanken Grotesk on the player header). Chivo looked wide and heavy beside the labels.
+- **D header and menu:** USDC coin mark instead of the word (CC0 path inlined, the package removed after copying); avatars generated per address with `boring-avatars` (MIT); the menu opens on the address (copy) with Devnet and sign-in chips; "Your devnet wallet" removed.
+- **Matchday strip labels** sit in columns sized like the zones (and hide "Trading open" in narrow containers), so they can't overlap; they were absolutely positioned and collided on the landing's board.

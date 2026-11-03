@@ -53,7 +53,7 @@ export function MatchdayStrip({ round: r, showPool = true, className }: { round:
   const liveEnd = ZONES.open + ZONES.live;
   const firstSlot = r.fixtures[0]?.slot ?? r.window.fromLabel;
   return (
-    <div className={cn("flex flex-col gap-3", className)} data-testid="matchday-strip">
+    <div className={cn("@container flex flex-col gap-3", className)} data-testid="matchday-strip">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-sm text-soft">{phaseLine(r)}</p>
         {showPool ? (
@@ -92,15 +92,16 @@ export function MatchdayStrip({ round: r, showPool = true, className }: { round:
           aria-hidden="true"
         />
       </div>
-      <div className="relative -mt-2 h-4 text-xs text-faint">
-        <span className="absolute left-0 hidden sm:inline">Trading open</span>
-        <span className="absolute -translate-x-1/2 text-ink" style={{ left: `${liveStart * 100}%` }}>
-          Snapshot · {firstSlot}
+      {/* Labels sit in columns sized like the zones, so they can never run into each other. */}
+      <div className="-mt-2 grid text-xs text-faint" style={{ gridTemplateColumns: `minmax(0,${ZONES.open * 100}fr) minmax(0,${ZONES.live * 100}fr) minmax(0,${ZONES.ended * 100}fr)` }}>
+        <span className="hidden min-w-0 truncate pr-2 @md:inline">Trading open</span>
+        <span className="col-start-2 flex min-w-0 justify-between gap-3">
+          <span className="truncate text-ink">Snapshot · {firstSlot}</span>
+          <span className="hidden truncate @lg:inline">
+            {r.window.fromLabel} → {r.window.toLabel}
+          </span>
         </span>
-        <span className="absolute hidden -translate-x-1/2 sm:inline" style={{ left: `${((liveStart + liveEnd) / 2) * 100}%` }}>
-          {r.window.fromLabel} → {r.window.toLabel}
-        </span>
-        <span className="absolute right-0">Final</span>
+        <span className="truncate text-right">Final</span>
       </div>
     </div>
   );

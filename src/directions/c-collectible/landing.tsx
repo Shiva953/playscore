@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { formatPct, formatUsd, formatUsdCompact } from "@/lib/format";
 import { usePlayers, useRound, useStats } from "@/lib/protocol/react/hooks";
-import { useWidth } from "@/directions/lab/use-width";
+import { useSize } from "@/directions/lab/use-width";
 import { PlayerCard } from "./card";
 
 /**
@@ -16,13 +16,15 @@ export function CLanding() {
   const round = useRound((r) => ({ pool: r.pool.usd, rate: r.pool.effectiveRate }));
   const hand = (players.data ?? []).filter((p) => p.status === "trading").slice(0, 5);
   const n = hand.length;
-  const [fan, fanW] = useWidth<HTMLDivElement>(520);
-  const cardW = fanW < 440 ? 132 : 168;
-  const step = Math.min(72, (fanW - cardW - 24) / Math.max(1, n - 1));
+  // The fan scales with the room the hero gives it (the hero fills the screen's height on desktop).
+  const [fan, fanSize] = useSize<HTMLDivElement>(520, 300);
+  const fanW = fanSize.width;
+  const cardW = Math.round(Math.max(120, Math.min(fanW < 440 ? 140 : 230, (fanSize.height - 40) / 1.4)));
+  const step = Math.min(cardW * 0.46, (fanW - cardW - 24) / Math.max(1, n - 1));
 
   return (
-    <main className="mx-auto flex max-w-[1120px] flex-col gap-3 px-3 pt-3 pb-20 md:px-6">
-      <section className="c-panel grid items-center gap-6 overflow-hidden px-5 py-8 md:px-10 md:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <main className="mx-auto flex max-w-[1120px] flex-col gap-3 px-3 pt-3 pb-6 md:px-6 lg:min-h-[calc(100svh-68px)]">
+      <section className="c-panel grid flex-1 items-center gap-6 overflow-hidden px-5 py-8 md:px-10 md:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
           <h1 className="max-w-[16ch] text-[32px] leading-[1.08] font-bold tracking-[-0.03em] md:text-[44px]">Collect the players. Get paid when they score.</h1>
           <p className="max-w-[42ch] text-[15px] leading-[1.55] text-[var(--c-mute)]">
@@ -42,7 +44,7 @@ export function CLanding() {
             <Fact label="Trading" value={stats.data ? `${stats.data.bondedCount} players` : "—"} />
           </dl>
         </div>
-        <div ref={fan} className="c-fan relative h-[230px] md:h-[280px]" aria-label="Players trading now">
+        <div ref={fan} className="c-fan relative h-[240px] md:h-[300px] lg:h-full lg:min-h-[320px]" aria-label="Players trading now">
           {hand.map((p, i) => {
             const mid = (n - 1) / 2;
             return (
