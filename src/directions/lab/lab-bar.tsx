@@ -36,6 +36,9 @@ export function LabBar() {
   );
 }
 
+/** In the C review deploy the bar is a demo control: C's screens and the moments only. */
+const REVIEW_C = process.env.NEXT_PUBLIC_SCORE_DIRECTION === "c";
+
 function Bar() {
   const path = usePathname();
   const params = useSearchParams();
@@ -82,7 +85,7 @@ function Bar() {
   if (!open) {
     return (
       <button data-lab-bar type="button" onClick={() => setOpen(true)} style={{ ...btn, position: "fixed", left: 12, bottom: 12, zIndex: 90, background: "#161616" }}>
-        Lab
+        {REVIEW_C ? "Demo" : "Lab"}
       </button>
     );
   }
@@ -110,15 +113,17 @@ function Bar() {
         color: "#a8a8a8",
       }}
     >
-      <Link href="/lab" style={{ ...btn, border: "none", color: "#a8a8a8" }}>
-        Lab
+      <Link href={REVIEW_C ? "/lab/c-collectible/landing" : "/lab"} style={{ ...btn, border: "none", color: "#a8a8a8" }}>
+        {REVIEW_C ? "Demo" : "Lab"}
       </Link>
-      {DIRECTIONS.map((d) => (
-        <Link key={d.id} href={screenHref(d.id, screen ?? "player", player)} style={d.id === dir ? on : btn} title={d.name}>
-          {d.letter}
-        </Link>
-      ))}
-      <span style={{ width: 1, height: 18, background: "#3a3a3a" }} />
+      {REVIEW_C
+        ? null
+        : DIRECTIONS.map((d) => (
+            <Link key={d.id} href={screenHref(d.id, screen ?? "player", player)} style={d.id === dir ? on : btn} title={d.name}>
+              {d.letter}
+            </Link>
+          ))}
+      {REVIEW_C ? null : <span style={{ width: 1, height: 18, background: "#3a3a3a" }} />}
       {SCREENS.map((s) => (
         <Link key={s.id} href={screenHref(dir ?? "c-collectible", s.id, player)} style={s.id === screen ? on : btn}>
           {s.name}

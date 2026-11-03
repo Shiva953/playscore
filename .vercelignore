@@ -1,0 +1,11 @@
+# Keep secrets, build output and review media out of Vercel uploads.
+.env*
+!.env.example
+node_modules
+.next
+coverage
+.taste-skill
+docs/screenshots
+docs/inspiration
+docs/*.png
+anchor/target

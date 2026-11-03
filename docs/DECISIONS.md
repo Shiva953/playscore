@@ -140,3 +140,13 @@ Format: **date · decision** · alternatives · why. Newest at the bottom. Spec 
 - **USDC in the ticket:** the coin mark alone, with "USDC" as its accessible name.
 - **Pointer cursor:** dropdown items, and every enabled button-like control. Tailwind v4 gives buttons the default arrow.
 - **Lab "Payout" moment** replaces "Full time". Dividends settle when the freeze ends, so the moment steps into the next matchday; the old one never had anything to claim.
+
+### 2026-11-03 · Review deployments and demo recordings
+- **Two Vercel projects** (account shiva953):
+  - D: `score-night-terminal` → https://score-night-terminal.vercel.app (the production build).
+  - C: `score-collectible` → https://score-collectible.vercel.app.
+- **How C is built:** the same repo with `SCORE_DIRECTION=c` and `NEXT_PUBLIC_SCORE_DIRECTION=c`, set as project env vars. That build includes the lab routes and redirects `/` and `/lab` to C's landing. The lab bar becomes a "Demo" bar with C's screens and the moment buttons only.
+- **`vercel.json`** pins `framework: nextjs` with bun install/build; a project created by `vercel link` was otherwise treated as a static site.
+- **`.vercelignore`** keeps `.env*` (the Helius key, the Vercel OIDC token), screenshots and build output out of uploads. Deployed builds fall back to the public devnet RPC; add `NEXT_PUBLIC_SOLANA_RPC_DEVNET` in the project settings to use Helius there.
+- **Redeploy:** `bunx vercel link --yes --project <score-night-terminal|score-collectible>` then `bunx vercel deploy --prod --yes`. The local `.vercel/` link points at whichever project was linked last.
+- **Demo videos:** `scripts/record-demo.mjs` records both deployments with Playwright, with a drawn cursor and paced steps, and converts them to MP4 with ffmpeg. They go to `docs/demo/`, which is gitignored.
