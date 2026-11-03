@@ -1,208 +1,58 @@
 # Design directions (Step 1.5)
 
-Four different designs of the same three screens: the player hub in its trading state (with the trade panel), the live matchday, and the landing hero with its first fold. Each is built at desktop (1440) and mobile (375).
+**Status (3 Nov, after the first review):** A (Broadcast) and B (Clean fintech) were dropped; they live in git history (commit `ff6f1a7`, screenshots included). C and D were revised against the review notes and stay in play.
 
-**See them live:** run `bun run dev` and open `/lab`. The bar at the bottom of every lab screen switches direction and screen. Its moment buttons pin the shared mock world at one instant:
-- **Mid-match:** live, 55% through the window, with KANE, YAMAL and RODRI held at kickoff.
-- **Before kickoff.**
-- **Full time.**
+**See them live:** run `bun run dev` and open `/lab`. The bar at the bottom switches direction and screen, and its moment buttons pin the shared mock world at one instant (mid-match with KANE, YAMAL and RODRI held, before kickoff, or full time), so both directions show the same data. Direction D is the production routes; C lives in `src/directions/c-collectible/`. `/lab` exists only under `next dev`.
 
-Every direction then shows the same data. `/lab` exists only under `next dev`: its route files are `page.dev.tsx`, so production builds contain no lab route and no lab code.
+**Screenshots** (pinned mid-match, `scripts/lab-shots.mjs`): `docs/screenshots/lab/<direction>/<screen>-<desktop|mobile>.jpg`, and one side-by-side image per screen, `docs/screenshots/lab/compare-<screen>-<desktop|mobile>.jpg`. axe (WCAG 2 AA, serious and critical) reports no violations on any of the 12 screens.
 
-**Screenshots** (all taken on the pinned mid-match moment with `scripts/lab-shots.mjs`):
-- `docs/screenshots/lab/<direction>/<screen>-<desktop|mobile>.jpg`: full pages.
-- `docs/screenshots/lab/compare-<screen>-<desktop|mobile>.jpg`: one side-by-side image per screen.
-- axe (WCAG 2 AA, serious and critical) reports no violations on any of the 24 screens.
-
-**How they were made:**
-- **Research:** in `docs/INSPIRATION.md`.
-- **Lead aesthetic skill:** each direction has one (see `docs/UI_SKILLS.md`).
-- **Shared code:** directions share only the data hooks, `packages/core`, the formatters, the `ProtocolClient`, and the headless trade-ticket logic in `src/directions/lab/`, so they are compared on design, not behaviour. Tokens, components and libraries are each direction's own (`src/directions/<id>/`).
-- **Direction D:** the dark build already on the production routes (see the 2026-11-03 entry in `DECISIONS.md`).
-
-Bundle figures below are each direction's own libraries, measured (minified with `bun build`, then gzipped), plus each typeface's latin woff2 file. The shared base is React, TanStack Query and the mock client, and it is left out.
+**Research limit for round two:** the session's permission policy refused browser captures of new references (gacha.game, pump.fun and other .fun sites) as bot-check circumvention, and gacha.game renders client-side only, so the revisions draw on the existing captures in `docs/INSPIRATION.md` and the design skills. Screenshots dropped into `docs/` can be used directly.
 
 ---
 
-## A · Broadcast
-
-**Idea:** score as the matchday TV graphics package. The scorebug, lower thirds, stat bars and a price crawl along the top.
-**Inspired by:** FotMob's live score block and Sofascore's live counts; TV sports graphics; Football Index's price ticker.
-**Lead skill:** frontend-design (one memorable element, the type as the graphic, quiet everything else).
-**Libraries:**
-- **GSAP:** the crawl's continuous marquee, the landing's single headline wipe, and pause on hover or focus.
-- **d3-shape:** a hand-drawn stepped SVG chart; prices move in trades, so steps rather than curves.
-- No component library.
-
-**Palette:**
-- **Ground and ink:** white paper, pure black ink and bars.
-- **Brand:** broadcast yellow `#ffe600` as the one brand colour, always with black text.
-- **Positions as solid blocks:** GK pink `#ff3ea5`, DEF blue `#0057ff`, MID violet `#7a3cff`, FWD orange `#ff6a00`.
-- **Money:** green `#00843d` and red `#d1001c` only on money, always with ▲/▼.
-
-**Type:**
-- Archivo, a single family with a width axis.
-- Condensed 62% heavy uppercase for player names only.
-- Semi-condensed bold tabular figures.
-- Normal width for reading.
-
-**Key components:**
-- The scorebug (matchday · live · minute).
-- The lower-third player header (first name, huge surname, huge price).
-- The stat-bar strip, black heading bars with a yellow edge, and position blocks.
-- League-table boards with numbered black rank cells and "open place" rows.
-- Wipe-in event banners (goals inverted to black).
-- The price crawl.
-
-**Motion personality:** broadcast. Event banners wipe in from the left (clip-path, 420ms). The crawl runs continuously and stops on hover. The landing headline wipes in once. Under reduced motion all of it stops.
-
-**Bundle:** 30 KB gzipped JS (GSAP 27 + d3-shape 3) · 90 KB font (Archivo variable, latin).
-
-**Strengths:**
-- Says "football" from across a room.
-- The biggest numbers of the four: the price, the minute and your earnings read on a projector, which suits a Breakpoint stage demo.
-- The crawl makes the market feel alive on every screen.
-
-**Weaknesses:**
-- Loud; long sessions on the player hub can tire.
-- Uppercase names and black bars give it a betting-site edge if pushed further.
-- Square, heavy forms need discipline on dense screens (portfolio, docs).
-
-**Suits:** fans who come for the matchday, and a live stage demo.
-
-![Player hub, desktop](screenshots/lab/a-broadcast/player-desktop.jpg)
-
-## B · Clean fintech
-
-**Idea:** a calm brokerage. The price is the page title, the chart is the hero, and one blue does all the marking.
-**Inspired by:** Robinhood's stock page (price as title, scrub-to-read chart, key-statistics grid); Polymarket's ticket (preset chips, one button); Kalshi's quiet type.
-**Lead skill:** design-taste-frontend, app style `accent-ladder` (light, seed 370616198).
-
-Two values were redrawn for stated reasons:
-- **Hue:** blue instead of the dealt raspberry, which sits too close to the loss red.
-- **Typeface:** Hanken Grotesk instead of the dealt DM Sans, whose Google build has no tabular figures (measured).
-
-**Libraries:**
-- **visx:** shape, scale, curve and event, for the scrubbable line chart. Scrubbing moves the headline price.
-- **NumberFlow:** the price and earnings figures roll digit by digit when they change.
-- Radix is not needed on these screens.
-
-**Palette:**
-- **Ground and sheets:** a blue-white ground `#f8faff` and white sheets with hairlines `#e4e8f0`.
-- **Accent:** blue `#2148d6` only on small marks (the button, the data series, the active nav icon); its pale tints `#eef3ff` / `#d9e3fd` carry the areas.
-- **Positions:** neutral grey pills, so the screen keeps one hue family.
-- **Money:** green `#1f7a4d` and red `#c4242a`.
-
-**Type:** Hanken Grotesk, one family, tabular by default. 32px bold titles, a 40px price, 14px body.
-
-**Key components:**
-- **Shell:** an open-plane sidebar shell; on phones, a 48px bar and a menu sheet.
-- **Charts and figures:** the scrub chart with range chips, the key-statistics grid, and the one tinted card per screen (your position, your provisional earnings).
-- **Matchday and trading:** the window progress track, quiet board tables, and an order ticket with presets and fee rows.
-
-**Motion personality:** almost none, on purpose. Digits roll when a figure changes, and the chart follows the pointer. Nothing enters or bounces.
-
-**Bundle:** 21 KB gzipped JS (visx + NumberFlow) · 35 KB font.
-
-**Strengths:**
-- The most trustworthy with money.
-- The easiest to extend to every route (portfolio, docs and terms fall out of it naturally).
-- Fastest to read, and the lightest bundle.
-- Scrubbing the price is a strong "feels like a real broker" moment.
-
-**Weaknesses:**
-- The least memorable; nothing in it says football or score.
-- At Breakpoint it will look like many good fintech dApps.
-- The matchday lacks energy; it reads as a report.
-
-**Suits:** investors and traders who care about the money first, and due diligence.
-
-![Player hub, desktop](screenshots/lab/b-fintech/player-desktop.jpg)
-
-## C · Collectible
+## C · Collectible (revised)
 
 **Idea:** every player is a card you collect; on matchday your hand of cards plays.
-**Inspired by:** Sorare's cards as objects, FPL's shirt tiles, FotMob's player attributes, Sport.fun's market panels; Polymarket's ticket for the money part.
-**Lead skill:** frontend-design (the card is the one bold element; the table around it stays quiet).
+**Lead skill:** frontend-design. Motion checked against better-ui (`animations.md`, `performance.md`) and improve-animations (`AUDIT.md`).
 
-**Libraries:**
-- **Motion:** card tilt toward the pointer, the card flip, the hand dealing in, board rows that slide when ranks change (layout animations), and event stickers that spring in.
-- **Recharts:** the price area in the player's own colour, and the form bars on the card back.
+**What changed after review**
 
-**Palette:**
-- **The table:** cool grey `#e9edf2`, with white panels `#ffffff` and ink `#0f1419`.
-- **Card faces, vivid, in position colours:** GK sunflower `#ffc531`, DEF blue `#2a63f0`, MID purple `#8240ee`, FWD orange `#ff6a2b`.
-- **Money:** green `#0b7139` and red `#b4202a` on pale chips.
+| Note | Change |
+|---|---|
+| Cards look generated | New card: flat position colour with a fine inner keyline, a soft object shadow (no white frame, no hard sticker shadow), form rating and position top-left, ticker top-right, the **back of a generic shirt with the surname printed across the shoulders** as the picture (no photo, crest or kit), and a compact white plate with name, price and change. |
+| Font looks squashed | Unbounded + Figtree replaced by one minimal geometric family, **Sora** (normal width, default tracking; tabular digits 27.0px, punctuation 10.5px). |
+| Hover and flip not smooth | **Flip:** was an exit-then-enter swap (`AnimatePresence mode="wait"`) that paused at 90°; now one element with two faces and a single CSS `transform` transition (520ms, strong ease-in-out, interruptible), cross-fade under reduced motion. **Tilt:** was JS springs on Motion's shorthands (main thread); now written straight to `transform` in a `requestAnimationFrame`, smoothed by a 220ms ease-out transition, mouse and fine pointers only, off under reduced motion. **Hover lift** in the fanned hands: a CSS transition behind `(hover: hover) and (pointer: fine)`. Board reorders keep Motion's layout animation (transform-based), under `MotionConfig reducedMotion="user"`. |
+| Too big, too long | Body 14px, headline figures 22–30px, panels 16px radius with hairlines, 12–16px gaps. Each screen now fits about one desktop screen; the landing is one hero panel plus one strip. |
 
-**Type:** Unbounded (wide display, for names, ratings and prices on the cards) with Figtree for reading.
+**Palette:** ground `#f2f4f7`, white panels, ink `#0e1116`. Card faces: GK `#f5b82e`, DEF `#2a63f0`, MID `#7c45e8`, FWD `#f2662a`. Money: `#0b7139` / `#b4202a` (contrast measured in `tokens.css`).
+**Libraries:** Motion (board reorders only). Recharts removed: the price area and form bars are hand-drawn SVG.
+**Bundle:** 51 KB gzipped JS (Motion) · 34 KB font (Sora). Was 173 KB + 71 KB.
+**Strengths:** light with colour on the objects (your stated preference); the card answers "no photos" with a football picture; the matchday hand is the demo moment; clearly not a crypto terminal.
+**Weaknesses:** the card is decorative on dense lists (markets, portfolio) and needs a compact row form there; screens are now small, so the build-out must keep 44px touch targets (the ticket's chips grow to 44px on phones).
 
-**Key components:**
-- **The player card:** a typographic picture with no photo.
-  - A form rating (×10) in the corner, like collectible football cards.
-  - Position and ticker.
-  - A pitch drawing with the player's zone lit.
-  - A white name band with price and change.
-- **The player hub:** a card flip (form chart and finishes on the back), and a market panel with metric tiles.
-- **The matchday:**
-  - Your hand: fanned cards wearing live points and earnings.
-  - A black prize card with your take-home figure.
-  - Boards as rounded rows, with your players inverted.
-  - Event stickers in the player's colour for goals.
-- **Controls:** chunky pill buttons that sink when pressed.
+![Player hub, desktop](screenshots/lab/c-collectible/player-desktop.jpg)
 
-**Motion personality:** playful but brief. Springs on the cards and stickers, one dealing moment on load, rows that slide to their new rank. All of it is off under reduced motion.
+## D · Night terminal (revised; the production routes)
 
-**Bundle:** 173 KB gzipped JS (Motion 51, Recharts 122) · 71 KB fonts (Unbounded 51 + Figtree 20). Recharts is most of the weight. Its two small charts could be redrawn in plain SVG or visx (about 15 KB), which would bring C to roughly 65 KB.
+**Idea:** true black, elevation by lightness, lime only on data; the matchday strip as the signature.
+**Lead skill:** design-taste-frontend (`true-black-flat`).
 
-**Strengths:**
-- **Your stated preference:** the closest to light backgrounds with coloured elements.
-- **A no-photo identity:** the card answers "no photos, crests or logos" with a real picture of each player.
-- **The demo moment:** the matchday "hand" is the strongest of the four.
-- **Clearly not a crypto terminal:** good for a consumer DeFi product at Breakpoint, next to Sport.fun's and Sorare's worlds without copying either.
+**What changed after review**
 
-**Weaknesses:**
-- **Heaviest bundle,** as shipped.
-- **Money tone:** gamey can undercut seriousness on fees and taxes, so the ticket and portfolio must stay plain.
-- **Dense lists:** cards don't suit them (markets, portfolio); those screens need a compact row form of the card.
+| Note | Change |
+|---|---|
+| Ticker and price unnoticeable | The ticker is a white chip at the top of the header. The price is 44px in the new figure face, coloured by its 24h move (lime up, pink down), with the change in a tinted pill beside it. |
+| Toast too high, blends in | Desktop offset 24px (the 84px offset was meant for the phone's tab bar and is now phone-only at 76px). Toasts sit on the raised surface `#2a2a2a` with a float shadow, so they read above the cards. |
+| Stats too small | Market cap, 24h volume, pool depth or raised, and last score now 24px figures with 12px labels in the softer grey; market cap leads. |
+| Account menu reads like machine text | Rebuilt: avatar, "Your devnet wallet", "Signed in with Google, Germany"; the balance as the biggest thing in the menu; actions with icons and verbs (Add 1,000 test USDC, Copy address with the short address, Portfolio, Demo settings, Sign out). The same action keeps one name everywhere. |
+| Number font | **Chivo** for figures (`.fig` and numeric table cells); Instrument Sans stays for text, Geist Mono for addresses. Azeret Mono was tried and rejected: a monospace gives the point a digit's width. |
+| Landing too long | Two screens: headline, line, button and three real figures beside the live board; then how it works in four short steps. The landing uses the same header as the app now. |
 
-**Suits:** fans and collectors new to on-chain trading, and the consumer story.
-
-![Matchday, desktop](screenshots/lab/c-collectible/matchday-desktop.jpg)
-
-## D · Night terminal (dark wildcard)
-
-**Idea:** the dark build already on the production routes. True black, elevation by lightness, lime only on data, and the matchday strip as its signature.
-**Inspired by:** Hyperliquid and Jupiter density, the founder's terminal prototype, and FotMob's live minute.
-**Lead skill:** design-taste-frontend, app style `true-black-flat` (dealt earlier in Step 1, before the four-direction exploration; see `DECISIONS.md`).
-
-**Libraries:**
-- **shadcn/ui on Radix:** every control.
-- **Lightweight Charts:** candles and areas, and the Pro view indicators.
-- **CSS transitions** only.
-
-**Palette:**
-- **Grounds by lightness:** `#000` → `#111` → `#2a2a2a`.
-- **Text:** white and two greys.
-- **Lime `#c6ff3d`:** on gains, live state and bonding progress only; red `#ff6b81` on losses.
-
-**Type:** Instrument Sans, with tabular figures; Geist Mono only for addresses.
-
-**Key components:** the matchday strip (snapshot → live → freeze, every kickoff marked), the Pro view, the split-stage landing with a live board, and every route and state already built.
-
-**Motion personality:** feedback only. Price flashes, count-ups on payouts, the strip's moving "now".
-
-**Bundle:** 71 KB gzipped JS (Lightweight Charts) on top of the shared shadcn/Radix base · 57 KB font.
-
-**Strengths:**
-- Complete today, across all routes, states and both widths.
-- The densest, which traders like.
-- The Pro view.
-
-**Weaknesses:**
-- **Against the brief:** dark, against the stated preference for light.
-- **Generic:** near-black with a single acid-green accent is the look frontend-design names as a generated-design default, and the look of most Solana trading apps (Jupiter, Hyperliquid, Meteora). It is the least distinctive at Breakpoint.
-
-**Suits:** active traders in long sessions.
+**Libraries:** shadcn/ui on Radix, Lightweight Charts, CSS transitions.
+**Bundle:** 71 KB gzipped JS (Lightweight Charts) on the shared shadcn/Radix base · fonts: Instrument Sans 57 KB, Chivo 33 KB, Geist Mono.
+**Inspector (taste):** markets, matchday and portfolio 0 FAIL / 0 WARN; player 0 FAIL / 1 WARN (tab detail below the fold, by design). Landing: 2 FAIL / 1 WARN left, all from the page rules that want a longer, richer page (≥4 pictures, more scroll motion, a video). They contradict the review's "shorter and more minimal" and the no-photos rule, so the review wins.
+**Strengths:** complete across every route, state and width; dense; Pro view.
+**Weaknesses:** dark, against the stated light preference; near-black with one acid accent is the common look of Solana trading apps.
 
 ![Player hub, desktop](screenshots/lab/d-terminal/player-desktop.jpg)
 
@@ -210,31 +60,18 @@ Two values were redrawn for stated reasons:
 
 ## Side by side
 
-| | A Broadcast | B Clean fintech | C Collectible | D Night terminal |
-|---|---|---|---|---|
-| Ground | White | Blue-white | Cool grey + white panels | True black |
-| Colour carries | Yellow + position blocks | One blue, as tints | Card faces by position | Lime on data |
-| Type | Archivo condensed | Hanken Grotesk | Unbounded + Figtree | Instrument Sans |
-| Shape | Square, heavy rules | 8px cards, hairlines | 20–24px, sticker shadows | 16px, no borders |
-| Chart | Stepped black line | Scrub line, no grid | Area in card colour | Lightweight Charts |
-| Motion | Wipes, crawl (GSAP) | Digit roll (NumberFlow) | Springs, flips, reorders (Motion) | CSS flashes |
-| Density | Medium–high | Sparse | Medium–low | High |
-| JS weight | 30 KB | 21 KB | 173 KB (≈65 KB without Recharts) | 71 KB |
+| | C Collectible | D Night terminal |
+|---|---|---|
+| Ground | Cool grey + white panels | True black |
+| Colour carries | Card faces by position | Lime on data, price by direction |
+| Type | Sora | Instrument Sans + Chivo figures |
+| Shape | 16px panels, hairlines | 16px surfaces, no borders |
+| Chart | Hand-drawn SVG in the card's colour | Lightweight Charts |
+| Motion | Card flip, tilt, hand lift, board reorders | Price flashes, count-ups |
+| JS weight | 51 KB | 71 KB |
 
-## Recommendation: C · Collectible, with B's money discipline
+## Recommendation
 
-**C** is the one I'd build out:
-- **It matches your stated preference:** a light ground with the colour on the objects.
-- **It turns the hardest constraint into the identity:** with no photos, crests or logos, the card gives every player a face of their own (position colour, rating, pitch zone).
-- **It has the best demo moment:** your hand of cards lighting up as they score.
-- **It stands apart at Breakpoint:** most Solana products there look like D.
+C, if light and consumer-first is the goal: it now has the minimal frame you asked for, and the card is the identity. D, if you'd rather ship the dark terminal that already covers every route. Either way the next step is 1.6 (the design system for the chosen one) and 1.7 (every route in it).
 
-Two borrowings would keep it serious where money moves:
-- **From B:** the trade ticket's plainness (fee rows, one primary action, the tax line before every sell) and a compact table form of the card for markets and portfolio lists.
-- **From A:** the big live minute on matchday.
-
-Before the build-out, C's two Recharts charts should be redrawn in SVG or visx to drop about 108 KB.
-
-If you'd rather lead with trust over personality, B is the safe alternative. A is the bold one for a stage. D stays available as a "night mode" reference.
-
-**🛑 Waiting for your choice:** one direction, or a mix (for example "C, with B's ticket and A's matchday clock"). It will be recorded in `DECISIONS.md`, then 1.6 writes the design system for it.
+**🛑 Waiting for your choice:** C, D, or a mix (for example C's cards on D's routes in a light theme).

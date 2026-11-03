@@ -95,3 +95,18 @@ Format: **date · decision** · alternatives · why. Newest at the bottom. Spec 
 - **D · Night terminal:** shadcn/ui on Radix and Lightweight Charts, as built.
 - All installed as devDependencies: only the dev-only lab imports them today.
 - **B's dealt values redrawn:** raspberry accent → blue `#2148d6` (raspberry sits next to the loss red; the exact Tailwind blue was avoided too); DM Sans → Hanken Grotesk (Google's DM Sans has no tabular figures, measured).
+
+### 2026-11-03 · Directions A and B dropped; C and D refined (user review)
+- **User decision:** "ditch A and B". Their code, routes, screenshots and libraries (GSAP, d3-shape, visx, NumberFlow) are removed; they stay in git history (commit `ff6f1a7`).
+- **C · Collectible, feedback:** cards looked generated; the display face (Unbounded) read as squashed; card hover and flip weren't smooth; everything was too big. Asked for shorter, more minimal screens in the spirit of football.fun and other .fun products.
+- **D · Night terminal, feedback:** the ticker and the price don't stand out; the toast sits too high (desktop used the phone's tab-bar offset) and blends with cards; the stats under the title are too small; the account menu reads like machine text; a better number font; a much shorter landing; smoother and more minimal overall.
+- **Research limit:** browser captures of new references (gacha.game, pump.fun and other .fun sites) were refused by the session's permission policy as bot-check circumvention, so round two works from the existing captures (Sport.fun home and app splash, Sorare, FotMob, Polymarket, Robinhood, Jupiter) and the design skills. gacha.game renders client-side only, so a text fetch returned nothing.
+
+### 2026-11-03 · Round-two changes to C and D
+- **C:** Sora replaces Unbounded + Figtree; new card (keyline, shirt-back picture, compact plate); flip as one two-faced element with a CSS transform transition; tilt written to `transform` per frame and smoothed by CSS; hover lift in CSS behind `(hover: hover) and (pointer: fine)`; Recharts removed for hand-drawn SVG (173 → 51 KB). Every screen fits about one desktop screen.
+- **D figures:** Chivo for figures (`.fig`, `td.num`). Azeret Mono tried and rejected (a monospace gives the decimal point a digit's width, the same flaw that ruled out Schibsted Grotesk).
+- **D header:** ticker as a white chip; price 44px in its 24h direction colour; stats at 24px with market cap first.
+- **D toasts:** desktop offset 24px, phones 76px; raised surface with a float shadow.
+- **D account menu:** rebuilt with human wording and a clear hierarchy; "Add 1,000 test USDC" is the one name for the faucet everywhere.
+- **D landing:** two screens; the giant wordmark and scroll choreography are gone, so the landing uses the app header. Remaining taste inspector FAILs on the landing (few pictures, still page) and the WARN (no footage) are overridden by the review ("shorter and more minimal") and the no-photos rule.
+- **Lab layouts:** the lab no longer uses `layout.dev.tsx`; each lab page wraps its own shell. A dev-only layout put a second, conflicting `LayoutProps` global into the generated route types after a production build.

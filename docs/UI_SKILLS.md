@@ -57,9 +57,10 @@ Only two aesthetic lead skills are installed (`design-taste-frontend`, which is 
 
 | Direction | Lead skill | How the lead was applied |
 |---|---|---|
+| *(A and B were dropped on 3 Nov after the first review; the two rows below are kept for the record.)* | | |
 | **A · Broadcast** | frontend-design | Plan → review against the brief → build. One bold element (the condensed type as the graphic); all-caps only for player names, never labels; no single accented word in the headline (removed after review); copy in plain verbs. |
 | **B · Clean fintech** | design-taste-frontend | App style dealt with `draw.mjs --app --kind markets --theme light` → `accent-ladder` (seed 370616198, `.taste-skill/lab-b/direction.json`). Kept the move (full hue on small marks, tints on areas) and the tokens; redrew the hue (raspberry → blue, too close to the loss red) and the type (DM Sans → Hanken Grotesk, no tabular figures in Google's DM Sans, measured). Gate: `lint.mjs --app` (0 FAIL; the 3 WARN left are a toast, a focus ring and placeholder dashes). |
-| **C · Collectible** | frontend-design | The card is the one bold element; the table, panels and ticket stay plain. The pitch drawing is the "picture" in place of the banned photos. |
+| **C · Collectible** | frontend-design | The card is the one bold element; the table, panels and ticket stay plain. Round two: the shirt back with the surname is the picture in place of the banned photos; one family (Sora); motion re-checked against better-ui and improve-animations (see `DIRECTIONS.md`). |
 | **D · Night terminal** | design-taste-frontend | `true-black-flat` (seed 1063017092), as built across the production routes; mapping in §3c. |
 
 ### 3b. Skills applied to every direction (so the comparison is fair)

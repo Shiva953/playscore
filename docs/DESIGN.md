@@ -9,7 +9,7 @@ Owner: `design-taste-frontend` (see `docs/UI_SKILLS.md`). App screens follow the
 - **World.** A stadium at night: floodlit pitch, the scoreboard, the results table in Monday's paper, the steward's hi-vis.
 - **Moments (where colour lives).** Your earnings, a live goal landing on the board, a curve filling to $25k. Everything else is black, grey and white.
 - **Signature element.** **The matchday strip:** the window as one horizontal line, from the kickoff snapshot through live play to the data freeze, with every club's kickoff on it and a "now" mark moving along. It appears in the header pill (compact), on Markets, on the Matchday page and on the landing board. No competitor has a kickoff snapshot, so no competitor has this strip.
-- **Idea (landing).** On this page, **this weekend's real matchday board** becomes **the half of the screen that never moves**: a live board running beside the reading column. **The live thing:** pick a player and a stake and see the tokens you'd get and what that holding earned last round, computed from the live mock.
+- **Idea (landing, shortened 3 Nov).** Two screens: the line, the button and three real figures beside **this weekend's live board**; then how it works in four short steps. The long scroll (split stage, showcase calculator, squad, comparison table, vault mosaic) was cut after review: "we have to scroll a lot".
 
 ## 2. Each screen's one question
 
@@ -46,10 +46,12 @@ Rules: colour share stays under ~3% of a screen. The accent never touches button
 
 ## 4. Type
 
-- **Instrument Sans** (variable: weight 400–600 in the app, width 75–100) for everything; tabular figures (`.num`) on every number that aligns or updates. Verified in Chrome that `tabular-nums` equalises its digits (24.0px) while `.` `:` `,` stay proportional (8.8–10.2px), so `$0.01094` stays tight. Its condensed width (75) sets the landing page's giant word, so one family covers both.
+- **Instrument Sans** for all text. `.num` keeps tabular figures on mixed rows.
+- **Chivo** for the figures themselves (`.fig`, and `td.num` cells): prices, stat values, balances, earnings, table numbers. Added 3 Nov after review ("use a different suitable font for numbers"): tabular digits (24.6px) with narrow punctuation (10.2px), so `$0.01016` reads as one number. Azeret Mono was tried first and rejected: in a monospace the point takes a full digit's width ("$0 . 01016").
 - **Geist Mono** only for wallet addresses and transaction IDs.
+- **Player header (3 Nov):** the ticker is a white chip (`<Ticker chip>`), the price 44px in Chivo coloured by its 24h move (lime up, pink down, white flat) with the change in a tinted pill; the four stats under it at 24px.
 - App scale: 12 (meta) · 14 (body, cells, nav) · 16 (card titles) · 20 (screen title, h1) · 24 (key figures) · 32 (the one answer figure: player price, portfolio total). Nothing above 600 weight; no tracking on text under 16px; −0.02em from 24px.
-- Landing scale: 17 (body) · 24 (statement) · 32–40 (section headings) · `clamp(120px, 12vw, 200px)` (the wordmark) · container-sized giant word in the list section.
+- Landing scale: 16 (body) · 28/48 (the headline, phone/desktop, two lines) · 22 (the three figures).
 - Sentence case everywhere. No tracked capitals, no eyebrows, no index numbers.
 
 ## 5. Space, radius, surfaces
@@ -81,7 +83,8 @@ One curve, `cubic-bezier(0.23, 1, 0.32, 1)`; durations 150ms (press, hover, tabs
 - **Bonding fill:** the progress bar's fill animates its `scale-x` over 600ms.
 - **Live event:** a new feed row slides 8px and fades in; under reduced motion it only fades.
 - **Bonded / full time:** the dialog rises 12px with a fade; the earned figure ticks up from 0.
-- Landing: the taste motion layer (scroll-linked wordmark scale ≤8%, staggered section entrances 60–90ms, the live board as the moving picture).
+- Landing: no scroll choreography any more; the live board is the only moving picture.
+- Toasts: bottom-right, 24px from the edge on desktop and 76px on phones (above the tab bar), on `--raised` with a float shadow so they read above the cards.
 
 `prefers-reduced-motion: reduce` drops all travel and keeps opacity and colour.
 
