@@ -282,10 +282,66 @@ After each area: run the anti-slop check on that area, screenshot it, and fix be
 
 ---
 
+## Step 1B — Client round 1: double down on D
+
+Decided 3 Nov 2026 with the client (Nyanni) after the C/D review: **D (Night terminal) is the direction.** C stays in `/lab` for reference.
+
+**What the client asked for, decoded:**
+
+| Client said | Meaning |
+|---|---|
+| "would be good to get a trading terminal style page", with a link to `#/trade` in the v1 prototype | A dedicated **Trade** page laid out as a terminal: player list on the left, chart with indicators in the middle, order book and ticket (market and limit) on the right, positions and orders underneath. |
+| "u can click top down to get different players" | In the terminal, moving up and down the player list switches the selected player (click, or ↑/↓ on the keyboard). The same on the player page (previous/next). |
+| "maybe launch needs it own page on header too"; to "product homepage separate and main app separate?": "Sort of yea. But specific 'launch' page where the 'ICOs' happen" | A **Launch** item in the app header for the ICOs (bonding-curve launches): live launches, what's starting next, what just bonded, buying on the curve (the prototype's `#/ico`). The homepage is separate from the app pages. |
+| "replace 'watch the live board' with 'buy player shares'" (from the user) | The homepage's actions lead to buying, not watching. |
+| "would be good to see portfolio in 'sign in' mode" (from the user) | Signed out, the portfolio page shows what a portfolio looks like and a one-step way in; the demo can be signed in quickly with a populated portfolio. |
+| "ADD PRIVY EMBEDDED WALLETS FOR SIGN-IN" (from the user) | Real sign-in with Privy: email, Google or Phantom, with a Solana embedded wallet created on login. |
+
+**Architecture decision (client, 3 Nov):** everything in-house. No Meteora or external LP; player tokens trade and pool only inside score. Solana carries the money: embedded wallets funded with USDC, deposits, withdrawals, custody and the dividend vault, plus regular proof of reserves. Trading (launch curves, AMM pools, LP, order books) runs on score's own engine. **Open question for the client:** engine fully off-chain, our own Solana program with tokens locked to it, or a mix (off-chain order book, on-chain settlement). Recorded in `DECISIONS.md`.
+
+### 1B.1 Information architecture
+- App header: **Launch · Trade · Matchday · Portfolio · Docs**. `/markets` folds into Trade (the terminal's player list carries search and filters) and Launch (launching and scheduled players); `/markets` redirects to `/trade`.
+- The homepage `/` is a separate product page with its own header and footer and an "Open the app" action. App pages keep the app header.
+
+### 1B.2 Product homepage
+- Research a variety of .fun and consumer-crypto homepages (pump.fun, football.fun / Sport.fun, gacha, Believe, letsbonk, Zora, fomo) and designeer.xyz. Record the patterns in `docs/INSPIRATION.md` (captures only where the browser policy allows).
+- Deal the page direction with the taste skill (it leads D). Apply unslop and the page rules; keep it short (no more than three screens).
+- The hero shows the live product. Actions: **Buy player shares** (primary) and **Explore launches**.
+
+### 1B.3 Launch page `/launch`
+- Featured launch (closest to bonding) with its curve and an inline ticket.
+- Live launches: progress to $25k, raised, price, 24h change, buyers.
+- Starting next: the 14:00 and 20:00 UTC slots with countdowns.
+- Just bonded: players that graduated, linking to Trade.
+
+### 1B.4 Trade terminal `/trade/[id]`
+- Strip: player, price, 24h, volume, market cap, score.
+- Player list: search, position and league filters, sort. Click or ↑/↓ to switch players; the URL follows.
+- Chart: Lightweight Charts with range, MA/EMA/Bollinger/RSI and volume.
+- Order book: the pool's depth shown as bid/ask levels (the AMM's implied book) until the in-house engine brings real resting orders.
+- Ticket: market and limit (limit orders rest in the mock and fill when the price crosses; logged as a mock change), fees and sell tax shown before submit.
+- Below the chart: positions, open orders, recent trades.
+- The player page gets previous/next controls in the same order.
+
+### 1B.5 Portfolio signed out
+- Show an example of a populated portfolio, labelled as an example, under a sign-in prompt, plus "Try a demo account": a one-step demo sign-in that seeds a few holdings.
+
+### 1B.6 Privy sign-in
+- `@privy-io/react-auth` with a Solana embedded wallet created on login. Login with email, Google or Phantom.
+- Our country and Terms step stays in front of Privy, because the geo-block is ours.
+- The session uses the Privy wallet address. Devnet funding is still the faucet; Privy funding comes with the custody step.
+- Without `NEXT_PUBLIC_PRIVY_APP_ID` (from the Privy dashboard), the mock sign-in stays, so local demos and tests keep working.
+
+### 1B.7 Verify and ship
+- lint, typecheck, test, build; the demo loop updated for the new routes; axe on every route; taste `lint`/`inspect`; unslop pass.
+- Screenshots in `docs/screenshots/step-1b/`. Redeploy D (`score-night-terminal`).
+
+**🛑 STOP.** Report with screenshots and the deployed link; wait for the client's review.
+
 ## Later steps (outline only — do not start)
 
 - **Step 2 — Season economics simulation:** model vault inflows/outflows over a 38-round season under different launch pace, turnover and claim mix; output charts for the pitch. Resolve open questions Q1, Q2, Q7, Q8, Q9.
-- **Step 3 — Contracts:** the custom Anchor program per `ARCHITECTURE.md` §6.1–6.2 (only when the user says so).
+- **Step 3 — In-house exchange + custody** (replaces "custom Anchor program with on-chain pools", per the 3 Nov architecture decision): score's own engine (launch curves, AMM pools, LP, order book, ledger), a Solana custody vault and dividend vault (multisig, withdrawal limits), and proof of reserves posted on-chain. Off-chain, own-program or mixed execution is decided by the client first. `ARCHITECTURE.md` gets rewritten to match (only when the user says so).
 - **Step 4 — Scoring + oracle service:** ingestion worker, freeze timing, admin-signed results, replay of a real past gameweek for the demo.
-- **Step 5 — Integration:** `OnchainProtocolClient` (Codama client + indexer), embedded wallet (Privy), fee sponsorship, geo-blocking at the edge.
+- **Step 5 — Integration:** the real protocol client against the engine and custody program, wallet funding through Privy, fee sponsorship, geo-blocking at the edge. Privy sign-in itself lands earlier, in 1B.6.
 - **Step 6 — Demo & pitch:** scripted 2-minute demo round, pitch narrative (Football Index lesson → our solvency design), backup recording.

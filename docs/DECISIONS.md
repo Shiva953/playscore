@@ -150,3 +150,8 @@ Format: **date · decision** · alternatives · why. Newest at the bottom. Spec 
 - **`.vercelignore`** keeps `.env*` (the Helius key, the Vercel OIDC token), screenshots and build output out of uploads. Deployed builds fall back to the public devnet RPC; add `NEXT_PUBLIC_SOLANA_RPC_DEVNET` in the project settings to use Helius there.
 - **Redeploy:** `bunx vercel link --yes --project <score-night-terminal|score-collectible>` then `bunx vercel deploy --prod --yes`. The local `.vercel/` link points at whichever project was linked last.
 - **Demo videos:** `scripts/record-demo.mjs` records both deployments with Playwright, with a drawn cursor and paced steps, and converts them to MP4 with ffmpeg. They go to `docs/demo/`, which is gitignored.
+
+### 2026-11-03 · Client review: D chosen; in-house architecture
+- **Direction:** the client picked D (Night terminal), "closer to features in the v1". The bottom-right toasts got a specific thumbs up. C stays in `/lab` for reference. The follow-up work is PLAN Step 1B: a trade terminal, up/down player switching, a Launch page for ICOs, a separate homepage, the signed-out portfolio, and Privy sign-in.
+- **Architecture:** everything in-house. No Meteora or external LPs; player tokens trade and pool only inside score. Solana carries the money: USDC in embedded wallets, deposits, withdrawals, custody, the dividend vault, and proof of reserves. Launch curves, AMM pools, LP and order books run on score's own engine. The client accepts the higher cost for control and security.
+- **Still open with the client:** execution fully off-chain, as score's own Solana program with tokens locked to it, or a mix. `ARCHITECTURE.md` §6 (custom Anchor program with on-chain pools) is superseded and will be rewritten in Step 3.
