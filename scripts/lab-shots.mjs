@@ -17,7 +17,7 @@ const args = process.argv.slice(2);
 const mi = args.indexOf("--moment");
 const MOMENT = mi >= 0 ? args[mi + 1] : "live";
 const ONLY = args.filter((a, i) => !a.startsWith("--") && (mi < 0 || i !== mi + 1));
-const DIRS = ["a-broadcast", "b-fintech", "c-collectible", "d-terminal"].filter((d) => !ONLY.length || ONLY.includes(d));
+const DIRS = ["c-collectible", "d-terminal"].filter((d) => !ONLY.length || ONLY.includes(d));
 const SCREENS = ["player", "matchday", "landing"];
 const MOMENT_LABEL = { live: "Mid-match", open: "Before kickoff", fulltime: "Full time" }[MOMENT];
 

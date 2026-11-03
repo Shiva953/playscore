@@ -8,8 +8,6 @@ import { useRound } from "@/lib/protocol/react/hooks";
 import { MOMENTS, pinMoment, releaseMoment, type MomentId } from "./moments";
 
 export const DIRECTIONS = [
-  { id: "a-broadcast", letter: "A", name: "Broadcast" },
-  { id: "b-fintech", letter: "B", name: "Clean fintech" },
   { id: "c-collectible", letter: "C", name: "Collectible" },
   { id: "d-terminal", letter: "D", name: "Night terminal" },
 ] as const;
@@ -122,7 +120,7 @@ function Bar() {
       ))}
       <span style={{ width: 1, height: 18, background: "#3a3a3a" }} />
       {SCREENS.map((s) => (
-        <Link key={s.id} href={screenHref(dir ?? "a-broadcast", s.id, player)} style={s.id === screen ? on : btn}>
+        <Link key={s.id} href={screenHref(dir ?? "c-collectible", s.id, player)} style={s.id === screen ? on : btn}>
           {s.name}
         </Link>
       ))}
