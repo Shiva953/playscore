@@ -23,7 +23,7 @@ export function CLanding() {
   const step = Math.min(cardW * 0.46, (fanW - cardW - 24) / Math.max(1, n - 1));
 
   return (
-    <main className="mx-auto flex max-w-[1120px] flex-col gap-3 px-3 pt-3 pb-6 md:px-6 lg:min-h-[calc(100svh-68px)]">
+    <main className="mx-auto flex max-w-[1320px] flex-col gap-3 px-3 pt-3 pb-6 md:px-6 lg:min-h-[calc(100svh-68px)]">
       <section className="c-panel grid flex-1 items-center gap-6 overflow-hidden px-5 py-8 md:px-10 md:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
           <h1 className="max-w-[16ch] text-[32px] leading-[1.08] font-bold tracking-[-0.03em] md:text-[44px]">Collect the players. Get paid when they score.</h1>

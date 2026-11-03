@@ -49,7 +49,7 @@ function Header() {
   const r = useRound((x) => ({ phase: x.phase, minute: matchMinute(x) }));
   return (
     <header className="sticky top-0 z-40 bg-[var(--c-ground)] px-3 pt-3 pb-2 md:px-6">
-      <div className="mx-auto flex h-12 max-w-[1120px] items-center gap-1 rounded-full border border-[var(--c-line)] bg-white pr-1.5 pl-4">
+      <div className="mx-auto flex h-12 max-w-[1320px] items-center gap-1 rounded-full border border-[var(--c-line)] bg-white pr-1.5 pl-4">
         <Link href="/lab/c-collectible/landing" className="mr-3 text-[16px] font-bold tracking-[-0.02em]" aria-label="score home">
           score
         </Link>
@@ -74,7 +74,7 @@ function Header() {
           ) : null}
         </div>
       </div>
-      <NavLinks className="mx-auto mt-2 flex max-w-[1120px] gap-1 overflow-x-auto md:hidden" />
+      <NavLinks className="mx-auto mt-2 flex max-w-[1320px] gap-1 overflow-x-auto md:hidden" />
     </header>
   );
 }

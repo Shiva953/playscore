@@ -5,7 +5,6 @@ import { formatPct, formatPrice, formatScore, formatTokens, formatUsd, formatUsd
 import type { PlayerDetail, PriceRange } from "@/lib/protocol/types";
 import { usePlayer, useRound } from "@/lib/protocol/react/hooks";
 import { matchMinute } from "@/directions/lab/derive";
-import { useSize } from "@/directions/lab/use-width";
 import { cn } from "@/lib/utils";
 import { FACE, PlayerCard } from "./card";
 import { FormBars, PriceArea, RangePills } from "./chart";
@@ -18,7 +17,7 @@ import { Ticket } from "./ticket";
  */
 export function CPlayer({ id }: { id: string }) {
   const q = usePlayer(id);
-  if (q.isPending) return <div className="mx-auto mt-3 h-[calc(100svh-96px)] max-w-[1120px] rounded-[16px] bg-white/70" aria-busy="true" />;
+  if (q.isPending) return <div className="mx-auto mt-3 h-[calc(100svh-96px)] max-w-[1320px] rounded-[16px] bg-white/70" aria-busy="true" />;
   if (!q.data) return <p className="p-8">There&apos;s no player with that ID.</p>;
   return <Hub p={q.data} />;
 }
@@ -31,27 +30,28 @@ function Hub({ p }: { p: PlayerDetail }) {
   const up = p.change24h >= 0;
 
   return (
-    <main className="mx-auto grid max-w-[1120px] gap-4 px-3 pt-3 pb-6 md:px-6 lg:min-h-[calc(100svh-68px)] lg:grid-cols-[260px_minmax(0,1fr)_300px]">
-      <div className="flex flex-col gap-3">
+    <main className="mx-auto grid max-w-[1320px] gap-4 px-3 pt-3 pb-6 md:px-6 lg:min-h-[calc(100svh-68px)] lg:grid-cols-[240px_minmax(0,1fr)_290px]">
+      {/* Phones: card, market, ticket first; the column wrappers dissolve (display: contents) so blocks can reorder. */}
+      <div className="contents lg:flex lg:flex-col lg:gap-3">
         <button
           type="button"
           aria-pressed={back}
           aria-label={back ? "Show the front of the card" : "Turn the card over"}
           onClick={() => setBack((b) => !b)}
-          className="c-flip mx-auto block rounded-[16px]"
+          className="c-flip order-1 mx-auto block rounded-[16px] lg:order-none"
           data-back={back}
-          style={{ width: 260, height: 364 }}
+          style={{ width: 240, height: 336 }}
         >
           <span className="c-flip-inner block">
             <span className="c-face c-face-front block">
-              <PlayerCard p={p} width={260} as="div" />
+              <PlayerCard p={p} width={240} as="div" />
             </span>
             <span className="c-face c-face-back flex flex-col gap-3 rounded-[16px] bg-white p-4 text-left ring-1 ring-[var(--c-line)]">
               <span className="flex items-baseline justify-between">
                 <span className="text-[13px] font-semibold">Form</span>
                 <span className="c-num text-[12px] text-[var(--c-mute)]">avg {formatScore(p.avgScore)}</span>
               </span>
-              <FormBars form={p.form} color={face.bg} />
+              <FormBars form={p.form} color={face.bg} height={96} />
               <span className="text-[12px] leading-[1.4] text-[var(--c-mute)]">Coloured bars finished top five on a board and paid holders.</span>
               <span className="mt-auto grid grid-cols-2 gap-2 text-[12px]">
                 <Small label="Last score" value={formatScore(p.lastScore)} />
@@ -63,7 +63,7 @@ function Hub({ p }: { p: PlayerDetail }) {
           </span>
         </button>
         {h && h.tokens > 0 ? (
-          <div className="flex items-center justify-between rounded-[14px] bg-[var(--c-ink)] px-4 py-3 text-white">
+          <div className="order-4 flex items-center justify-between rounded-[14px] bg-[var(--c-ink)] px-4 py-3 text-white lg:order-none">
             <span className="flex flex-col leading-tight">
               <span className="text-[12px] text-white/65">You own</span>
               <span className="c-num text-[15px] font-semibold">{formatTokens(h.tokens)}</span>
@@ -77,65 +77,64 @@ function Hub({ p }: { p: PlayerDetail }) {
         <ThisMatchday p={p} />
       </div>
 
-      <section aria-label="Market" className="c-panel flex min-h-[420px] min-w-0 flex-col gap-3 p-4">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div className="flex flex-col gap-0.5">
-            <h1 className="text-[13px] font-semibold">
-              {p.name} <span className="font-normal text-[var(--c-mute)]">{p.club}</span>
-            </h1>
-            <span className="flex items-baseline gap-2">
-              <span className="c-num text-[28px] leading-none font-bold tracking-[-0.02em]">{formatPrice(p.price)}</span>
-              <span className="c-num text-[13px] font-semibold" style={{ color: up ? "var(--c-up)" : "var(--c-down)" }}>
-                {up ? "+" : "−"}
-                {formatPct(Math.abs(p.change24h))} today
+      <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-3">
+        <section aria-label="Market" className="c-panel order-2 flex min-w-0 flex-col gap-3 p-4 lg:order-none">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div className="flex flex-col gap-0.5">
+              <h1 className="text-[13px] font-semibold">
+                {p.name} <span className="font-normal text-[var(--c-mute)]">{p.club}</span>
+              </h1>
+              <span className="flex items-baseline gap-2">
+                <span className="text-[28px] leading-none font-bold tracking-[-0.02em]">{formatPrice(p.price)}</span>
+                <span className="c-num text-[13px] font-semibold" style={{ color: up ? "var(--c-up)" : "var(--c-down)" }}>
+                  {up ? "+" : "−"}
+                  {formatPct(Math.abs(p.change24h))} today
+                </span>
               </span>
-            </span>
+            </div>
+            <RangePills value={range} onChange={setRange} />
           </div>
-          <RangePills value={range} onChange={setRange} />
-        </div>
-        <FillChart playerId={p.id} range={range} color={face.bg} />
-        <dl className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          <Tile label="Market cap" value={formatUsdCompact(p.marketCap)} />
-          <Tile label="24h volume" value={formatUsdCompact(p.volume24h)} />
-          <Tile label="Pool depth" value={formatUsdCompact(p.liquidityUsd)} />
-          <Tile label="Paid to holders" value={formatUsdCompact(p.dividendsPaid)} />
-        </dl>
-      </section>
+          <PriceArea playerId={p.id} range={range} color={face.bg} />
+          <dl className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            <Tile label="Market cap" value={formatUsdCompact(p.marketCap)} />
+            <Tile label="24h volume" value={formatUsdCompact(p.volume24h)} />
+            <Tile label="Pool depth" value={formatUsdCompact(p.liquidityUsd)} />
+            <Tile label="Paid to holders" value={formatUsdCompact(p.dividendsPaid)} />
+          </dl>
+        </section>
+        <section aria-label="Form" className="c-panel order-6 flex flex-1 flex-col gap-3 p-4 lg:order-none">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-[13px] font-semibold">Form, last {Math.min(8, p.form.length)} matchdays</h2>
+            <span className="text-[12px] text-[var(--c-mute)]">average {formatScore(p.avgScore)}</span>
+          </div>
+          <FormBars form={p.form} color={face.bg} height="fill" legend />
+        </section>
+      </div>
 
-      <div className="flex flex-col gap-3">
-        <Ticket player={p} />
+      <div className="contents lg:flex lg:flex-col lg:gap-3">
+        <div className="order-3 lg:order-none">
+          <Ticket player={p} />
+        </div>
         <Holders p={p} />
       </div>
     </main>
   );
 }
 
-/** The chart takes whatever height the market panel has left (absolutely placed, so it can't feed back into it). */
-function FillChart({ playerId, range, color }: { playerId: string; range: PriceRange; color: string }) {
-  const [box, size] = useSize<HTMLDivElement>(600, 0);
-  return (
-    <div ref={box} className="relative min-h-[200px] flex-1">
-      {size.height > 0 ? (
-        <div className="absolute inset-0">
-          <PriceArea playerId={playerId} range={range} color={color} height={size.height} />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 /** This player in the current matchday: live score, and where they sit on the boards right now. */
 function ThisMatchday({ p }: { p: PlayerDetail }) {
   const q = useRound();
-  if (!q.data) return <div className="c-panel min-h-[120px] flex-1" aria-busy="true" />;
+  if (!q.data) return <div className="c-panel order-5 min-h-[120px] flex-1 lg:order-none" aria-busy="true" />;
   const r = q.data;
   const s = r.scores.find((x) => x.playerId === p.id);
   const finishes = r.boards.flatMap((b) => b.rows.filter((x) => x.playerId === p.id).map((x) => ({ board: b.label, rank: x.rank, usd: x.usd })));
   return (
-    <section aria-label="This matchday" className="c-panel flex flex-1 flex-col gap-3 p-4">
+    <section aria-label="This matchday" className="c-panel order-5 flex flex-1 flex-col gap-3 p-4 lg:order-none">
       <div className="flex items-baseline justify-between">
         <h2 className="text-[13px] font-semibold">Matchday {r.round}</h2>
-        <span className="text-[12px] text-[var(--c-mute)]">{r.phase === "live" ? `Live ${matchMinute(r)}′` : r.phase === "open" ? "Before kickoff" : "Full time"}</span>
+        <span className="text-[12px] text-[var(--c-mute)]">
+          {r.phase === "live" ? `Live ${matchMinute(r)}′` : r.phase === "open" ? "Before kickoff" : "Full time"}
+        </span>
       </div>
       {s && s.playing ? (
         <div className="flex items-baseline gap-2">
@@ -173,7 +172,7 @@ function Holders({ p }: { p: PlayerDetail }) {
   const rows = p.holders.slice(0, 8);
   const top = Math.max(...rows.map((r) => r.share), 0.0001);
   return (
-    <section aria-label="Top holders" className="c-panel flex flex-1 flex-col gap-2 p-4">
+    <section aria-label="Top holders" className="c-panel order-7 flex flex-1 flex-col gap-2 p-4 lg:order-none">
       <h2 className="text-[13px] font-semibold">Top holders</h2>
       <ul className="flex flex-col gap-1.5 text-[12px]">
         {rows.map((r) => (
@@ -183,7 +182,10 @@ function Holders({ p }: { p: PlayerDetail }) {
               <span className="c-num font-semibold">{formatPct(r.share, { decimals: 1 })}</span>
             </span>
             <span className="h-1 rounded-full bg-[var(--c-chip)]">
-              <span className="block h-full rounded-full" style={{ width: `${(r.share / top) * 100}%`, background: r.isYou ? "var(--c-ink)" : "var(--c-line)" }} />
+              <span
+                className="block h-full rounded-full"
+                style={{ width: `${(r.share / top) * 100}%`, background: r.isYou ? "var(--c-ink)" : "var(--c-line)" }}
+              />
             </span>
           </li>
         ))}
@@ -196,7 +198,7 @@ function Tile({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-[12px] bg-[var(--c-chip)] px-3 py-2">
       <dt className="text-[12px] text-[var(--c-mute)]">{label}</dt>
-      <dd className="c-num text-[15px] font-semibold">{value}</dd>
+      <dd className="text-[15px] font-semibold">{value}</dd>
     </div>
   );
 }

@@ -17,10 +17,10 @@ import { FACE, PlayerCard, type CardPlayer } from "./card";
  */
 export function CMatchday() {
   const q = useRound();
-  if (!q.data) return <div className="mx-auto mt-4 h-[60vh] max-w-[1120px] rounded-[16px] bg-white/70" aria-busy="true" />;
+  if (!q.data) return <div className="mx-auto mt-4 h-[60vh] max-w-[1320px] rounded-[16px] bg-white/70" aria-busy="true" />;
   const r = q.data;
   return (
-    <main className="mx-auto flex max-w-[1120px] flex-col gap-4 px-3 pt-3 pb-20 md:px-6">
+    <main className="mx-auto flex max-w-[1320px] flex-col gap-4 px-3 pt-3 pb-20 md:px-6">
       <Title r={r} />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <Hand r={r} />

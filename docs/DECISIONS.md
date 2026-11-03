@@ -116,3 +116,13 @@ Format: **date · decision** · alternatives · why. Newest at the bottom. Spec 
 - **D number font:** Funnel Sans for figures, chosen from an in-context comparison (Instrument Sans, Chivo, Geist, Host Grotesk, Funnel Sans, Rethink Sans, IBM Plex Sans, Hanken Grotesk on the player header). Chivo looked wide and heavy beside the labels.
 - **D header and menu:** USDC coin mark instead of the word (CC0 path inlined, the package removed after copying); avatars generated per address with `boring-avatars` (MIT); the menu opens on the address (copy) with Devnet and sign-in chips; "Your devnet wallet" removed.
 - **Matchday strip labels** sit in columns sized like the zones (and hide "Trading open" in narrow containers), so they can't overlap; they were absolutely positioned and collided on the landing's board.
+
+### 2026-11-03 · C chart proportions (user review: "too thin/compressed")
+- **Cause:** round three let the price chart take the market column's whole height, so on a ~1184px window a 500px-wide column drew a 700px-tall chart, and C's pages were capped at 1120px, so even wide screens gave it only ~510px.
+- **Fix, per the dataviz skill:**
+  - The chart keeps a landscape shape (height = 0.42 × width, clamped 200–380px, axis band included).
+  - Marks: 2px line, ~10% wash, an r 4 end dot with a 2px surface ring, two recessive 1px hairlines at the range's high and low, and a crosshair that snaps to the nearest point.
+- **Width:** C's pages go to 1320px, and the side columns to 240px and 290px. The middle column is now ~575px at 1184 and ~700px at 1440.
+- **The height freed by the chart** goes to a wide Form panel. Its bars follow the bar spec: ≤24px thick, 4px rounded tops, square at the baseline, 2px gaps. It has a legend for the two categories, only the latest bar labelled, and hover to read any other.
+- **Hero price and tile values** use proportional figures (the skill's anti-pattern list); tabular stays for aligned columns.
+- **Phones:** blocks reorder to card, market, ticket, then holding, this matchday, form, holders (the column wrappers use `display: contents` below lg).
