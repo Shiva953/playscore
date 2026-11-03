@@ -5,31 +5,13 @@ import { LabBar, SCREENS, screenHref } from "./lab-bar";
 
 const CARDS = [
   {
-    id: "a-broadcast",
-    letter: "A",
-    name: "Broadcast",
-    idea: "score as the matchday TV graphics package: scorebug, lower thirds, stat bars and a price crawl.",
-    lead: "frontend-design",
-    libs: "GSAP (wipes, crawl, count-ups) · d3-shape (stepped SVG chart) · Radix primitives",
-    look: "White, black bars, broadcast yellow; position colours as solid blocks; Archivo condensed, square corners.",
-  },
-  {
-    id: "b-fintech",
-    letter: "B",
-    name: "Clean fintech",
-    idea: "A calm brokerage: the price is the title, the chart is the hero, one blue does all the marking.",
-    lead: "design-taste-frontend (accent-ladder, light)",
-    libs: "visx (scrubbable chart) · NumberFlow (digit roll) · Radix primitives",
-    look: "Blue-white ground, white sheets, hairlines; Hanken Grotesk; 8px cards, sidebar shell.",
-  },
-  {
     id: "c-collectible",
     letter: "C",
     name: "Collectible",
     idea: "Every player is a card you collect; on matchday your hand of cards plays.",
     lead: "frontend-design",
-    libs: "Motion (springs, flips, board reorders) · Recharts (card-back charts)",
-    look: "Cool grey table, vivid position-coloured cards with a pitch-zone drawing; Unbounded + Figtree; big radius.",
+    libs: "Motion (board reorders) · hand-drawn SVG charts · CSS transitions for tilt, flip and hover",
+    look: "Cool grey ground, white panels, cards in position colours with a shirt-back picture; Sora; compact.",
   },
   {
     id: "d-terminal",
@@ -38,7 +20,7 @@ const CARDS = [
     idea: "The dark build already on the production routes: true black, lime only on data, the matchday strip.",
     lead: "design-taste-frontend (true-black-flat)",
     libs: "shadcn/ui on Radix · Lightweight Charts · CSS transitions",
-    look: "#000 → #111 → #2a2a2a by lightness; lime #c6ff3d on gains and live state; Instrument Sans.",
+    look: "#000 → #111 → #2a2a2a by lightness; lime #c6ff3d on gains and live state; Instrument Sans with Chivo figures.",
   },
 ];
 
@@ -47,9 +29,10 @@ export function LabIndex() {
     <div data-fullbleed className="min-h-svh bg-[#0e0e0e] px-4 py-10 text-[#e8e8e8] md:px-10">
       <div className="mx-auto flex max-w-[1100px] flex-col gap-8">
         <header className="flex flex-col gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">Design lab · four directions</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Design lab · C and D</h1>
           <p className="max-w-[70ch] text-[15px] text-[#a8a8a8]">
-            The same three screens (player hub in its trading state, the live matchday, the landing hero) in four different designs, all on the same mock data.
+            The same three screens (player hub in its trading state, the live matchday, the landing hero) in the two directions still in play, on the same mock
+            data. A (Broadcast) and B (Clean fintech) were dropped on 3 Nov.
             Use the bar at the bottom to pin one moment (for example mid-match with KANE, YAMAL and RODRI held) and switch directions without the data
             moving. Dev only: this route is not in production builds.
           </p>

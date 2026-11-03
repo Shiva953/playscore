@@ -1,89 +1,107 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
-import { formatUsdCompact } from "@/lib/format";
-import { usePlayers, useStats } from "@/lib/protocol/react/hooks";
-import { PlayerCard } from "./card";
+import { formatPct, formatUsd, formatUsdCompact } from "@/lib/format";
+import { usePlayers, useRound, useStats } from "@/lib/protocol/react/hooks";
 import { useWidth } from "@/directions/lab/use-width";
+import { PlayerCard } from "./card";
 
 /**
- * Landing, first fold: the hand of real trading players is the picture (no photos needed: the cards
- * are typographic). One orchestrated moment: the hand deals in on load.
+ * Landing in about one screen: the line, the button, and the hand of real trading players as the
+ * picture (one dealing moment on load). Under it, the three steps in one quiet strip.
  */
 export function CLanding() {
   const players = usePlayers();
   const stats = useStats();
-  const reduce = useReducedMotion();
+  const round = useRound((r) => ({ pool: r.pool.usd, rate: r.pool.effectiveRate }));
   const hand = (players.data ?? []).filter((p) => p.status === "trading").slice(0, 5);
   const n = hand.length;
-  const [fan, fanW] = useWidth<HTMLDivElement>(560);
-  const cardW = fanW < 460 ? 160 : 210;
-  const step = Math.min(92, (fanW - cardW - 16) / Math.max(1, n - 1));
+  const [fan, fanW] = useWidth<HTMLDivElement>(520);
+  const cardW = fanW < 440 ? 132 : 168;
+  const step = Math.min(72, (fanW - cardW - 24) / Math.max(1, n - 1));
 
   return (
-    <main className="mx-auto flex max-w-[1320px] flex-col gap-6 px-3 pt-6 pb-24 md:px-6">
-      <section className="c-panel grid items-center gap-10 overflow-hidden px-6 pt-10 pb-6 md:px-12 md:pt-14 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:pb-14">
-        <div className="flex flex-col gap-6">
-          <h1 className="c-display text-[40px] md:text-[60px]" style={{ lineHeight: 1.04 }}>
-            Collect the players. Get paid when they shine.
-          </h1>
-          <p className="max-w-[44ch] text-[18px] leading-[1.55] text-[var(--c-mute)]">
-            Every real footballer is a card you can own in tokens. Hold one at a matchday&apos;s first kickoff, and when they finish top five on their board,
-            you share its prize.
+    <main className="mx-auto flex max-w-[1120px] flex-col gap-3 px-3 pt-3 pb-20 md:px-6">
+      <section className="c-panel grid items-center gap-6 overflow-hidden px-5 py-8 md:px-10 md:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="flex flex-col gap-4">
+          <h1 className="max-w-[16ch] text-[32px] leading-[1.08] font-bold tracking-[-0.03em] md:text-[44px]">Collect the players. Get paid when they score.</h1>
+          <p className="max-w-[42ch] text-[15px] leading-[1.55] text-[var(--c-mute)]">
+            Real footballers, as cards you own in tokens. Hold one at a matchday&apos;s first kickoff and share the prize when they finish top five.
           </p>
-          <div className="flex flex-wrap items-center gap-4">
-            <Link href="/lab/c-collectible/player" className="c-press flex h-14 items-center rounded-full bg-[var(--c-ink)] px-7 text-[17px] font-semibold text-white">
-              Start your collection
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <Link href="/lab/c-collectible/player" className="c-press flex h-11 items-center rounded-full bg-[var(--c-ink)] px-5 text-[14px] font-semibold text-white hover:bg-[#262c35]">
+              Start collecting
             </Link>
-            <Link href="/lab/c-collectible/matchday" className="text-[16px] font-semibold underline decoration-2 underline-offset-4">
-              See today&apos;s matchday
+            <Link href="/lab/c-collectible/matchday" className="flex h-11 items-center rounded-full px-4 text-[14px] font-semibold hover:bg-[var(--c-chip)]">
+              Today&apos;s matchday
             </Link>
           </div>
+          <dl className="flex gap-6 pt-3 text-[12px]">
+            <Fact label="Vault" value={stats.data ? formatUsdCompact(stats.data.vault) : "—"} />
+            <Fact label="This matchday" value={round.data ? formatUsd(round.data.pool, { decimals: 0 }) : "—"} />
+            <Fact label="Trading" value={stats.data ? `${stats.data.bondedCount} players` : "—"} />
+          </dl>
         </div>
-        <div ref={fan} className="relative flex h-[320px] items-center justify-center md:h-[440px]" aria-label="Players trading now">
+        <div ref={fan} className="c-fan relative h-[230px] md:h-[280px]" aria-label="Players trading now">
           {hand.map((p, i) => {
             const mid = (n - 1) / 2;
-            const angle = (i - mid) * 8;
-            const x = (i - mid) * step;
             return (
-              <motion.div
+              <Link
                 key={p.id}
-                className="absolute"
-                initial={reduce ? false : { y: 160, rotate: 0, x: 0, opacity: 0 }}
-                animate={{ y: Math.abs(i - mid) * 18, rotate: angle, x, opacity: 1 }}
-                transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1], delay: reduce ? 0 : 0.08 * i }}
-                style={{ zIndex: n - Math.round(Math.abs(i - mid) * 2) }}
-                whileHover={reduce ? undefined : { y: -16, rotate: 0, zIndex: 20 }}
+                href={`/lab/c-collectible/player?player=${p.id}`}
+                aria-label={`${p.name}, open`}
+                className="c-deal absolute top-1/2 left-1/2 -mt-[calc(var(--h)/2)] -ml-[calc(var(--w)/2)] block rounded-[16px]"
+                style={
+                  {
+                    "--w": `${cardW}px`,
+                    "--h": `${Math.round(cardW * 1.4)}px`,
+                    "--x": `${(i - mid) * step}px`,
+                    "--y": `${Math.abs(i - mid) * 10}px`,
+                    "--r": `${(i - mid) * 6}deg`,
+                    zIndex: n - Math.round(Math.abs(i - mid) * 2),
+                    animationDelay: `${i * 50}ms`,
+                  } as React.CSSProperties
+                }
               >
-                <Link href={`/lab/c-collectible/player?player=${p.id}`} className="block rounded-[24px]" aria-label={`${p.name}, open`}>
-                  <PlayerCard p={p} width={cardW} tilt={false} as="div" />
-                </Link>
-              </motion.div>
+                <PlayerCard p={p} width={cardW} tilt={false} as="div" />
+              </Link>
             );
           })}
         </div>
       </section>
 
-      <section aria-label="How it works" className="grid gap-4 md:grid-cols-3">
-        <Step n="1" title="A card launches" body="The first collectors pay the lowest price on a bonding curve, up to 240,000 tokens each." />
-        <Step n="2" title="At $25,000 it bonds" body="70% seeds a trading pool that never leaves; 20% tops up the dividend vault." />
-        <Step
-          n="3"
-          title="Top five get paid"
-          body={`Every matchday a slice of the ${stats.data ? formatUsdCompact(stats.data.vault) : ""} vault is shared by the top five on each board.`}
-        />
-      </section>
+      <ol aria-label="How it works" className="c-panel grid divide-[var(--c-line)] max-md:divide-y md:grid-cols-3 md:divide-x">
+        <Step n={1} title="A card launches">
+          The first collectors pay the lowest price on a bonding curve.
+        </Step>
+        <Step n={2} title="At $25,000 it bonds">
+          A trading pool opens that can never be withdrawn.
+        </Step>
+        <Step n={3} title="Top five get paid">
+          {round.data ? `About ${formatPct(round.data.rate, { decimals: 1 })} of the vault` : "A slice of the vault"} is shared every matchday.
+        </Step>
+      </ol>
     </main>
   );
 }
 
-function Step({ n, title, body }: { n: string; title: string; body: string }) {
+function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="c-panel flex flex-col gap-3 p-6">
-      <span className="c-num flex size-10 items-center justify-center rounded-full bg-[var(--c-ink)] text-[16px] text-white">{n}</span>
-      <h2 className="c-display text-[20px]">{title}</h2>
-      <p className="text-[15px] text-[var(--c-mute)]">{body}</p>
+    <div className="flex flex-col">
+      <dt className="text-[var(--c-mute)]">{label}</dt>
+      <dd className="c-num text-[15px] font-semibold">{value}</dd>
     </div>
+  );
+}
+
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <li className="flex gap-3 px-5 py-4">
+      <span className="c-num flex size-6 shrink-0 items-center justify-center rounded-full bg-[var(--c-ink)] text-[11px] font-semibold text-white">{n}</span>
+      <span className="flex flex-col gap-0.5">
+        <span className="text-[13px] font-semibold">{title}</span>
+        <span className="text-[12px] leading-[1.45] text-[var(--c-mute)]">{children}</span>
+      </span>
+    </li>
   );
 }

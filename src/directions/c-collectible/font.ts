@@ -1,5 +1,4 @@
-import { Figtree, Unbounded } from "next/font/google";
+import { Sora } from "next/font/google";
 
-/** Wide, rounded display for names and figures on the cards; a plain sans for everything you read. */
-export const unbounded = Unbounded({ subsets: ["latin"], variable: "--c-display", display: "swap" });
-export const figtree = Figtree({ subsets: ["latin"], variable: "--c-text", display: "swap" });
+/** One minimal geometric family for everything (replaces Unbounded + Figtree after review). */
+export const sora = Sora({ subsets: ["latin"], variable: "--c-font", display: "swap" });

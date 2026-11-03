@@ -1,75 +1,154 @@
 /*
- * Direction C · Collectible. Lead skill: frontend-design.
- * Every player is a card: a vivid face in the position colour, a pitch drawing of where they play,
- * a white name band. The table is cool grey; everything else stays quiet so the cards carry the colour.
- * Unbounded (display: names, ratings, prices) + Figtree (text). Big radius, hard sticker shadows.
+ * Direction C · Collectible (v2, after review). Lead skill: frontend-design.
+ * Every player is a card. The cards carry the colour; everything around them is small, quiet and
+ * light: a cool grey ground, white panels with hairlines, one family (Sora) at a compact scale.
+ * Motion follows better-ui + improve-animations: transform/opacity only, transitions (interruptible)
+ * for anything the pointer drives, strong ease-out for entrances, ease-in-out for on-screen moves.
  */
 .dir-c {
-  --c-table: #e9edf2;
+  --c-ground: #f2f4f7;
   --c-paper: #ffffff;
-  --c-ink: #0f1419;
-  --c-mute: #586170; /* 6.3:1 on white, 5.3:1 on the table */
-  --c-line: #d5dbe3;
-  --c-chip: #f1f4f8;
-  --c-gk: #ffc531;
-  --c-def: #2a63f0; /* white on it: 5.1:1 */
-  --c-mid: #8240ee; /* white on it: 5.4:1 */
-  --c-fwd: #ff6a2b;
-  --c-up: #0b7139; /* 5.4:1 on its soft tint, 6.1:1 on white */
-  --c-down: #b4202a; /* 5.5:1 on its soft tint, 6.6:1 on white */
-  --c-up-soft: #dff5e8;
-  --c-down-soft: #fde4e4;
-  --c-sticker: 0 6px 0 rgba(15, 20, 25, 0.14);
-  --c-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --c-ink: #0e1116;
+  --c-mute: #5d6573; /* 6.0:1 on white, 5.5:1 on the ground */
+  --c-line: #e4e8ee;
+  --c-chip: #f2f4f7;
+  --c-gk: #f5b82e; /* ink text on it */
+  --c-def: #2a63f0; /* white text on it: 5.1:1 */
+  --c-mid: #7c45e8; /* white text on it: 5.3:1 */
+  --c-fwd: #f2662a; /* ink text on it */
+  --c-up: #0b7139; /* 6.1:1 on white */
+  --c-down: #b4202a; /* 6.6:1 on white */
+  --c-up-soft: #e3f4ea;
+  --c-down-soft: #fbe7e7;
+  --c-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --c-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 
   color-scheme: light;
-  background: var(--c-table);
+  background: var(--c-ground);
   color: var(--c-ink);
-  font-family: var(--c-text), system-ui, sans-serif;
-  font-size: 15px;
+  font-family: var(--c-font), system-ui, sans-serif;
+  font-size: 14px;
   line-height: 1.5;
 }
 
 .dir-c :focus-visible {
-  outline: 3px solid var(--c-ink);
-  outline-offset: 3px;
-}
-
-.dir-c .c-display {
-  font-family: var(--c-display), system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1;
+  outline: 2px solid var(--c-ink);
+  outline-offset: 2px;
 }
 
 .dir-c .c-num {
-  font-family: var(--c-display), system-ui, sans-serif;
-  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
 }
 
 .dir-c .c-panel {
   background: var(--c-paper);
-  border-radius: 20px;
+  border: 1px solid var(--c-line);
+  border-radius: 16px;
 }
 
-/* Chunky press: the button sinks onto its shadow. */
+/* Press feedback (better-ui): scale 0.97, 150ms ease-out, never when disabled. */
 .dir-c .c-press {
-  box-shadow: 0 4px 0 rgba(15, 20, 25, 0.9);
   transition:
-    transform 120ms var(--c-ease),
-    box-shadow 120ms var(--c-ease),
-    background-color 150ms;
+    scale 150ms ease-out,
+    background-color 150ms ease;
 }
 .dir-c .c-press:enabled:active,
 .dir-c a.c-press:active {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 rgba(15, 20, 25, 0.9);
+  scale: 0.97;
+}
+
+/* ---------------------------------------------------------------- card motion */
+
+/* Tilt: the card's transform is written directly by the pointer handler; this transition smooths it. */
+.dir-c .c-card {
+  transition: transform 220ms var(--c-ease-out);
+}
+
+/* Flip: one element, two faces, a single interruptible transition (ease-in-out: movement on screen). */
+.dir-c .c-flip {
+  perspective: 1000px;
+}
+.dir-c .c-flip-inner {
+  position: relative;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 520ms var(--c-ease-in-out);
+}
+.dir-c .c-flip[data-back="true"] .c-flip-inner {
+  transform: rotateY(180deg);
+}
+.dir-c .c-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+.dir-c .c-face-back {
+  transform: rotateY(180deg);
 }
 @media (prefers-reduced-motion: reduce) {
-  .dir-c .c-press:enabled:active,
-  .dir-c a.c-press:active {
+  /* No turning: the faces cross-fade instead. */
+  .dir-c .c-flip-inner,
+  .dir-c .c-flip[data-back="true"] .c-flip-inner {
     transform: none;
+    transition: none;
+  }
+  .dir-c .c-face {
+    backface-visibility: visible;
+    transition: opacity 150ms ease-out;
+  }
+  .dir-c .c-face-back {
+    transform: none;
+    opacity: 0;
+  }
+  .dir-c .c-flip[data-back="true"] .c-face-back {
+    opacity: 1;
+  }
+  .dir-c .c-flip[data-back="true"] .c-face-front {
+    opacity: 0;
+  }
+}
+
+/* Fanned hands: each card sets its own --x/--r/--y; hover lifts it straight (fine pointers only). */
+.dir-c .c-fan > * {
+  transform: translateX(var(--x, 0px)) translateY(var(--y, 0px)) rotate(var(--r, 0deg));
+  transition: transform 220ms var(--c-ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .dir-c .c-fan > *:hover {
+    transform: translateX(var(--x, 0px)) translateY(calc(var(--y, 0px) - 10px)) rotate(0deg);
+    z-index: 20;
+  }
+}
+
+/* One-time entrances (a rare moment, so keyframes are fine): the deal, and new feed items. */
+@media (prefers-reduced-motion: no-preference) {
+  .dir-c .c-deal {
+    animation: c-deal 460ms var(--c-ease-out) both;
+  }
+  .dir-c .c-pop {
+    animation: c-pop 200ms var(--c-ease-out) both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dir-c .c-deal,
+  .dir-c .c-pop {
+    animation: c-fade 150ms ease-out both;
+  }
+}
+@keyframes c-deal {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+  }
+}
+@keyframes c-pop {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+@keyframes c-fade {
+  from {
+    opacity: 0;
   }
 }
