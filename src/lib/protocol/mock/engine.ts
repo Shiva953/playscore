@@ -485,9 +485,9 @@ export function userFaucet(ctx: EngineCtx, amount: number): TxResult {
   if (!(amount > 0)) throw new ProtocolError("INVALID_AMOUNT", "Enter an amount.");
   u.usdc += amount;
   u.faucetTotal += amount;
-  addHistory(ctx, u, { kind: "faucet", usdc: amount, detail: `Devnet faucet +${fmtUsd(amount)} test USDC` });
+  addHistory(ctx, u, { kind: "faucet", usdc: amount, detail: "From the devnet faucet" });
   ctx.emit({ type: "user" });
-  return { ok: true, id: nextId(ctx.s, "tx"), summary: `+${fmtUsd(amount)} test USDC`, usdc: amount };
+  return { ok: true, id: nextId(ctx.s, "tx"), summary: `Topped up ${fmtUsd(amount)} test USDC`, usdc: amount };
 }
 
 // ---------------------------------------------------------------- ambient market (demo only)

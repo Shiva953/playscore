@@ -1,262 +1,244 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { Copy } from "lucide-react";
+import { toast } from "sonner";
+import { PLAYERS_BY_ID, type PositionCode } from "@score/core";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Delta, KeyValue, LiveFigure, Section, Stat, StatStrip, StripCell, Ticker } from "@/components/common/bits";
+import { Delta, LiveFigure, Section, Sparkline, Ticker } from "@/components/common/bits";
 import { EmptyState, ErrorState, LoadingBlock, SignedOutState } from "@/components/common/states";
-import { formatPct, formatPrice, formatRelative, formatTokens, formatUsd } from "@/lib/format";
-import type { ActivityItem, Portfolio } from "@/lib/protocol/types";
-import { useFaucet, useNow, usePortfolio, useSession } from "@/lib/protocol/react/hooks";
-import { ClaimPanel } from "./claim-panel";
+import { UsdcIcon } from "@/components/common/usdc";
+import { UserAvatar } from "@/components/common/user-avatar";
 import { LiveMatchdayStrip } from "@/components/common/matchday-strip";
+import { formatCountdown, formatDate, formatPct, formatRelative, formatTokens, formatUsd, shortAddress } from "@/lib/format";
+import type { ActivityItem, Portfolio, PositionView } from "@/lib/protocol/types";
+import { useFaucet, useNow, usePlayers, usePortfolio, useRound, useRoundHistory, useSession } from "@/lib/protocol/react/hooks";
+import { ClaimPanel } from "./claim-panel";
 import { cn } from "@/lib/utils";
 
+/**
+ * Portfolio as a consumer home (after Phantom's home, Robinhood's portfolio and the .fun profile pages):
+ * who you are, one headline figure with its split, the claim moment (or your next chance to earn),
+ * your players as cards, then activity in plain sentences, earnings per matchday and points.
+ */
 export function PortfolioPage() {
   const session = useSession();
   const pf = usePortfolio();
   if (session.isPending || (session.data && pf.isPending)) {
     return (
-      <div className="flex flex-col gap-4">
-        <LoadingBlock className="h-24" />
-        <LoadingBlock className="h-48" />
+      <div className="flex flex-col gap-4" aria-busy="true">
+        <LoadingBlock className="h-16" />
+        <LoadingBlock className="h-44" />
+        <LoadingBlock className="h-64" />
       </div>
     );
   }
-  if (!session.data) {
-    return (
-      <div className="flex flex-col gap-4">
-        <h1 className="text-2xl leading-8 font-semibold tracking-[-0.02em] text-ink">Portfolio</h1>
-        <SignedOutState title="Sign in to see your portfolio">Your positions, dividends, liquidity and history live here.</SignedOutState>
-        <div className="mt-6 rounded-2xl bg-surface px-5 py-5">
-          <LiveMatchdayStrip />
-        </div>
-        <Section title="How dividends reach you" id="how">
-          <ol className="grid gap-px overflow-hidden rounded-2xl bg-rule md:grid-cols-3">
-            {[
-              ["Hold at kickoff", "Every bonded player you hold at the first kickoff of a matchday is counted for that round."],
-              ["Finish top five", "Players who finish in the top five of their position or league board share the round's pool."],
-              ["Claim after the freeze", "When the match data freezes, take your share in USDC, or in more of the same player with a 10% bonus."],
-            ].map(([t, b]) => (
-              <li key={t} className="flex flex-col gap-1.5 bg-surface px-5 py-4">
-                <span className="text-sm font-medium text-ink">{t}</span>
-                <span className="text-sm leading-relaxed text-soft">{b}</span>
-              </li>
-            ))}
-          </ol>
-        </Section>
-      </div>
-    );
-  }
+  if (!session.data) return <SignedOut />;
   if (pf.isError || !pf.data) return <ErrorState error={pf.error} onRetry={() => void pf.refetch()} />;
   const d = pf.data;
   return (
-    <div className="flex flex-col gap-12">
-      <Summary d={d} />
-      <Section title="Claimable dividends" id="claim">
-        <div className="rounded-2xl bg-surface px-5 py-5">
-          <ClaimPanel />
+    <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-4">
+        <Profile d={d} />
+        <Hero d={d} />
+        {d.claimable.totalUsd > 0.005 ? <ClaimCard /> : <NextChance d={d} />}
+      </div>
+      <Squad d={d} />
+      {d.lp.length ? <Liquidity d={d} /> : null}
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
+        <Activity items={d.history} />
+        <div className="flex flex-col gap-10 lg:gap-6">
+          <Earnings />
+          <Points d={d} />
         </div>
-      </Section>
-      <Positions d={d} />
-      <LpPositions d={d} />
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <History items={d.history} />
-        <Points d={d} />
       </div>
     </div>
   );
 }
 
-function Summary({ d }: { d: Portfolio }) {
+// ---------------------------------------------------------------- who you are
+
+function Profile({ d }: { d: Portfolio }) {
   const faucet = useFaucet();
+  const s = d.user;
+  const method = s.method === "google" ? "Google" : s.method === "email" ? "Email" : "Phantom";
+  const copy = () => void navigator.clipboard?.writeText(s.address).then(() => toast.success("Address copied"));
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl leading-8 font-semibold tracking-[-0.02em] text-ink">Portfolio</h1>
-          <p className="text-sm text-soft">{d.user.label}</p>
+    <header className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-4">
+        <UserAvatar seed={s.address} size={56} />
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <div className="flex items-center gap-1">
+            <h1 className="mono-id truncate text-[18px] text-ink">
+              <span className="sr-only">Portfolio of </span>
+              {shortAddress(s.address, 6)}
+            </h1>
+            <Button variant="ghost" size="icon-sm" onClick={copy} aria-label="Copy address">
+              <Copy aria-hidden="true" />
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-1.5 text-[12px] font-medium">
+            <span className="rounded-full bg-up-tint px-2 py-0.5 text-up">Devnet</span>
+            <span className="rounded-full bg-raised px-2 py-0.5 text-soft">{method}</span>
+            <span className="rounded-full bg-raised px-2 py-0.5 text-soft">Since {formatDate(s.createdAt)}</span>
+          </div>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => faucet.mutate(1_000)} disabled={faucet.isPending}>
-          Add 1,000 test USDC
-        </Button>
       </div>
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <span className="text-[32px] leading-9 font-medium tracking-[-0.02em] text-ink" aria-label="Total value">
-          <LiveFigure value={d.totalValue} format={(n) => formatUsd(n)} tick />
-        </span>
-        <Delta value={d.pnl} className="text-base">
-          {formatUsd(d.pnl, { signed: true })} P&amp;L
-        </Delta>
+      <div className="flex gap-2">
+        <Button variant="secondary" onClick={() => faucet.mutate(1_000)} disabled={faucet.isPending}>
+          Top up
+        </Button>
         {d.claimable.totalUsd > 0.005 ? (
-          <a href="#claim" className="text-sm text-up hover:underline">
-            {formatUsd(d.claimable.totalUsd)} to claim
-          </a>
+          <Button asChild>
+            <a href="#claim">Claim {formatUsd(d.claimable.totalUsd)}</a>
+          </Button>
         ) : null}
       </div>
-      <StatStrip data-testid="portfolio-summary">
-        <StripCell>
-          <Stat label="USDC" value={formatUsd(d.usdc)} />
-        </StripCell>
-        <StripCell>
-          <Stat label="Positions" value={formatUsd(d.positionsValue)} />
-        </StripCell>
-        <StripCell>
-          <Stat label="Liquidity" value={formatUsd(d.lpValue)} />
-        </StripCell>
-        <StripCell>
-          <Stat label="Dividends earned" value={formatUsd(d.dividendsEarned)} hint={`Realised P&L ${formatUsd(d.realizedPnl, { signed: true })}`} />
-        </StripCell>
-        <StripCell>
-          <Stat label="Fees paid" value={formatUsd(d.feesPaid)} hint="90% of sell tax funds holders" />
-        </StripCell>
-      </StatStrip>
+    </header>
+  );
+}
+
+// ---------------------------------------------------------------- the headline figure and its split
+
+/** Dark-mode slots 1–3 of the dataviz reference palette, validated on #111 (all checks pass). */
+const SPLIT = [
+  { key: "cash", label: "Cash", color: "#3987e5" },
+  { key: "players", label: "Players", color: "#d95926" },
+  { key: "lp", label: "Liquidity", color: "#199e70" },
+] as const;
+
+function Hero({ d }: { d: Portfolio }) {
+  const cents = formatUsd(d.totalValue).split(".")[1] ?? "00";
+  const values = { cash: d.usdc, players: d.positionsValue, lp: d.lpValue };
+  return (
+    <section aria-label="Portfolio value" data-testid="portfolio-summary" className="grid gap-6 rounded-2xl bg-surface p-5 md:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] lg:items-end">
+      <div className="flex flex-col gap-3">
+        <span className="text-[13px] text-soft">Portfolio value</span>
+        <span className="fig fig-prop flex items-baseline leading-none" aria-label={formatUsd(d.totalValue)}>
+          <LiveFigure value={d.totalValue} format={(n) => formatUsd(n).split(".")[0]!} tick className="fig-prop text-[52px] font-semibold tracking-[-0.03em] text-ink" />
+          <span className="text-[28px] font-medium text-soft">.{cents}</span>
+        </span>
+        <div className="flex flex-wrap items-center gap-2 text-[14px]">
+          <span className={cn("inline-flex h-8 items-center gap-1.5 rounded-full px-3 font-semibold", d.pnl < 0 ? "bg-down-tint" : "bg-up-tint")}>
+            <Delta value={d.pnl}>{formatUsd(d.pnl, { signed: true })}</Delta>
+            <span className="text-[12px] font-medium text-soft">all time</span>
+          </span>
+          {d.dividendsEarned > 0.005 ? (
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-raised px-3">
+              <span className="fig font-semibold text-up">{formatUsd(d.dividendsEarned)}</span>
+              <span className="text-[12px] text-soft">earned from boards</span>
+            </span>
+          ) : null}
+        </div>
+      </div>
+      <Split values={values} total={Math.max(d.totalValue, 0.01)} />
+    </section>
+  );
+}
+
+/** Tall segmented bar (dataviz): 28px, 4px block corners, 2px surface gaps, share printed where it fits, names in the legend. */
+function Split({ values, total }: { values: Record<(typeof SPLIT)[number]["key"], number>; total: number }) {
+  const parts = SPLIT.map((p) => ({ ...p, value: values[p.key], share: values[p.key] / total })).filter((p) => p.value > 0.005);
+  const label = parts.map((p) => `${p.label} ${formatUsd(p.value)}, ${formatPct(p.share, { decimals: 0 })}`).join("; ");
+  return (
+    <div className="flex flex-col gap-3">
+      <div role="img" aria-label={`Split: ${label}`} className="flex h-7 gap-[2px]">
+        {parts.map((p) => (
+          <span
+            key={p.key}
+            title={`${p.label}: ${formatUsd(p.value)} (${formatPct(p.share, { decimals: 1 })})`}
+            className="flex min-w-1 items-center overflow-hidden rounded-[4px] px-2 text-[12px] font-semibold text-black"
+            style={{ flexGrow: p.share, flexBasis: 0, background: p.color }}
+          >
+            {p.share >= 0.12 ? formatPct(p.share, { decimals: 0 }) : null}
+          </span>
+        ))}
+      </div>
+      <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-[13px]">
+        {parts.map((p) => (
+          <li key={p.key} className="flex items-center gap-2">
+            <span aria-hidden="true" className="size-2.5 rounded-[2px]" style={{ background: p.color }} />
+            <span className="text-soft">{p.label}</span>
+            <span className="fig text-ink">{formatUsd(p.value)}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-function Positions({ d }: { d: Portfolio }) {
+// ---------------------------------------------------------------- the moment
+
+function ClaimCard() {
   return (
-    <Section title="Positions" id="positions">
-      {d.positions.length === 0 ? (
+    <section id="claim" aria-label="Claimable dividends" className="rounded-2xl bg-surface p-5 ring-1 ring-up/25 md:p-6">
+      <ClaimPanel />
+    </section>
+  );
+}
+
+/** Nothing to claim: say when the next chance to earn is, in one line. */
+function NextChance({ d }: { d: Portfolio }) {
+  const r = useRound((x) => ({ round: x.round, phase: x.phase, endsAt: x.phaseEndsAt, provisional: x.my.provisionalUsd, counted: x.my.players.length }));
+  const now = useNow();
+  if (!r.data) return null;
+  const left = now ? formatCountdown(Math.max(0, r.data.endsAt - now)) : "";
+  const counting = d.positions.filter((p) => p.countsNextKickoff).length;
+  const line =
+    r.data.phase === "open"
+      ? `Matchday ${r.data.round} kicks off in ${left}. ${counting ? `${counting} of your players will count.` : "Hold a bonded player by then to earn."}`
+      : r.data.phase === "live"
+        ? `Matchday ${r.data.round} is live. ${r.data.counted ? `You'd take ${formatUsd(r.data.provisional)} if it ended now.` : "None of your players were held at kickoff."}`
+        : `Full time. Payouts land here when the data freezes in ${left}.`;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface px-5 py-4">
+      <p className="text-[14px] text-soft">
+        <span className={cn("mr-2 inline-block size-2 rounded-full align-middle", r.data.phase === "live" ? "bg-up" : "bg-soft")} aria-hidden="true" />
+        {line}
+      </p>
+      <Link href="/matchday" className="text-[13px] text-ink underline decoration-control underline-offset-4 hover:decoration-ink">
+        Open matchday
+      </Link>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- your players
+
+const POS_TINT: Record<PositionCode, string> = { FWD: "bg-pos-fwd/15 text-pos-fwd", MID: "bg-pos-mid/15 text-pos-mid", DEF: "bg-pos-def/15 text-pos-def", GK: "bg-pos-gk/15 text-pos-gk" };
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function Squad({ d }: { d: Portfolio }) {
+  const players = usePlayers();
+  const spark = new Map((players.data ?? []).map((p) => [p.id, p.sparkline]));
+  const rows = [...d.positions].sort((a, b) => b.value - a.value);
+  return (
+    <Section title="Your players" description={rows.length ? `${rows.length} held, worth ${formatUsd(d.positionsValue)}` : undefined} id="positions">
+      {rows.length === 0 ? (
         <EmptyState
-          title="No positions yet"
+          title="No players yet"
           action={
             <Button asChild size="sm">
               <Link href="/markets">Find players</Link>
             </Button>
           }
         >
-          Buy a launching player on the curve, or a bonded one in its pool.
+          Buy a launching player on the curve, or a bonded one in its pool. Players you hold at kickoff earn from their board finishes.
         </EmptyState>
       ) : (
-        <div className="rounded-2xl bg-surface px-5 py-2">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Player</TableHead>
-                <TableHead className="text-right">Tokens</TableHead>
-                <TableHead className="hidden text-right md:table-cell">Price</TableHead>
-                <TableHead className="text-right">Value</TableHead>
-                <TableHead className="text-right">P&L</TableHead>
-                <TableHead className="hidden text-right sm:table-cell">Hold age</TableHead>
-                <TableHead className="hidden text-right sm:table-cell">Sell tax now</TableHead>
-                <TableHead className="hidden lg:table-cell">Next kickoff</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {d.positions.map((p) => (
-                <TableRow key={p.playerId}>
-                  <TableCell>
-                    <Link href={`/player/${p.playerId}`} className="hover:underline">
-                      <Ticker ticker={p.ticker} className="text-[13px] text-ink" /> <span className="hidden text-soft sm:inline">{p.name}</span>
-                    </Link>
-                  </TableCell>
-                  <TableCell className="num text-right">{formatTokens(p.tokens)}</TableCell>
-                  <TableCell className="num hidden text-right md:table-cell">{formatPrice(p.price)}</TableCell>
-                  <TableCell className="num text-right">{formatUsd(p.value)}</TableCell>
-                  <TableCell className="text-right">
-                    <Delta value={p.pnl}>{formatUsd(p.pnl, { signed: true })}</Delta>
-                  </TableCell>
-                  <TableCell className="num hidden text-right sm:table-cell">{p.status === "trading" ? `${p.holdAgeDays.toFixed(0)}d` : "—"}</TableCell>
-                  <TableCell className="num hidden text-right sm:table-cell">{formatPct(p.sellTaxNow)}</TableCell>
-                  <TableCell className="hidden text-sm lg:table-cell">{p.countsNextKickoff ? "Counted" : "Not yet (launching)"}</TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild size="xs" variant="secondary">
-                      <Link href={`/player/${p.playerId}`}>Trade</Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-      <p className="text-xs text-faint">
-        Value is at the current price. Selling pays the sell tax and moves the price; the player page shows exactly what you&apos;d receive.
-      </p>
-    </Section>
-  );
-}
-
-function LpPositions({ d }: { d: Portfolio }) {
-  return (
-    <Section title="Liquidity" id="lp">
-      {d.lp.length === 0 ? (
-        <EmptyState title="No liquidity positions">Add USDC and tokens to a bonded player&apos;s pool from its Liquidity tab.</EmptyState>
-      ) : (
-        <div className="rounded-2xl bg-surface px-5 py-2">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Pool</TableHead>
-                <TableHead className="text-right">Share</TableHead>
-                <TableHead className="text-right">Value</TableHead>
-                <TableHead className="hidden text-right sm:table-cell">Fees earned</TableHead>
-                <TableHead className="hidden text-right sm:table-cell">IL</TableHead>
-                <TableHead className="text-right">P&L</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {d.lp.map((l) => (
-                <TableRow key={l.playerId}>
-                  <TableCell><Ticker ticker={l.ticker} className="text-[13px] text-ink" /> <span className="text-soft">/ USDC</span></TableCell>
-                  <TableCell className="num text-right">{formatPct(l.poolShare, { decimals: 3 })}</TableCell>
-                  <TableCell className="num text-right">{formatUsd(l.valueUsd)}</TableCell>
-                  <TableCell className="num hidden text-right sm:table-cell">{formatUsd(l.feesEarnedUsd)}</TableCell>
-                  <TableCell className="num hidden text-right sm:table-cell">{formatPct(l.impermanentLoss)}</TableCell>
-                  <TableCell className="text-right">
-                    <Delta value={l.pnl}>{formatUsd(l.pnl, { signed: true })}</Delta>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild size="xs" variant="secondary">
-                      <Link href={`/player/${l.playerId}`}>Manage</Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-    </Section>
-  );
-}
-
-const KIND_LABEL: Record<ActivityItem["kind"], string> = {
-  buy: "Buy",
-  sell: "Sell",
-  "lp-add": "Add liquidity",
-  "lp-remove": "Remove liquidity",
-  "claim-usdc": "Claim (USDC)",
-  "claim-tokens": "Claim (tokens)",
-  faucet: "Faucet",
-  dividend: "Dividends",
-};
-
-function History({ items }: { items: ActivityItem[] }) {
-  const now = useNow();
-  return (
-    <Section title="History" id="history">
-      {items.length === 0 ? (
-        <EmptyState title="No activity yet" />
-      ) : (
-        <ul className="flex flex-col divide-y divide-rule rounded-2xl bg-surface px-5" data-testid="history">
-          {items.slice(0, 40).map((a) => (
-            <li key={a.id} className="flex items-start justify-between gap-3 py-3 text-sm">
-              <div className="flex min-w-0 flex-col">
-                <span className="text-ink">
-                  {KIND_LABEL[a.kind]} {a.ticker ? <Ticker ticker={a.ticker} className="text-[13px]" /> : null}
-                </span>
-                <span className="truncate text-xs text-faint">{a.detail}</span>
-              </div>
-              <div className="flex shrink-0 flex-col items-end">
-                <span className={cn("num", a.kind === "dividend" || a.kind.startsWith("claim") ? "text-up" : "text-ink")}>{formatUsd(a.usdc)}</span>
-                <span className="text-xs text-faint">{now ? formatRelative(a.at, now) : ""}</span>
-              </div>
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {rows.map((p) => (
+            <li key={p.playerId}>
+              <PlayerTile p={p} spark={spark.get(p.playerId) ?? []} />
             </li>
           ))}
         </ul>
@@ -265,28 +247,237 @@ function History({ items }: { items: ActivityItem[] }) {
   );
 }
 
+function PlayerTile({ p, spark }: { p: PositionView; spark: number[] }) {
+  return (
+    <Link
+      href={`/player/${p.playerId}`}
+      className="group flex h-full flex-col gap-4 rounded-2xl bg-surface p-4 transition-colors duration-150 hover:bg-[#161616] focus-visible:outline-2 focus-visible:outline-ink"
+    >
+      <div className="flex items-center gap-3">
+        <span aria-hidden="true" className={cn("flex size-10 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold", POS_TINT[p.position])}>
+          {initials(p.name)}
+        </span>
+        <span className="flex min-w-0 flex-col">
+          <span className="truncate text-[15px] font-medium text-ink">{p.name}</span>
+          <Ticker ticker={p.ticker} className="text-[12px] text-soft" />
+        </span>
+        <Sparkline values={spark} width={64} height={24} className="ml-auto shrink-0" />
+      </div>
+      <div className="flex items-end justify-between gap-3">
+        <span className="flex flex-col gap-0.5">
+          <span className="fig fig-prop text-[22px] leading-7 font-semibold text-ink">{formatUsd(p.value)}</span>
+          <span className="fig text-[12px] text-soft">{formatTokens(p.tokens)} tokens</span>
+        </span>
+        <span className={cn("rounded-full px-2.5 py-1 text-[13px] font-semibold", p.pnl < 0 ? "bg-down-tint" : "bg-up-tint")}>
+          <Delta value={p.pnlPct} />
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-2 border-t border-rule pt-3 text-[12px]">
+        {p.countsNextKickoff ? (
+          <span className="flex items-center gap-1.5 text-ink">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-up" />
+            Counts at kickoff
+          </span>
+        ) : (
+          <span className="text-soft">Counts once it bonds</span>
+        )}
+        <span className="text-soft">
+          Sell tax <span className="fig text-ink">{formatPct(p.sellTaxNow, { decimals: 1 })}</span>
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function Liquidity({ d }: { d: Portfolio }) {
+  return (
+    <Section title="Liquidity" description={`Earning 0.25% of every swap in ${d.lp.length} pool${d.lp.length > 1 ? "s" : ""}`} id="lp">
+      <ul className="flex flex-col divide-y divide-rule rounded-2xl bg-surface px-5">
+        {d.lp.map((l) => (
+          <li key={l.playerId} className="flex flex-wrap items-center justify-between gap-3 py-3.5 text-[14px]">
+            <Link href={`/player/${l.playerId}`} className="flex items-center gap-2 hover:underline">
+              <Ticker ticker={l.ticker} className="text-ink" />
+              <span className="text-soft">pool, {formatPct(l.poolShare, { decimals: 3 })} share</span>
+            </Link>
+            <span className="flex items-center gap-4">
+              <span className="text-soft">
+                Fees <span className="fig text-up">{formatUsd(l.feesEarnedUsd)}</span>
+              </span>
+              <span className="fig font-medium text-ink">{formatUsd(l.valueUsd)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------- what happened
+
+function sentence(a: ActivityItem): { text: string; amount: string; tone: "up" | "ink" | "soft" } {
+  const t = a.ticker ? `$${a.ticker}` : "";
+  const tok = a.tokens ? formatTokens(a.tokens) : "";
+  switch (a.kind) {
+    case "buy":
+      return { text: `Bought ${tok} ${t}`, amount: `−${formatUsd(a.usdc)}`, tone: "ink" };
+    case "sell":
+      return { text: `Sold ${tok} ${t}`, amount: `+${formatUsd(a.usdc)}`, tone: "ink" };
+    case "dividend":
+      return { text: t ? `${t} finished top five` : "Your players finished top five", amount: `+${formatUsd(a.usdc)}`, tone: "up" };
+    case "claim-usdc":
+      return { text: "Claimed dividends in USDC", amount: `+${formatUsd(a.usdc)}`, tone: "up" };
+    case "claim-tokens":
+      return { text: `Claimed ${tok ? `${tok} tokens` : "dividends in tokens"}`, amount: formatUsd(a.usdc), tone: "up" };
+    case "lp-add":
+      return { text: `Added liquidity to ${t}`, amount: `−${formatUsd(a.usdc)}`, tone: "ink" };
+    case "lp-remove":
+      return { text: `Removed liquidity from ${t}`, amount: `+${formatUsd(a.usdc)}`, tone: "ink" };
+    case "faucet":
+      return { text: "Topped up test USDC", amount: `+${formatUsd(a.usdc)}`, tone: "soft" };
+  }
+}
+
+function Activity({ items }: { items: ActivityItem[] }) {
+  const now = useNow();
+  const [all, setAll] = useState(false);
+  const shown = all ? items.slice(0, 60) : items.slice(0, 8);
+  return (
+    <Section title="Activity" id="history" action={items.length > 8 ? <Button variant="link" size="sm" onClick={() => setAll((v) => !v)}>{all ? "Show less" : `Show all ${Math.min(items.length, 60)}`}</Button> : undefined}>
+      {items.length === 0 ? (
+        <EmptyState title="Nothing yet">Your buys, sells, payouts and claims show up here.</EmptyState>
+      ) : (
+        <ul className="flex flex-col divide-y divide-rule rounded-2xl bg-surface px-5" data-testid="history">
+          {shown.map((a) => {
+            const s = sentence(a);
+            return (
+              <li key={a.id} className="flex items-center gap-3 py-3">
+                {a.playerId && PLAYERS_BY_ID[a.playerId] ? (
+                  <span
+                    aria-hidden="true"
+                    className={cn("flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold", POS_TINT[PLAYERS_BY_ID[a.playerId]!.position])}
+                  >
+                    {initials(PLAYERS_BY_ID[a.playerId]!.name)}
+                  </span>
+                ) : (
+                  <UsdcIcon className="size-8" />
+                )}
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-[14px] text-ink">{s.text}</span>
+                  <span className="truncate text-[12px] text-faint">{a.detail}</span>
+                </span>
+                <span className="flex shrink-0 flex-col items-end">
+                  <span className={cn("fig text-[14px] font-medium", s.tone === "up" ? "text-up" : s.tone === "soft" ? "text-soft" : "text-ink")}>{s.amount}</span>
+                  <span className="text-[12px] text-faint">{now ? formatRelative(a.at, now) : ""}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Section>
+  );
+}
+
+/** Dividends per matchday as columns (dataviz bars: ≤24px, 4px rounded top, square base). One series, no legend. */
+function Earnings() {
+  const q = useRoundHistory(10);
+  const [hi, setHi] = useState<number | null>(null);
+  const rows = [...(q.data ?? [])].sort((a, b) => a.round - b.round);
+  const max = Math.max(...rows.map((r) => r.myDividends), 0.01);
+  const total = rows.reduce((a, r) => a + r.myDividends, 0);
+  const shown = hi !== null ? rows[hi] : rows[rows.length - 1];
+  return (
+    <Section title="Earnings by matchday">
+      <div className="flex flex-col gap-3 rounded-2xl bg-surface p-5">
+        {rows.length === 0 ? (
+          <p className="text-[14px] text-soft">No matchday has settled yet. Payouts appear here after each data freeze.</p>
+        ) : (
+          <>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="fig fig-prop text-[22px] font-semibold text-ink">{formatUsd(total)}</span>
+              <span className="text-[12px] text-soft">
+                {shown ? (
+                  <>
+                    Matchday {shown.round}: <span className="fig text-ink">{formatUsd(shown.myDividends)}</span>
+                  </>
+                ) : null}
+              </span>
+            </div>
+            <ol className="flex h-24 items-end gap-[2px] border-b border-rule" aria-label="Your dividends per matchday">
+              {rows.map((r, i) => (
+                <li
+                  key={r.round}
+                  className="flex h-full flex-1 items-end justify-center"
+                  onPointerEnter={() => setHi(i)}
+                  onPointerLeave={() => setHi(null)}
+                  aria-label={`Matchday ${r.round}: ${formatUsd(r.myDividends)}`}
+                >
+                  <span
+                    className="block w-full max-w-6 rounded-t-[4px] bg-up transition-opacity duration-150"
+                    style={{ height: `${Math.max(r.myDividends > 0 ? 4 : 0, (r.myDividends / max) * 100)}%`, opacity: hi === null || hi === i ? 1 : 0.5 }}
+                  />
+                </li>
+              ))}
+            </ol>
+          </>
+        )}
+      </div>
+    </Section>
+  );
+}
+
 function Points({ d }: { d: Portfolio }) {
   const p = d.points;
+  const rows: [string, number][] = [
+    ["Holding at kickoff", p.holding],
+    ["Launch buys", p.launch],
+    ["Dividends", p.dividends],
+    ["Liquidity", p.liquidity],
+    ["Volume", p.volume],
+    ["Fees paid", p.fees],
+  ];
   return (
-    <Section title="Activity points" id="points">
-      <Card size="sm">
-        <CardContent className="flex flex-col gap-3">
-          <span className="num text-2xl font-medium tracking-[-0.02em] text-ink">{formatTokens(p.total)} points</span>
-          <KeyValue
-            rows={[
-              ["Launch buys", formatTokens(p.launch)],
-              ["Holding at kickoff", formatTokens(p.holding)],
-              ["Dividends", formatTokens(p.dividends)],
-              ["Fees paid", formatTokens(p.fees)],
-              ["Volume", formatTokens(p.volume)],
-              ["Liquidity", formatTokens(p.liquidity)],
-            ]}
-          />
-          <p className="text-xs text-faint">
-            Activity rank becomes voting weight for new launches from Season 1. The weighting isn&apos;t final; this is a plain sum in USD.
-          </p>
-        </CardContent>
-      </Card>
+    <Section title="Activity points">
+      <div className="flex flex-col gap-3 rounded-2xl bg-surface p-5">
+        <span className="fig fig-prop text-[22px] font-semibold text-ink">{formatTokens(p.total)}</span>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
+          {rows.map(([k, v]) => (
+            <div key={k} className="flex items-baseline justify-between gap-2">
+              <dt className="text-soft">{k}</dt>
+              <dd className="fig text-ink">{formatTokens(v)}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="text-[12px] text-faint">From Season 1, points become voting weight for new launches. The weighting isn&apos;t final.</p>
+      </div>
     </Section>
+  );
+}
+
+// ---------------------------------------------------------------- signed out
+
+function SignedOut() {
+  return (
+    <div className="flex flex-col gap-4">
+      <h1 className="text-2xl leading-8 font-semibold tracking-[-0.02em] text-ink">Portfolio</h1>
+      <SignedOutState title="Sign in to see your portfolio">Your players, payouts and claims live here.</SignedOutState>
+      <div className="mt-6 rounded-2xl bg-surface px-5 py-5">
+        <LiveMatchdayStrip />
+      </div>
+      <Section title="How payouts reach you" id="how">
+        <ol className="grid gap-px overflow-hidden rounded-2xl bg-rule md:grid-cols-3">
+          {[
+            ["Hold at kickoff", "Every bonded player you hold at the first kickoff of a matchday is counted for that round."],
+            ["Finish top five", "Players who finish in the top five of their position or league board share the round's pool."],
+            ["Claim after the freeze", "When the match data freezes, take your share in USDC, or in more of the same player with a 10% bonus."],
+          ].map(([t, b]) => (
+            <li key={t} className="flex flex-col gap-1.5 bg-surface px-5 py-4">
+              <span className="text-sm font-medium text-ink">{t}</span>
+              <span className="text-sm leading-relaxed text-soft">{b}</span>
+            </li>
+          ))}
+        </ol>
+      </Section>
+    </div>
   );
 }

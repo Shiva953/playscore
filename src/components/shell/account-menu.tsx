@@ -36,7 +36,7 @@ export function HeaderBalance() {
 function Money({ value }: { value: number | undefined }) {
   const [whole, cents = "00"] = formatUsd(value ?? 0).split(".");
   return (
-    <span className="fig flex items-baseline leading-none">
+    <span className="fig fig-prop flex items-baseline leading-none">
       <span className="text-[34px] font-semibold tracking-[-0.02em] text-ink">{whole}</span>
       <span className="text-[20px] font-medium text-soft">.{cents}</span>
     </span>
@@ -103,7 +103,7 @@ export function AccountMenu() {
           <div className="flex gap-2">
             <DropdownMenuItem onSelect={() => faucet.mutate(1_000)} disabled={faucet.isPending} className={pill}>
               <Plus className="size-3.5" aria-hidden="true" />
-              Add 1,000 test USDC
+              Top up
             </DropdownMenuItem>
             <DropdownMenuItem asChild className={cn(pill, "flex-none")}>
               <Link href="/portfolio">Portfolio</Link>

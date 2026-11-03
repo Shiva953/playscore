@@ -132,8 +132,8 @@ async function main() {
 
   // Faucet
   await page.getByRole("button", { name: "Your wallet" }).click();
-  await page.getByRole("menuitem", { name: "Add 1,000 test USDC" }).click();
-  await toast(page, /\+\$1,000\.00 test USDC/);
+  await page.getByRole("menuitem", { name: "Top up" }).click();
+  await toast(page, /Topped up \$1,000\.00 test USDC/);
   log("faucet +1,000");
 
   // Launch buy on a curve

@@ -75,7 +75,7 @@ export function Stat({ label, value, hint, className, size = "md" }: { label: Re
   return (
     <div className={cn("flex min-w-0 flex-col gap-1", className)}>
       <span className="text-[12px] text-soft">{label}</span>
-      <span className={cn("fig truncate font-semibold text-ink", size === "xl" ? "text-[34px] leading-10" : size === "lg" ? "text-[24px] leading-8" : "text-[20px] leading-7")}>{value}</span>
+      <span className={cn("fig fig-prop truncate font-semibold text-ink", size === "xl" ? "text-[34px] leading-10" : size === "lg" ? "text-[24px] leading-8" : "text-[20px] leading-7")}>{value}</span>
       {hint ? <span className="text-[12px] text-faint">{hint}</span> : null}
     </div>
   );

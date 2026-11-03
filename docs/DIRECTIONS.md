@@ -2,7 +2,7 @@
 
 **Status (3 Nov, after the first review):** A (Broadcast) and B (Clean fintech) were dropped; they live in git history (commit `ff6f1a7`, screenshots included). C and D were revised against the review notes and stay in play.
 
-**See them live:** run `bun run dev` and open `/lab`. The bar at the bottom switches direction and screen, and its moment buttons pin the shared mock world at one instant (mid-match with KANE, YAMAL and RODRI held, before kickoff, or full time), so both directions show the same data. Direction D is the production routes; C lives in `src/directions/c-collectible/`. `/lab` exists only under `next dev`.
+**See them live:** run `bun run dev` and open `/lab`. The bar at the bottom switches direction and screen, and its moment buttons pin the shared mock world at one instant (mid-match with KANE, YAMAL and RODRI held, before kickoff, or payout, with dividends waiting), so both directions show the same data. Direction D is the production routes; C lives in `src/directions/c-collectible/`. `/lab` exists only under `next dev`.
 
 **Screenshots** (pinned mid-match, `scripts/lab-shots.mjs`): `docs/screenshots/lab/<direction>/<screen>-<desktop|mobile>.jpg`, and one side-by-side image per screen, `docs/screenshots/lab/compare-<screen>-<desktop|mobile>.jpg`. axe (WCAG 2 AA, serious and critical) reports no violations on any of the 12 screens.
 

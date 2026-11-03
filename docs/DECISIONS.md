@@ -126,3 +126,17 @@ Format: **date · decision** · alternatives · why. Newest at the bottom. Spec 
 - **The height freed by the chart** goes to a wide Form panel. Its bars follow the bar spec: ≤24px thick, 4px rounded tops, square at the baseline, 2px gaps. It has a legend for the two categories, only the latest bar labelled, and hover to read any other.
 - **Hero price and tile values** use proportional figures (the skill's anti-pattern list); tabular stays for aligned columns.
 - **Phones:** blocks reorder to card, market, ticket, then holding, this matchday, form, holders (the column wrappers use `display: contents` below lg).
+
+### 2026-11-03 · D portfolio as a consumer home; smaller fixes (user review)
+- **Portfolio**, after Phantom's home, Robinhood's portfolio and the .fun profile and squad pages:
+  - Identity: generated avatar, address with copy, Devnet / sign-in / since chips, Top up and Claim actions.
+  - One headline figure (portfolio value, 52px, quiet cents) with all-time P&L and board earnings, plus its split as the dataviz **tall segmented bar**: 28px, 4px blocks, 2px gaps, share inside where it fits, a legend of names with amounts. Colours are the reference palette's dark slots 1–3 (blue, orange, aqua), validated on `#111` with `validate_palette.js` (all checks pass). A first attempt (blue, lilac, amber) failed CVD and normal-vision separation.
+  - Then the claim card when there's something to claim, otherwise one line on the next chance to earn.
+  - "Your players" as cards: position-tinted initials, value, P&L, 7-point trend, counts at kickoff, sell tax.
+  - Activity in plain sentences; earnings per matchday as bars (the bar spec, hover to read); points.
+  - Liquidity only when there is some.
+- **Figures:** large standalone values (headline, stat tiles, balances) use Funnel Sans's proportional digits (`.fig-prop`); tables and aligned rows stay tabular (dataviz anti-pattern list).
+- **Faucet action named "Top up" everywhere** (menu, ticket, portfolio), and the confirmation reads "Topped up $1,000.00 test USDC". The old 19-character pill label was too long.
+- **USDC in the ticket:** the coin mark alone, with "USDC" as its accessible name.
+- **Pointer cursor:** dropdown items, and every enabled button-like control. Tailwind v4 gives buttons the default arrow.
+- **Lab "Payout" moment** replaces "Full time". Dividends settle when the freeze ends, so the moment steps into the next matchday; the old one never had anything to claim.

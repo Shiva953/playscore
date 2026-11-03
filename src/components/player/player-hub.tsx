@@ -109,7 +109,7 @@ function TitleRow({ player: p, proView, onProView }: { player: PlayerDetail; pro
           className={cn("text-[44px] leading-none font-semibold tracking-[-0.03em]", dir === "up" ? "text-up" : dir === "down" ? "text-down" : "text-ink")}
           aria-label="Price"
         >
-          {p.status === "scheduled" ? "—" : <LiveFigure value={p.price} format={formatPrice} />}
+          {p.status === "scheduled" ? "—" : <LiveFigure value={p.price} format={formatPrice} className="fig-prop" />}
         </span>
         {moving ? (
           <span className={cn("inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[15px] font-semibold", dir === "down" ? "bg-down-tint" : "bg-up-tint")}>

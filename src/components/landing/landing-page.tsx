@@ -58,7 +58,7 @@ function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-1">
       <dt className="text-[13px] text-soft">{label}</dt>
-      <dd className="fig text-[22px] leading-7 font-semibold text-ink">{value}</dd>
+      <dd className="fig fig-prop text-[22px] leading-7 font-semibold text-ink">{value}</dd>
     </div>
   );
 }

@@ -207,11 +207,28 @@
   .num {
     font-variant-numeric: tabular-nums;
   }
+  /* Tailwind v4 gives buttons the default arrow; anything you can press shows the hand (disabled ones don't). */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([data-disabled]),
+  [role="option"]:not([data-disabled]),
+  [role="tab"],
+  [role="radio"],
+  [role="switch"],
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
   /* Figures: the number face. On prices, stat values, balances, earnings and numeric table cells. */
   .fig,
   td.num {
     font-family: var(--font-figures);
     font-variant-numeric: tabular-nums;
+  }
+  /* Large standalone figures (headline, stat tiles) use proportional digits (dataviz: "121" looks loose
+     in tabular). Tabular stays on columns and aligned rows. */
+  .fig.fig-prop {
+    font-variant-numeric: proportional-nums;
   }
   .mono-id {
     font-family: var(--font-mono);

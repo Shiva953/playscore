@@ -31,7 +31,13 @@ export function ClaimPanel({ onClaimed, compact = false }: { onClaimed?: () => v
     <div className="flex flex-col gap-4" data-testid="claim-panel">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="num text-2xl font-medium tracking-[-0.02em] text-up">{formatUsd(c.totalUsd)}</span>
-        <span className="text-sm text-soft">ready to claim{c.rows.length > 1 ? ` from ${new Set(c.rows.map((r) => r.roundId)).size} round(s)` : ""}</span>
+        <span className="text-sm text-soft">
+          ready to claim
+          {(() => {
+            const n = new Set(c.rows.map((r) => r.roundId)).size;
+            return n > 1 ? ` from ${n} matchdays` : "";
+          })()}
+        </span>
       </div>
       {!compact ? (
         <ul className="flex flex-col divide-y divide-rule">

@@ -2,7 +2,7 @@
  * Step 1.5: screenshot the four directions on the same pinned moment, desktop (1440) and mobile (375),
  * and run axe (WCAG 2 AA, serious/critical) on each screen.
  *
- *   BASE_URL=http://localhost:3123 node scripts/lab-shots.mjs [a-broadcast b-fintech …] [--moment live|open|fulltime]
+ *   BASE_URL=http://localhost:3123 node scripts/lab-shots.mjs [c-collectible d-terminal] [--moment live|open|payout]
  *
  * Writes docs/screenshots/lab/<direction>/<screen>-<desktop|mobile>.jpg.
  * Direction D is the production routes (/player/kane, /matchday, /).
@@ -19,7 +19,7 @@ const MOMENT = mi >= 0 ? args[mi + 1] : "live";
 const ONLY = args.filter((a, i) => !a.startsWith("--") && (mi < 0 || i !== mi + 1));
 const DIRS = ["c-collectible", "d-terminal"].filter((d) => !ONLY.length || ONLY.includes(d));
 const SCREENS = ["player", "matchday", "landing"];
-const MOMENT_LABEL = { live: "Mid-match", open: "Before kickoff", fulltime: "Full time" }[MOMENT];
+const MOMENT_LABEL = { live: "Mid-match", open: "Before kickoff", payout: "Payout" }[MOMENT];
 
 const url = (d, s) =>
   d === "d-terminal" ? (s === "player" ? "/player/kane" : s === "matchday" ? "/matchday" : "/") : `/lab/${d}/${s}${s === "player" ? "?player=kane" : ""}`;

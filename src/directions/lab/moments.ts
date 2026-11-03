@@ -5,12 +5,12 @@ import type { MockProtocolClient } from "@/lib/protocol/mock/client";
  * on the same data. Each preset signs in a demo account, holds three trading players at kickoff,
  * moves the round to the moment and pins it.
  */
-export type MomentId = "live" | "open" | "fulltime";
+export type MomentId = "live" | "open" | "payout";
 
 export const MOMENTS: { id: MomentId; label: string; hint: string }[] = [
   { id: "live", label: "Mid-match", hint: "Live, 55% through the window, three players held at kickoff" },
   { id: "open", label: "Before kickoff", hint: "Trading open, countdown to the snapshot" },
-  { id: "fulltime", label: "Full time", hint: "Round settled, dividends waiting to be claimed" },
+  { id: "payout", label: "Payout", hint: "Matchday settled: dividends waiting to be claimed, the next matchday open" },
 ];
 
 /** Bought before kickoff so they count in the snapshot. */
@@ -44,8 +44,10 @@ export async function pinMoment(client: MockProtocolClient, id: MomentId): Promi
     client.skipPhase(); // kickoff: snapshot
     client.seekPhase(0.55);
   } else {
+    // Settlement happens when the freeze ends, i.e. on the step into the next matchday.
     client.skipPhase(); // kickoff
-    client.skipPhase(); // full time: settle
+    client.skipPhase(); // full time (data freezing)
+    client.skipPhase(); // freeze over: settle, next matchday opens
     client.seekPhase(0.1);
   }
   client.setPinned(true);

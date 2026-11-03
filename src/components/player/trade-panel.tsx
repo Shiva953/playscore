@@ -173,10 +173,7 @@ export function TradePanel({
                   className="num w-full min-w-0 bg-transparent text-2xl font-medium text-ink outline-none placeholder:text-faint"
                   autoComplete="off"
                 />
-                <span className="flex items-center gap-1.5 text-sm text-faint">
-                  <UsdcIcon />
-                  USDC
-                </span>
+                <UsdcIcon className="size-5" label="USDC" />
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {side === "buy"
@@ -251,7 +248,7 @@ export function TradePanel({
                   onClick={() => faucet.mutate(1_000)}
                   disabled={faucet.isPending}
                 >
-                  Add 1,000 test USDC
+                  Top up
                 </Button>
               ) : null}
             </div>
