@@ -57,7 +57,7 @@ async function openDemoPanel(page) {
   if (await demoBtn.isVisible().catch(() => false)) {
     await demoBtn.click();
   } else {
-    await page.getByRole("button", { name: "Account" }).click();
+    await page.getByRole("button", { name: "Your wallet" }).click();
     await page.getByRole("menuitem", { name: /^Demo settings/ }).click();
   }
   await page.getByRole("heading", { name: "Demo settings" }).waitFor();
@@ -131,8 +131,8 @@ async function main() {
   log("signed in");
 
   // Faucet
-  await page.getByRole("button", { name: "Account" }).click();
-  await page.getByRole("menuitem", { name: "Get 1,000 test USDC" }).click();
+  await page.getByRole("button", { name: "Your wallet" }).click();
+  await page.getByRole("menuitem", { name: "Add 1,000 test USDC" }).click();
   await toast(page, /\+\$1,000\.00 test USDC/);
   log("faucet +1,000");
 

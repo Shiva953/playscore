@@ -11,6 +11,7 @@ import { Delta, LiveFigure, PositionBadge, Stat, StatStrip, StripCell, StatusBad
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/common/states";
 import { formatDateTime, formatPct, formatPrice, formatScore, formatUsd, formatUsdCompact } from "@/lib/format";
 import { isProtocolError } from "@/lib/protocol/errors";
+import { cn } from "@/lib/utils";
 import type { PlayerDetail, PriceRange } from "@/lib/protocol/types";
 import { usePlayer } from "@/lib/protocol/react/hooks";
 import { useUi } from "@/lib/protocol/react/ui-store";
@@ -78,18 +79,19 @@ function finding(p: PlayerDetail): string {
 
 function TitleRow({ player: p, proView, onProView }: { player: PlayerDetail; proView: boolean; onProView: (v: boolean) => void }) {
   const trading = p.status === "trading";
+  const dir = !trading || Math.abs(p.change24h) < 1e-9 ? "flat" : p.change24h > 0 ? "up" : "down";
   return (
     <div className="flex flex-col gap-5" data-testid="player-header">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <div className="flex flex-wrap items-center gap-2 text-[13px] text-soft">
-            <Ticker ticker={p.ticker} className="text-ink" />
+        <div className="flex min-w-0 flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Ticker ticker={p.ticker} chip />
             <PositionBadge position={p.position} />
             <StatusBadge status={p.status} progress={p.bondProgress} />
           </div>
           <h1 className="text-2xl leading-8 font-semibold tracking-[-0.02em] text-ink">{p.name}</h1>
           <p className="text-sm text-soft">
-            {p.club} · {p.leagueName} · {p.country}, {p.age}
+            {p.club}, {p.leagueName} · {p.country}, {p.age}
           </p>
         </div>
         <div className="flex items-center gap-2 pt-1">
@@ -100,29 +102,35 @@ function TitleRow({ player: p, proView, onProView }: { player: PlayerDetail; pro
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
-        <div className="flex items-baseline gap-3">
-          <span className="text-[32px] leading-9 font-medium tracking-[-0.02em] text-ink" aria-label="Price">
-            {p.status === "scheduled" ? "—" : <LiveFigure value={p.price} format={formatPrice} />}
+      {/* The price is the page's headline: the number face, large, in the colour of its 24h move. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span
+          className={cn("text-[44px] leading-none font-semibold tracking-[-0.03em]", dir === "up" ? "text-up" : dir === "down" ? "text-down" : "text-ink")}
+          aria-label="Price"
+        >
+          {p.status === "scheduled" ? "—" : <LiveFigure value={p.price} format={formatPrice} />}
+        </span>
+        {trading ? (
+          <span className={cn("inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[15px] font-semibold", dir === "down" ? "bg-down-tint" : "bg-up-tint")}>
+            <Delta value={p.change24h} />
+            <span className="text-[12px] font-medium text-soft">24h</span>
           </span>
-          {trading ? <Delta value={p.change24h} className="text-base" /> : null}
-          {trading ? <span className="text-xs text-faint">24h</span> : null}
-        </div>
-        <p className="pb-1 text-sm text-soft">{finding(p)}</p>
+        ) : null}
+        <p className="basis-full text-sm text-soft lg:basis-auto">{finding(p)}</p>
       </div>
 
       <StatStrip>
         <StripCell>
-          <Stat label="24h volume" value={p.status === "scheduled" ? "—" : formatUsdCompact(p.volume24h)} />
+          <Stat size="lg" label="Market cap" value={p.status === "scheduled" ? "—" : formatUsdCompact(p.marketCap)} />
         </StripCell>
         <StripCell>
-          <Stat label={trading ? "Pool depth" : "Raised"} value={trading ? formatUsdCompact(p.liquidityUsd) : `${formatUsd(p.raised, { decimals: 0 })}`} />
+          <Stat size="lg" label="24h volume" value={p.status === "scheduled" ? "—" : formatUsdCompact(p.volume24h)} />
         </StripCell>
         <StripCell>
-          <Stat label="Market cap" value={p.status === "scheduled" ? "—" : formatUsdCompact(p.marketCap)} />
+          <Stat size="lg" label={trading ? "Pool depth" : "Raised"} value={trading ? formatUsdCompact(p.liquidityUsd) : `${formatUsd(p.raised, { decimals: 0 })}`} />
         </StripCell>
         <StripCell>
-          <Stat label="Last score" value={formatScore(p.lastScore)} hint={p.lastBoardRank ? `#${p.lastBoardRank} on a board` : "Not in a top five"} />
+          <Stat size="lg" label="Last score" value={formatScore(p.lastScore)} hint={p.lastBoardRank ? `#${p.lastBoardRank} on a board, paid` : "Not in a top five"} />
         </StripCell>
       </StatStrip>
     </div>
@@ -140,7 +148,7 @@ function StandardLayout({ player: p }: { player: PlayerDetail }) {
             {p.status === "trading" ? <RangeControl value={range} onChange={setRange} /> : null}
           </div>
           {p.status === "trading" ? (
-            <PriceChart playerId={p.id} range={range} height={420} />
+            <PriceChart playerId={p.id} range={range} height={360} />
           ) : p.status === "launching" ? (
             <>
               <div className="flex flex-col gap-2">

@@ -26,29 +26,7 @@ export function Logo({ className }: { className?: string }) {
 
 export function AppHeader() {
   const path = usePathname();
-  if (path === "/") return <LandingHeader />;
   return <ProductHeader path={path} />;
-}
-
-/** Landing: no logo (the page's wordmark is the logo), five plain links, the last one the action. */
-function LandingHeader() {
-  return (
-    <header className="sticky top-0 z-40 bg-ground pt-[env(safe-area-inset-top)]">
-      <div className="flex h-14 items-center gap-6 px-5 md:px-8">
-        <span className="text-[13px] text-faint">Devnet demo</span>
-        <nav className="ml-auto flex items-center gap-6" aria-label="Main">
-          {NAV.map((n) => (
-            <Link key={n.href} href={n.href} className="hidden text-[15px] text-[#bbbbbb] transition-colors duration-150 hover:text-ink md:inline">
-              {n.label}
-            </Link>
-          ))}
-          <Link href="/markets" className="inline-flex h-9 items-center rounded-full bg-ink px-4 text-sm font-medium text-black transition-[transform,background-color] duration-150 ease-out-strong hover:bg-[#e6e6e6] active:scale-[0.96]">
-            Open the markets
-          </Link>
-        </nav>
-      </div>
-    </header>
-  );
 }
 
 function ProductHeader({ path }: { path: string }) {

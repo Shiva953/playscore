@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Copy, LogOut, Plus, SlidersHorizontal, Wallet } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -50,34 +52,60 @@ export function AccountMenu() {
     );
   }
   const s = session.data;
-  const initial = s.label.slice(0, 1);
+  const method = s.method === "google" ? "Google" : s.method === "email" ? "email" : "Phantom";
+  const copy = () => {
+    void navigator.clipboard?.writeText(s.address).then(() => toast.success("Address copied"));
+  };
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="secondary" size="icon-sm" aria-label="Account" className="text-[13px] font-semibold">
-          {initial}
+        <Button variant="secondary" size="icon-sm" aria-label="Your wallet" className="text-[13px] font-semibold">
+          {method.slice(0, 1).toUpperCase()}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72 p-1.5">
-        <DropdownMenuLabel className="flex flex-col gap-1 px-2.5 py-2 font-normal">
-          <span className="text-sm font-medium text-ink">{s.label}</span>
-          <span className="mono-id text-xs text-soft">{shortAddress(s.address, 6)}</span>
-          <span className="text-xs text-faint">Embedded wallet · positions held in the protocol · {s.country}</span>
+      <DropdownMenuContent align="end" className="w-80 p-2">
+        <DropdownMenuLabel className="flex items-center gap-3 px-2 pt-1.5 pb-3 font-normal">
+          <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-raised text-[15px] font-semibold text-ink">
+            {method.slice(0, 1).toUpperCase()}
+          </span>
+          <span className="flex min-w-0 flex-col">
+            <span className="text-[15px] font-semibold text-ink">Your devnet wallet</span>
+            <span className="truncate text-[13px] text-soft">
+              Signed in with {method}, {s.country}
+            </span>
+          </span>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator className="bg-rule" />
-        <div className="flex items-baseline justify-between px-2.5 py-2">
-          <span className="text-sm text-soft">Balance</span>
-          <span className="num text-sm font-medium text-ink">{formatUsd(pf.data?.usdc)} USDC</span>
+        <div className="mb-1 flex flex-col gap-0.5 rounded-xl bg-raised/60 px-3 py-2.5">
+          <span className="text-[12px] text-soft">Balance</span>
+          <span className="flex items-baseline gap-1.5">
+            <span className="fig text-[24px] leading-8 font-semibold text-ink">{formatUsd(pf.data?.usdc)}</span>
+            <span className="text-[13px] text-soft">USDC</span>
+          </span>
         </div>
-        <DropdownMenuItem onSelect={() => faucet.mutate(1_000)} disabled={faucet.isPending}>
-          Get 1,000 test USDC
+        <DropdownMenuItem onSelect={() => faucet.mutate(1_000)} disabled={faucet.isPending} className="gap-2.5">
+          <Plus className="size-4 text-soft" aria-hidden="true" />
+          Add 1,000 test USDC
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/portfolio">Portfolio</Link>
+        <DropdownMenuItem onSelect={copy} className="gap-2.5">
+          <Copy className="size-4 text-soft" aria-hidden="true" />
+          Copy address
+          <span className="mono-id ml-auto text-[12px] text-faint">{shortAddress(s.address, 4)}</span>
         </DropdownMenuItem>
-        <DropdownMenuSeparator className="bg-rule" />
-        <DropdownMenuItem onSelect={() => setDemoOpen(true)}>Demo settings</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => signOut.mutate()}>Sign out</DropdownMenuItem>
+        <DropdownMenuItem asChild className="gap-2.5">
+          <Link href="/portfolio">
+            <Wallet className="size-4 text-soft" aria-hidden="true" />
+            Portfolio
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="my-1.5 bg-rule" />
+        <DropdownMenuItem onSelect={() => setDemoOpen(true)} className="gap-2.5">
+          <SlidersHorizontal className="size-4 text-soft" aria-hidden="true" />
+          Demo settings
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => signOut.mutate()} className="gap-2.5 text-soft">
+          <LogOut className="size-4" aria-hidden="true" />
+          Sign out
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

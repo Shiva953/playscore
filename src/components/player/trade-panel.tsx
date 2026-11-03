@@ -247,7 +247,7 @@ export function TradePanel({
                   onClick={() => faucet.mutate(1_000)}
                   disabled={faucet.isPending}
                 >
-                  Get 1,000 test USDC
+                  Add 1,000 test USDC
                 </Button>
               ) : null}
             </div>

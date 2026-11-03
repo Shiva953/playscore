@@ -30,15 +30,17 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       style={
         {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
+          // A toast floats above everything, so it sits a step above the cards (#2a2a2a over #111) with a real shadow.
+          "--normal-bg": "var(--raised)",
+          "--normal-text": "var(--ink)",
+          "--normal-border": "rgba(255,255,255,0.08)",
           "--border-radius": "var(--radius)",
         } as React.CSSProperties
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast: "cn-toast !shadow-[0_18px_40px_-12px_rgba(0,0,0,0.85)]",
+          description: "!text-soft",
         },
       }}
       {...props}

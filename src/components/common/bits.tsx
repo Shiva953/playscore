@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 export function Delta({ value, decimals = 2, className, children }: { value: number | null | undefined; decimals?: number; className?: string; children?: ReactNode }) {
   const v = value ?? 0;
   return (
-    <span className={cn("num", Math.abs(v) < 1e-9 ? "text-faint" : v > 0 ? "text-up" : "text-down", className)}>
+    <span className={cn("fig", Math.abs(v) < 1e-9 ? "text-faint" : v > 0 ? "text-up" : "text-down", className)}>
       {children ?? (Math.abs(v) < 1e-9 ? "0.00%" : formatPct(value, { decimals, signed: true }))}
     </span>
   );
@@ -29,7 +29,11 @@ export function PositionBadge({ position, className }: { position: PositionCode;
 }
 
 /** Ticker as typographic identity: semibold, uppercase is the data itself. */
-export function Ticker({ ticker, className }: { ticker: string; className?: string }) {
+export function Ticker({ ticker, className, chip = false }: { ticker: string; className?: string; chip?: boolean }) {
+  if (chip) {
+    // The ticker as the player's handle: a white chip, the most legible mark in the header.
+    return <span className={cn("fig inline-flex h-7 items-center rounded-full bg-ink px-2.5 text-[14px] font-semibold text-black", className)}>${ticker}</span>;
+  }
   return <span className={cn("font-semibold tracking-normal", className)}>${ticker}</span>;
 }
 
@@ -70,9 +74,9 @@ export function Sparkline({ values, className, width = 80, height = 24 }: { valu
 export function Stat({ label, value, hint, className, size = "md" }: { label: ReactNode; value: ReactNode; hint?: ReactNode; className?: string; size?: "md" | "lg" | "xl" }) {
   return (
     <div className={cn("flex min-w-0 flex-col gap-1", className)}>
-      <span className="text-xs text-faint">{label}</span>
-      <span className={cn("num truncate font-medium text-ink", size === "xl" ? "text-[32px] leading-9 tracking-[-0.02em]" : size === "lg" ? "text-2xl leading-8 tracking-[-0.02em]" : "text-base leading-6")}>{value}</span>
-      {hint ? <span className="text-xs text-faint">{hint}</span> : null}
+      <span className="text-[12px] text-soft">{label}</span>
+      <span className={cn("fig truncate font-semibold text-ink", size === "xl" ? "text-[34px] leading-10" : size === "lg" ? "text-[24px] leading-8" : "text-[20px] leading-7")}>{value}</span>
+      {hint ? <span className="text-[12px] text-faint">{hint}</span> : null}
     </div>
   );
 }
@@ -177,7 +181,7 @@ export function LiveFigure({
     return () => cancelAnimationFrame(raf);
   }, [value, flash, tick]);
   return (
-    <span key={key} className={cn("num", dir === "up" && "flash-up", dir === "down" && "flash-down", className)}>
+    <span key={key} className={cn("fig", dir === "up" && "flash-up", dir === "down" && "flash-down", className)}>
       {format(shown)}
     </span>
   );
@@ -199,5 +203,5 @@ export function TickUp({ value, format, className, duration = 700 }: { value: nu
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [value, duration]);
-  return <span className={cn("num", className)}>{format(shown)}</span>;
+  return <span className={cn("fig", className)}>{format(shown)}</span>;
 }

@@ -79,7 +79,7 @@ function Summary({ d }: { d: Portfolio }) {
           <p className="text-sm text-soft">{d.user.label}</p>
         </div>
         <Button variant="secondary" size="sm" onClick={() => faucet.mutate(1_000)} disabled={faucet.isPending}>
-          Get 1,000 test USDC
+          Add 1,000 test USDC
         </Button>
       </div>
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">

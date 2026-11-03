@@ -14,7 +14,7 @@ export function Providers({ children }: PropsWithChildren) {
         <TooltipProvider delayDuration={200}>
           {children}
           <ChromeGate>
-            <Toaster position="bottom-right" offset={{ bottom: 84 }} mobileOffset={{ bottom: 84 }} />
+            <Toaster position="bottom-right" offset={24} mobileOffset={{ bottom: 76 }} />
           </ChromeGate>
         </TooltipProvider>
       </ProtocolProvider>

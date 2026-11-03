@@ -81,6 +81,7 @@
 
   --font-sans: var(--font-instrument), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-figures: var(--font-num), var(--font-instrument), system-ui, sans-serif;
 }
 
 @theme inline {
@@ -206,6 +207,12 @@
   .num {
     font-variant-numeric: tabular-nums;
   }
+  /* Figures: the number face. On prices, stat values, balances, earnings and numeric table cells. */
+  .fig,
+  td.num {
+    font-family: var(--font-figures);
+    font-variant-numeric: tabular-nums;
+  }
   .mono-id {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
@@ -257,52 +264,3 @@
   }
 }
 
-/* ---------------------------------------------------------------- landing (split-stage direction) */
-
-/* Section parts rise in once, staggered. Hidden only when the script has run and motion is allowed. */
-@media (prefers-reduced-motion: no-preference) {
-  .reveal-on [data-reveal] {
-    opacity: 0;
-    transform: translateY(24px);
-    transition:
-      opacity 700ms var(--ease-out),
-      transform 700ms var(--ease-out);
-    transition-delay: calc(var(--i, 0) * 80ms);
-  }
-  .reveal-on [data-reveal].is-in {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* Signature move: the wordmark eases down a few percent as the first screen leaves. */
-@keyframes wordmark-settle {
-  to {
-    scale: 0.93;
-  }
-}
-@supports (animation-timeline: scroll()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .wordmark {
-      transform-origin: 100% 100%;
-      animation: wordmark-settle linear both;
-      animation-timeline: scroll(root);
-      animation-range: 0 90svh;
-    }
-  }
-}
-
-/* Stage fragments cross-fade as the reading column moves on. */
-.stage-frame {
-  transition: opacity 400ms var(--ease-out);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .stage-frame {
-    transition:
-      opacity 400ms var(--ease-out),
-      transform 500ms var(--ease-out);
-  }
-  .stage-frame[data-active="false"] {
-    transform: translateY(12px);
-  }
-}
