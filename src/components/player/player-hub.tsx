@@ -79,7 +79,8 @@ function finding(p: PlayerDetail): string {
 
 function TitleRow({ player: p, proView, onProView }: { player: PlayerDetail; proView: boolean; onProView: (v: boolean) => void }) {
   const trading = p.status === "trading";
-  const dir = !trading || Math.abs(p.change24h) < 1e-9 ? "flat" : p.change24h > 0 ? "up" : "down";
+  const moving = p.status !== "scheduled";
+  const dir = !moving || Math.abs(p.change24h) < 1e-9 ? "flat" : p.change24h > 0 ? "up" : "down";
   return (
     <div className="flex flex-col gap-5" data-testid="player-header">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -110,7 +111,7 @@ function TitleRow({ player: p, proView, onProView }: { player: PlayerDetail; pro
         >
           {p.status === "scheduled" ? "—" : <LiveFigure value={p.price} format={formatPrice} />}
         </span>
-        {trading ? (
+        {moving ? (
           <span className={cn("inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[15px] font-semibold", dir === "down" ? "bg-down-tint" : "bg-up-tint")}>
             <Delta value={p.change24h} />
             <span className="text-[12px] font-medium text-soft">24h</span>
@@ -130,7 +131,7 @@ function TitleRow({ player: p, proView, onProView }: { player: PlayerDetail; pro
           <Stat size="lg" label={trading ? "Pool depth" : "Raised"} value={trading ? formatUsdCompact(p.liquidityUsd) : `${formatUsd(p.raised, { decimals: 0 })}`} />
         </StripCell>
         <StripCell>
-          <Stat size="lg" label="Last score" value={formatScore(p.lastScore)} hint={p.lastBoardRank ? `#${p.lastBoardRank} on a board, paid` : "Not in a top five"} />
+          <Stat size="lg" label="Last score" value={formatScore(p.lastScore)} hint={p.lastBoardRank ? `#${p.lastBoardRank} on a board${trading ? ", paid" : ""}` : "Not in a top five"} />
         </StripCell>
       </StatStrip>
     </div>
