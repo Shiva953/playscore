@@ -64,4 +64,6 @@ backend/target/
 /PLAN.md
 /docs/*
 !/docs/BACKEND.md
+!/docs/BACKEND_APPROACHES.md
+!/docs/OVERVIEW.md
 .taste-skill/

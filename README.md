@@ -41,7 +41,9 @@ A 2-minute demo: sign in → buy a launching player → *Fill to 96%* → buy ag
 
 ```
 ├─ ARCHITECTURE.md                   product spec
+├─ docs/OVERVIEW.md                  the backend in plain words, for non-technical readers
 ├─ docs/BACKEND.md                   how the backend works, with diagrams
+├─ docs/BACKEND_APPROACHES.md        the execution models we compared, and why we chose this one
 ├─ anchor/                           the score Solana program (custody, batches, escape hatch)
 ├─ engine/                           the off-chain trading engine (Rust)
 ├─ backend/                          score-node: API, relayer, chain watcher, batch committer
