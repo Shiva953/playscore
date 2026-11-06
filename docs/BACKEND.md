@@ -233,6 +233,141 @@ flowchart LR
 - **It is committed on Solana.** The price is part of every batch fingerprint posted on-chain.
 - **Dividends taken as tokens** use the pool price at the round's kickoff snapshot. An average price over a time window is a possible upgrade, because it is harder to push around just before kickoff.
 
+### 3.5 The maths: numbers and rounding
+
+Every price, fee and payout is computed in whole numbers. Whenever a division leaves a remainder, the rounding direction is chosen so the pool or the protocol never pays out money it doesn't hold. The formulas below are the ones in `engine/score-engine/src/` (`math.rs`, `fixed.rs`, `clmm.rs`, `pool.rs`, `market.rs`).
+
+| Quantity | Unit | Why |
+|---|---|---|
+| USDC | micro-USDC (1 USDC = 1,000,000) | USDC's 6 decimals on Solana |
+| Player tokens | base units (1 token = 1,000,000) | Same precision as USDC |
+| Curve maths | milli-tokens (1 token = 1,000) | Keeps the cubes in the curve formula inside 128 bits |
+| Pool price | √(USDC per token) × 2⁶⁴, as an integer (Q64.64) | Uniswap v3's representation |
+| Order book price | USD per token × 10⁹ | Fine-grained limit prices |
+
+- **Checked 128-bit integers everywhere.** An overflow is an error, never a silent wrap.
+- **Multiply-then-divide runs in 256 bits** (`mul_div`), so `a × b / d` loses nothing before the division, and the caller picks floor or ceiling.
+- **Square roots** use integer Newton iteration from an over-estimate, which returns exactly ⌊√n⌋.
+- **Pool price bounds:** √price from 2⁴⁰ to 2⁸⁸ in Q64.64 (about 3.6 × 10⁻¹⁵ to 2.8 × 10¹⁴ USD per token), and liquidity at most 2⁹⁶. Those bounds prove every intermediate fits in 256 bits: L·2⁶⁴·√p < 2⁹⁶·2⁶⁴·2⁸⁸ = 2²⁴⁸.
+
+**The rounding rule:**
+
+| Case | Rounds | So that |
+|---|---|---|
+| Anything the pool or protocol receives | Up | Users never underpay |
+| Anything the pool or protocol pays out | Down | It never pays a fraction it doesn't hold |
+| Fees | Up | The protocol never under-collects |
+| Liquidity credited for a deposit | Down | A depositor can't take out more than they put in |
+| The pool's next price after a trade | Moves less than the exact value | The pool always comes out slightly ahead |
+| Dividend, graduation and exit splits | Down | Leftover fractions stay in the pot |
+
+### 3.6 The maths: the bonding curve and graduation
+
+**Price.** With `s` = tokens sold in milli-tokens and `Q = 3,883,000,000`:
+
+```
+price(s) = 390 + s² / (Q · 10⁶)          micro-USDC per whole token   (starts at $0.00039)
+```
+
+**Cost** of buying `Δ` milli-tokens from `s` is the exact integral of the price, in integers:
+
+```
+cost(s, Δ)   = ⌈ ( 390 · Δ · 3Q · 10⁶  +  (s + Δ)³ − s³ )  /  (3Q · 10⁹) ⌉
+refund(s, Δ) = ⌊ same numerator, from s − Δ ⌋
+```
+
+- A buy rounds the cost up and a sell rounds the refund down, so a buy followed by a sell can never profit from rounding.
+- **"How many tokens does $X buy?"** is a binary search for the largest `Δ` with `cost(s, Δ) ≤ X` (about 33 steps over the 8M-token float).
+- **Limits:** 1.25% fee, 8M tokens for sale, at most 240,000 tokens (3% of the float) per purchase and per account.
+
+**Graduation**, inside the order that crosses $25,000:
+1. A second binary search finds the smallest `Δ` with `cost(s, Δ) ≥ $25,000 − raised`. That part fills on the curve.
+2. `seed = ⌊70% · raised⌋`, `vault = ⌊20% · raised⌋`, `treasury = raised − seed − vault`.
+3. `pool_tokens = seed / price(s)` at the curve's closing price, and the pool opens at `√p₀ = √(seed · 2¹²⁸ / pool_tokens)`.
+4. The seed is placed as a fixed ladder around p₀: 30% in [0.75·p₀, 1.33·p₀], 30% in [0.4·p₀, 2.5·p₀], and the rest across the full range. Rounding dust that no slice can use goes to the dividend vault.
+5. The rest of the order buys from the new pool in the same command.
+
+In the reference program, a buy that overshoots $25,000 by about $0.50 or more makes `graduate` fail its own 8M-token check, so the market can never graduate. Clipping at exactly the threshold removes that case.
+
+### 3.7 The maths: the concentrated-liquidity pool
+
+The pool is Uniswap v3's maths (`SqrtPriceMath`, `SwapMath`, `LiquidityAmounts`) ported to Q64.64 with the same rounding rules. Token 0 is the player token (x), token 1 is USDC (y), and price = y / x.
+
+**Amounts in a range** [√a, √b] for liquidity L:
+
+```
+Δx = L · (√b − √a) · 2⁶⁴ / (√a · √b)        player tokens
+Δy = L · (√b − √a) / 2⁶⁴                     USDC
+```
+
+Up when the pool receives, down when it pays.
+
+**Next price after an input:**
+
+```
+USDC in (price rises):    √p' = √p + Δy · 2⁶⁴ / L                          rounded down
+tokens in (price falls):  √p' = L · 2⁶⁴ · √p / (L · 2⁶⁴ + Δx · √p)         rounded up
+```
+
+**A swap** repeats Uniswap v3's exact-input `computeSwapStep` until the input runs out or the price reaches the limit:
+1. Target the next range boundary in the trade's direction, or the limit, whichever comes first.
+2. Take the 0.25% fee from the input, move the price within the current liquidity, and compute what comes out.
+3. On reaching a boundary, add or subtract that boundary's net liquidity and continue.
+
+Two differences from Uniswap v3:
+- **Exact boundaries instead of ticks.** Ranges are keyed by their exact √price. A `just_below` flag plays the role of v3's `tick = tickNext − 1` when a downward swap stops exactly on a boundary.
+- **Simulate, then apply.** `sim_swap` runs on a copy of the pool and records the boundaries it crosses. `apply` commits it only after the order passes its slippage check, and re-checks the reserves first. A rejected order never leaves a half-applied trade.
+
+**LP fees** use v3's fee growth per unit of liquidity (Q64.64, wrapping):
+
+```
+fee_growth  += fee · 2⁶⁴ / L                         each swap step, in the input token
+fee_inside   = fee_growth − below(lower) − above(upper)
+fee_owed     = ⌊ L_position · Δfee_inside / 2⁶⁴ ⌋
+```
+
+Each boundary stores the fee growth "outside" it and flips it on every crossing (`outside = global − outside`). That gives any position's earned fees exactly, in constant time.
+
+**Adding liquidity:** `L = min( x · √a·√b / ((√b − √a) · 2⁶⁴),  y · 2⁶⁴ / (√b − √a) )` for a range around the price (v3 `getLiquidityForAmounts`), rounded down. The deposit's amounts then round up and the withdrawal's round down.
+
+**Solvency:** the pool's reserves hold everything paid in, and every payout rounds down, so the reserves always cover every position's principal plus earned fees. The tests check this after every action.
+
+### 3.8 The maths: routing, fees, tax and dividends
+
+**Routing** (`market.rs`):
+1. The book is price-time priority: best price, then earliest.
+2. A taker fills from the cheaper venue. The pool is swapped only until its price reaches the next resting order's price (or the taker's limit). Then that order fills, and so on. At equal prices the book goes first.
+3. The whole fill is planned read-only (`plan_buy` / `plan_sell`), checked against the slippage bound, and only then committed.
+4. A taker that reaches its own resting order cancels and refunds it, so the book never ends up crossed against the pool.
+
+**Fees and tax:**
+
+```
+fee(amount, bps) = ⌈ amount · bps / 10,000 ⌉
+
+tax_bps(age)     = 500 − 450 · min(age, 90 days) / 90 days        5% → 0.5%
+entry_time'      = (entry · old_tokens + now · new_tokens) / (old_tokens + new_tokens)
+
+split(tax)       = vault ⌊90%⌋, treasury the rest
+```
+
+- The 0.05% buy fee is charged on the USDC actually routed. The 0.25% LP fee applies to pool legs only.
+- A taker seller pays the tax on the gross USDC received; a maker seller (a resting ask) pays it on each fill.
+
+**Dividends:**
+
+```
+holder's share     = ⌊ holder_tokens · player_dividend / snapshot_total ⌋
+token election     = ⌊ dividend_usdc · 1.10 / snapshot_price ⌋       (from the 2M reserve)
+```
+
+### 3.9 How the maths is tested
+
+- **Exact rationals:** each fixed-point and pool primitive is compared against exact big-integer fractions over hundreds of thousands of cases. Rounding must be exactly floor or ceiling in the stated direction.
+- **Pool fuzzing:** random ranges, swaps and withdrawals. The pool must always cover every position's principal and fees; round trips never profit; splitting a trade never beats one trade; a full-range position must agree with the constant-product formula.
+- **Engine fuzzing:** random sequences of every command. After each one the full invariant set holds (§4.3 and `invariants.rs`): custody equals liabilities exactly, tokens are conserved, the book and pool are consistent, LP bookkeeping adds up, and the exit table is backed by custody. Rejected commands change nothing, and the log replays to the same state root.
+- **Mutation checks:** deliberately broken rounding, fee accounting and routing are each caught.
+
 ---
 
 ## 4. Where the money sits
@@ -482,13 +617,117 @@ sequenceDiagram
 
 Every 10 to 30 seconds, the batch committer sends one small transaction. The committer is a second copy of the engine that replays the log, and the operator key signs the batch.
 
-The batch contains:
-- **the fingerprint** of every balance, order, pool and claim;
-- **the exit table:** what each user would get if everything stopped now;
-- **the end of the log;**
-- how many deposits and payouts it includes;
-- the total the engine holds;
-- the dividend vault and treasury figures, so the program can move the change into those accounts.
+Five layers make the engine's record checkable. Each is a hash (SHA-256), and each starts with its own fixed label (domain separation), so a hash made for one purpose can never be passed off as another. The byte formats are a contract between `score-engine` and the program (`verify.rs`): they change only together.
+
+### 6.1 Layer 1: user signatures
+
+Every user command is valid only with an Ed25519 signature by the user's Solana wallet key (`auth.rs`):
+
+```
+signature = ed25519( user_key, "score:order:v1:" || borsh(command) )
+```
+
+The signature is stored in the log next to the command. Anyone replaying the log checks it, so the operator can't invent, change or replay a user's order.
+
+Withdrawal permits are signed the same way by the permit key and checked on-chain through Solana's Ed25519 program. The permit binds the program id, so it can't be replayed against another deployment:
+
+```
+permit = "score:voucher:v1:" || program_id || user || amount || id || expiry
+```
+
+### 6.2 Layer 2: the hash-chained log
+
+Every accepted command is chained to the one before it (`wal.rs`):
+
+```
+h_n = SHA256( "score:log:v1:" || h_(n−1) || seq_n || ts_n || borsh(cmd_n) || borsh(sig_n) )
+```
+
+- Changing, removing or reordering any past command changes every hash after it.
+- The latest hash (the *log head*) goes into every batch, so the log up to that batch is fixed on-chain.
+- `Sequencer::replay` rebuilds the state from genesis, checking every sequence number, timestamp, signature and hash.
+- **On disk,** each record is a frame `len (u32) | crc32 (u32) | borsh(record)`. Many records share one `fsync` (group commit). After a crash, a torn last frame is detected by its CRC and trimmed; corruption anywhere else is an error, never a guess.
+
+### 6.3 Layer 3: the state root
+
+The *fingerprint* is the root of a Merkle tree over the whole engine state (`state_root.rs`):
+
+```
+leaf = SHA256( 0x00 || tag || borsh(key) || borsh(value) )
+node = SHA256( 0x01 || left || right )
+```
+
+1. One leaf per state entry, in a fixed order: by tag, then by key within each map. The same state always gives the same root.
+2. Leaves are hashed in pairs, then the pairs in pairs, up to one root.
+3. An unpaired node is carried up unchanged, not duplicated.
+
+| Tag | One leaf per |
+|---|---|
+| `glob` | The globals: parameters, pause flag, custody, vault, treasury, claimable, reserved, deposit / payout / forced counters, next order and LP ids, last snapshot and result |
+| `acct` | User account: free, on hold, in orders |
+| `hold` | User × player holding, with its weighted entry time |
+| `mrkt` | Player market: ICO or bonded, raised, sold |
+| `pool` | Pool header: √price, liquidity, `just_below`, fee growth, reserves |
+| `bnd_` | Pool boundary: gross and net liquidity, fee growth outside |
+| `ordr` | Resting order (the book's levels are exactly these, sorted by id) |
+| `lpos` | Liquidity position |
+| `lock` | Withdrawal on hold |
+| `cal_` `snap` `elpx` `clm_` `prnd` | Calendar, kickoff snapshots, token-election prices, unclaimed dividends, rounds awaiting credit |
+
+```mermaid
+flowchart TB
+  R["State root<br/>posted on Solana"]
+  R --- N1["node = SHA256(0x01 · A · B)"]
+  R --- N2["node = SHA256(0x01 · C · D)"]
+  N1 --- A["leaf: acct, Alice"]
+  N1 --- B["leaf: acct, Bob"]
+  N2 --- C["leaf: pool, Player X"]
+  N2 --- D["leaf: ordr, order 41"]
+```
+
+**Why `0x00` / `0x01` and no duplication:** a leaf can never be passed off as a node, and two different leaf lists can never give the same root (the second-preimage weaknesses of naive Merkle trees).
+
+**Why a tree:** proving one entry needs only that entry plus one sibling hash per level, about 20 hashes for a million entries. `proof()` builds the path, and `verify()` (engine) and `verify_proof()` (program) check it the same way.
+
+### 6.4 Layer 4: the exit root
+
+Next to the state root, each batch commits a second tree: what each user is paid if exit mode starts (`exit.rs`):
+
+```
+exit_leaf = SHA256( 0x00 || "exit" || user || usdc (u64) || n (u32) || (lock_id (u64) || amount (u64)) × n )
+```
+
+- `usdc` = free + in buy orders + unclaimed dividends + dividends set aside for them + the USDC side and USDC fees of their LP positions + a pro-rata share of each pool's remaining USDC for every token they hold (free, in asks, and in LP positions), with no sell tax. For ICO-stage players, tokens redeem pro rata from the curve's raised USDC.
+- Withdrawals on hold are listed separately with their permit ids, so the program can tell which were already paid.
+- Every pot is divided with floor rounding, so the table never pays out more than custody holds.
+
+### 6.5 Layer 5: the program's own money chains
+
+The program keeps its own hash chains of every deposit and payout, independent of the engine (`verify.rs`):
+
+```
+deposit_hash_n = SHA256( "score:deposit:v1:" || deposit_hash_(n−1) || n || user || amount )
+payout_hash_n  = SHA256( "score:payout:v1:"  || payout_hash_(n−1)  || n || kind || id || to || amount )
+```
+
+It also stores the last 32 checkpoints `(count, total, hash)` of each chain, so a batch can name any recent point on them.
+
+### 6.6 What a batch contains
+
+| Field | Meaning |
+|---|---|
+| `seq` | Batch number |
+| `prev_state_root` | The root this batch builds on |
+| `state_root` | The new fingerprint (§6.3) |
+| `exit_root` | The new exit table (§6.4) |
+| `log_head` | The latest log hash (§6.2) |
+| `deposits`, `deposit_hash` | Deposits the engine has applied, and the deposit chain's hash at that count |
+| `payouts`, `payout_hash` | The same for payouts |
+| `forced_served` | Forced requests answered so far |
+| `liabilities` | Everything the engine owes (equal to its custody figure at the cut) |
+| `vault`, `treasury` | The engine's vault and treasury figures at the cut |
+
+### 6.7 What `commit_batch` checks
 
 ```mermaid
 flowchart LR
@@ -502,6 +741,38 @@ flowchart LR
   K2 -->|"no"| X
   K3 -->|"no"| X
 ```
+
+In detail (`commit_batch.rs`):
+1. **Order:** `seq = last seq + 1` and `prev_state_root = stored state root`. No batch can be skipped, replayed or forked.
+2. **Deposits:** `committed_deposits ≤ deposits ≤ deposit_count`, and `deposit_hash` equals the program's own chain at that count (from the head, genesis, or the 32-checkpoint ring). The engine can't invent a deposit or skip one.
+3. **Payouts:** the same against the payout chain. A treasury withdrawal not yet covered by a batch must be inside this cut.
+4. **Forced requests:** `forced_served` must equal the program's own count. Only `serve_forced` moves it.
+5. **Treasury:** `treasury ≥ committed_treasury`. A batch can only add to the treasury.
+6. **Reserves:** move the vault and treasury change, then adjust custody back to the batch's cut and check it covers what users are owed:
+
+```
+to_treasury = treasury − committed_treasury
+to_vault    = vault − committed_vault                     (either sign)
+
+custody − to_vault − to_treasury                ≥ 0
+custody − to_vault − to_treasury
+        + paid_since_cut − deposited_since_cut  ≥ liabilities − vault − treasury
+```
+
+If every check passes, the program stores the new roots, log head, cut counts and figures, and moves `to_vault` (custody ↔ vault) and `to_treasury` (custody → treasury). A rejected batch moves nothing; the next one moves the larger difference.
+
+### 6.8 What this rules out
+
+| If the operator tried to… | What stops it |
+|---|---|
+| Invent or alter a user's trade | No user signature; replaying the public log fails |
+| Rewrite history | The log head and state root on Solana no longer match |
+| Credit a deposit that never happened | The deposit chain hash doesn't match |
+| Hide a withdrawal | The payout chain hash doesn't match |
+| Report money custody doesn't hold | The reserves check rejects the batch |
+| Skip a forced request | Only `serve_forced` marks it answered; past the deadline, exit mode |
+| Stop posting batches | Exit mode after a set time; users withdraw with proofs (§7) |
+| Take treasury money through a batch | A batch can only add to the treasury |
 
 **What batches don't check yet (Phase 1).** The program doesn't check that every trade was worked out correctly; it trusts the operator's signature for that.
 - **Today:** the public log and the watchtower cover this. Anyone can replay the log and compare the result with the fingerprint.
@@ -544,6 +815,20 @@ flowchart TD
   - withdrawals already paid after the batch are taken off, so no one is paid twice.
 
   The program keeps the deposits and payouts since the last batch in its **pending log**. To make that possible, deposits and withdrawals pause if they get more than 1,024 ahead of the last batch, and start again as soon as the next batch lands. Someone who only deposited after the last batch gets their deposits back with no proof needed. The app proves everyone else's line against the fingerprint on Solana, so the user doesn't have to do anything technical.
+
+  **How `exit_withdraw` pays a user:**
+
+  ```
+  paid = max(0,  usdc                                   their exit leaf, proven against exit_root
+              + locks in the leaf still unpaid           voucher bit never set, or an unsettled request
+              + their deposits after the cut             read from the pending log
+              − their permit payouts after the cut whose lock isn't in the leaf )
+  ```
+
+  1. The program rebuilds the user's exit leaf (§6.4) from their address, `usdc` and locks.
+  2. It hashes the leaf up the tree with the sibling hashes the app supplies (at most 64), using `node = SHA256(0x01 || left || right)`, and requires the result to equal the stored `exit_root`.
+  3. It creates an `Exited` marker at the user's address. Creating it again fails, so each user is paid once.
+  4. The payment is added to the payout chain like any other.
 - **The dividend vault and treasury** stay in their own accounts in exit mode, for the multisig to decide what happens to them. Exit payments come only from custody.
 
 ---
@@ -669,7 +954,10 @@ On mainnet, the upgrade key must sit behind the multisig and a time delay, becau
 | **Log** | The saved list of every action, in order. Everything else is rebuilt from it |
 | **Batch** | The small transaction posted to Solana every 10–30 s |
 | **Fingerprint** (state root) | A short code worked out from every balance. If any balance changed, the code would change, so once it's on Solana, history can't be quietly rewritten |
-| **Exit table** | What each user gets if everything stops. Posted with every batch |
+| **Exit table** | What each user gets if everything stops. Posted with every batch as the *exit root* |
+| **Merkle tree / proof** | Hashes combined in pairs up to one root; a proof is the sibling hashes that tie one entry to the root |
+| **Log head** | The latest hash of the hash-chained log, posted with every batch |
+| **Q64.64** | A number stored as an integer scaled by 2⁶⁴; pool prices are kept this way |
 | **Permit** (voucher) | The engine's signed note that an amount is on hold for one user's withdrawal |
 | **Cap** | The most that can be withdrawn instantly between two batches |
 | **Bonding curve / ICO** | A player's first sale, at a price set by a formula |
