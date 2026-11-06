@@ -27,6 +27,76 @@ bun run dev          # http://localhost:3000
 | `bun run node` | Builds and starts the backend server (see `backend/README.md`) |
 | `bun run e2e:backend` | Full backend test on devnet |
 
+## Test it yourself
+
+Everything below runs on your own machine. Steps 1–4 need no Solana wallet, no SOL and no keys. For how it all works, read `docs/OVERVIEW.md` (plain words) or `docs/BACKEND.md` (full detail).
+
+### What to install
+
+| Tool | Version | Install | Needed for |
+|---|---|---|---|
+| bun | 1.2+ | `curl -fsSL https://bun.sh/install \| bash` | Everything |
+| Node | 20+ | [nodejs.org](https://nodejs.org) | The app |
+| Rust | stable (the program pins 1.98 itself) | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` | Steps 3–4 |
+| Solana CLI | 3.1.x | `sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"` | Step 4 |
+| Anchor CLI | 1.2.2 | `cargo install --git https://github.com/solana-foundation/anchor avm --force`, then `avm install 1.2.2 && avm use 1.2.2` | Step 4 |
+
+Then, once, from the repo root:
+
+```bash
+bun install
+```
+
+### Step 1: click through the app (2 minutes)
+
+```bash
+bun run dev        # open http://localhost:3000
+```
+
+The app runs on simulated funds in your browser (see [Demo mode](#demo-mode) below for a 2-minute walkthrough). It isn't connected to the backend yet; that's the integration step.
+
+### Step 2: the app's maths tests (seconds)
+
+```bash
+bun run test
+```
+
+Checks the curve, pool, fees, hold age, scoring and leaderboard rules against the spec's test vectors, plus random property tests.
+
+### Step 3: the trading engine (under a minute)
+
+```bash
+bun run engine:test      # every engine test: exact rounding, pool, order book, routing, fuzzing (~2 s)
+bun run engine:fuzz      # 3,000 random trading runs, checking every rule after every action (~30 s)
+bun run engine:latency   # how fast an order is processed and saved to disk
+```
+
+What a pass means:
+- every price, fee and payout matches exact maths, rounded in the safe direction;
+- across thousands of random trades, the books always balance to the cent, the pools always cover every liquidity provider, and nobody can profit from rounding;
+- replaying the log always rebuilds the same state and the same fingerprint.
+
+### Step 4: the Solana contract (a few minutes, mostly the first build)
+
+```bash
+bun run program:test
+```
+
+Builds the real contract and runs every test against it on a local Solana simulator (no validator, no SOL). It prints the compute cost of each instruction (`CU: deposit …, withdraw …`). The tests cover:
+- deposits and withdrawals, including permit forgery, reuse, expiry and the withdrawal cap;
+- batch checks: a wrong signer, out of order, a forked history, invented or skipped deposits, a shrinking treasury, a skipped forced request, not enough USDC in custody;
+- forced withdrawals and exit mode, including paying a user out from a Merkle proof built by the real engine.
+
+### Step 5: see it live on devnet (no install)
+
+The contract is deployed on devnet at `3tP3HKuoPDYKvUuGUYeRXbNQZHQeHU5BabRCwZwcXELo`. Open it on [Solana Explorer](https://explorer.solana.com/address/3tP3HKuoPDYKvUuGUYeRXbNQZHQeHU5BabRCwZwcXELo?cluster=devnet) to see the real transactions from our test runs: deposits, withdrawals and the batch commits that post the fingerprints on-chain.
+
+### Step 6: the full end-to-end run on devnet
+
+`bun run e2e:backend` starts the real server and runs about 45 users through it on devnet: deposits, an ICO up to graduation, pool trades, limit orders, liquidity, a crash and restart mid-run, a dividend round, instant and large withdrawals, and an attempt to abuse the relayer. It ends by reconciling every USDC on-chain against the engine. The output is colour-coded by step, with Explorer links for each transaction.
+
+This run uses the devnet deployment's admin and service keys, which stay with us, so we run it for you: ask, and we'll run it live on a call or send a recording.
+
 ## Demo mode
 
 Everything runs in your browser with simulated funds. State persists in `localStorage` (`score:mock:v1`).
