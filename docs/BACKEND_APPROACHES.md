@@ -1,6 +1,6 @@
 # score: choosing the execution model (draft 2)
 
-> **Status: for review. Nothing is built.** This follows the review of `BACKEND_ARCHITECTURE.md` and `BACKEND_ENGINE_EXPLAINED.md`. The rule:
+> **Status: decided and built.** This was the design-stage decision doc. The recommendation (E, reached through B) was adopted, and Phase 1 (B) is now built and tested end to end on devnet: see `BACKEND.md` for how it works today. Phase 2 (validity proofs) is still to come. The rule it was judged against:
 >
 > **minimise latency and cost, maximise security and control, keep it flexible, and keep the product and UX unchanged.** Program effort doesn't matter.
 >
