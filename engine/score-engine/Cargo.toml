@@ -1,0 +1,18 @@
+[package]
+name = "score-engine"
+version = "0.1.0"
+edition = "2021"
+description = "score trading engine: pure, deterministic, integer-only. apply(state, event) is the whole truth."
+
+[dependencies]
+borsh = { version = "1", features = ["derive"] }
+crc32fast = "1"
+ed25519-dalek = "2"
+ruint = "1"
+serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
+
+[dev-dependencies]
+num-bigint = "0.4"
+num-integer = "0.1"
+proptest = "1"

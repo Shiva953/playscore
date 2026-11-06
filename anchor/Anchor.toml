@@ -4,11 +4,16 @@
 resolution = true
 skip-lint = false
 
-[programs.devnet]
-vault = "F4jZpgbtTb6RWNWq6v35fUeiAsRJMrDczVPv9U23yXjB"
+[programs.localnet]
+score = "3tP3HKuoPDYKvUuGUYeRXbNQZHQeHU5BabRCwZwcXELo"
 
+[programs.devnet]
+score = "3tP3HKuoPDYKvUuGUYeRXbNQZHQeHU5BabRCwZwcXELo"
+
+# Default to localnet so building and testing never touch devnet. Deploy to devnet explicitly:
+#   anchor deploy --provider.cluster devnet
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

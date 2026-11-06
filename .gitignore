@@ -53,3 +53,9 @@ test-ledger/
 
 # demo recordings (regenerate with scripts/record-demo.mjs)
 docs/demo/
+
+# devnet-only test keys (scripts/devnet-e2e.ts)
+.devnet/
+
+# backend build output
+backend/target/
