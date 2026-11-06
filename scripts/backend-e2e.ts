@@ -33,13 +33,57 @@ const enc = getAddressEncoder();
 const b64 = (b: Uint8Array) => Buffer.from(b).toString("base64");
 const key = (a: Address) => Uint8Array.from(enc.encode(a));
 
+// ---- terminal styling (plain text when piped or NO_COLOR is set) ----
+const COLOR = (process.stdout.isTTY || !!process.env.FORCE_COLOR) && !process.env.NO_COLOR;
+const paint = (code: string) => (t: string | number) => (COLOR ? `\x1b[${code}m${t}\x1b[0m` : String(t));
+const [bold, dim, ul, red, green, yellow, blue, magenta, cyan, gray] = ["1", "2", "4", "31", "32", "33", "34", "35", "36", "90"].map(paint);
+const RUN0 = performance.now();
+const SECTIONS = 12;
+let sectionNo = 0;
+function section(title: string, sub = "") {
+  sectionNo++;
+  const head = ` ${sectionNo}/${SECTIONS}  ${title} `;
+  console.log(`\n${cyan("━━")}${bold(cyan(head))}${cyan("━".repeat(Math.max(4, 70 - head.length)))}`);
+  if (sub) console.log(`   ${dim(sub)}`);
+}
+const info = (t: string) => console.log(`   ${gray("›")} ${dim(t)}`);
+const links = (t: string) => t.replace(/https?:\/\/\S+/g, (u) => dim(ul(u)));
+const money = (t: string) => t.replace(/(\$[\d,]+(?:\.\d+)?|[\d,]+(?:\.\d+)? USDC)/g, (m) => bold(m));
+const ENGINE_VERBS: [RegExp, (t: string) => string][] = [
+  [/GRADUATED|★/, (t) => bold(yellow(t))],
+  [/SELL|RELEASE/, red],
+  [/BUY|DEPOSIT|CLAIM/, green],
+  [/ORDER|BID|ASK|CANCEL/, yellow],
+  [/LIQUIDITY|LP|POOL/, blue],
+  [/WITHDRAW|PAYOUT|PAID|TREASURY|FORCED/, magenta],
+  [/ROUND|SNAPSHOT|CALENDAR|BATCH|LIST/, cyan],
+];
+const TAGS: Record<string, (t: string) => string> = { watcher: blue, batch: magenta, relayer: yellow, forced: magenta, postgres: blue, snapshot: gray, log: gray, follower: gray };
+/** One server log line, coloured by the part of the backend it comes from. */
+function nodeLine(l: string): string {
+  const e = l.match(/^engine │ (#\d+)?(\s*)(.*)$/);
+  if (e) {
+    const [, seq = "", gap, rest] = e;
+    const verb = rest.match(/^[★ ]*[A-Z][A-Z0-9 ]*[A-Z0-9](?=[\s:(]|$)/)?.[0] ?? "";
+    const style = ENGINE_VERBS.find(([re]) => re.test(verb))?.[1] ?? bold;
+    const body = rest.slice(verb.length).replace(/ · (\d+ µs)$/, (_, us) => ` ${gray("· " + us)}`);
+    return `   ${gray("engine  │")} ${gray(seq)}${gap}${style(verb)}${money(links(body))}`;
+  }
+  const m = l.match(/^(\w+)(?: (\d+))?: /);
+  const tag = m && TAGS[m[1]] ? m[1] : "server";
+  // Drop the repeated "watcher: " prefix; a batch keeps its number.
+  const text = m && TAGS[m[1]] ? (m[2] ? `${bold("#" + m[2])} ${l.slice(m[0].length)}` : l.slice(m[0].length)) : l;
+  return `   ${(TAGS[tag] ?? gray)(tag.padEnd(7))} ${gray("│")} ${money(links(text))}`;
+}
+const fmtMs = (ms: number) => (ms < 1000 ? `${ms.toFixed(0)} ms` : `${(ms / 1000).toFixed(2)} s`);
+
 const T: Record<string, number[]> = {};
 const rec = (k: string, ms: number) => (T[k] ??= []).push(ms);
 const checks: [string, boolean, string][] = [];
 const check = (name: string, ok: boolean, detail = "") => {
   checks.push([name, ok, detail]);
-  console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`);
-  if (!ok) fetch(`${NODE}/v1/status`).then((r) => r.json()).then((s) => console.log("      node status:", JSON.stringify({ batches: s.batches, watcher: s.watcher, relay: s.relay }))).catch(() => {});
+  console.log(`   ${ok ? green("✓") : red("✗")}  ${ok ? bold(name) : bold(red(name))}${detail ? `  ${dim("· " + detail)}` : ""}`);
+  if (!ok) fetch(`${NODE}/v1/status`).then((r) => r.json()).then((s) => console.log(red(`      node status: ${JSON.stringify({ batches: s.batches, watcher: s.watcher, relay: s.relay })}`))).catch(() => {});
 };
 
 let node: ReturnType<typeof Bun.spawn> | null = null;
@@ -63,7 +107,7 @@ async function startNode(): Promise<string> {
       partial += text;
       const lines = partial.split("\n");
       partial = lines.pop() ?? "";
-      for (const l of lines) if (l.trim()) console.log(l.startsWith("engine │") ? `   ${l}` : `   node   │ ${l}`);
+      for (const l of lines) if (l.trim()) console.log(nodeLine(l));
     }
   })();
   for (let i = 0; i < 200; i++) {
@@ -222,11 +266,12 @@ const me = await cliWallet();
 const ALL = await users(N_USERS + 3);
 const [U, late, whale] = [ALL.slice(0, N_USERS), ALL.slice(N_USERS, N_USERS + 2), ALL[N_USERS + 2]];
 
-console.log("== start score-node");
+console.log(`\n${bold("score")}${cyan("▮")} ${dim("backend end-to-end test · devnet · " + new Date().toLocaleString())}`);
+section("Start the server", "engine + log, API, permit signer, relayer, chain watcher, batch committer, Postgres writer");
 const boot = await startNode();
 INFO = await api("/v1/info");
 await openStream();
-console.log(`node up: ${boot}`);
+info(`server up · ${boot.split("|")[0]} log records replayed in ${boot.split("|")[1]}`);
 
 // The instant-withdrawal cap right now: max(cap_min, 2% of custody). The whale deposits enough to
 // withdraw above it, which must take the request path.
@@ -238,9 +283,9 @@ const capNow = async () => {
 };
 // 3% of what custody will hold after this run's deposits: comfortably above the 2% cap then.
 const WHALE_IN = (((await custodyNow()) + 60_000n * USDC) * 3n) / 100n + 1_000n * USDC;
-console.log(`instant-withdrawal cap now ${Number(await capNow()) / 1e6} USDC; whale deposits ${Number(WHALE_IN) / 1e6}`);
+info(`instant-withdrawal cap now ${(Number(await capNow()) / 1e6).toLocaleString()} USDC · the whale will deposit ${(Number(WHALE_IN) / 1e6).toLocaleString()} USDC`);
 
-console.log("== fund test wallets with USDC (setup, not timed)");
+section("Fund test wallets", "test USDC minted to each wallet · setup, not timed");
 for (let i = 0; i < ALL.length; i += 4) {
   const chunk = ALL.slice(i, i + 4);
   const ixs: Instruction[] = [];
@@ -254,11 +299,11 @@ for (let i = 0; i < ALL.length; i += 4) {
   if (ixs.length) await send(me, ixs, 200_000);
 }
 
-console.log("== deposits (through the relayer; users hold no SOL)");
+section("Deposits", "user-signed, the relayer pays the fee · users hold no SOL");
 for (let i = 0; i < U.length; i += 8) await Promise.all(U.slice(i, i + 8).map((u) => deposit(u, 1_000n * USDC)));
 await deposit(whale, WHALE_IN);
 
-console.log("== ICO: curve buys until the player graduates");
+section("Player launch", "bonding-curve buys until the player graduates into its pool");
 const eng0 = await api("/v1/engine");
 const P = Math.max(0, ...eng0.players) + 1;
 await admin({ ListPlayer: { player: P } });
@@ -279,7 +324,7 @@ for (const u of U) {
 }
 check("player graduates on the curve", graduated);
 
-console.log("== pool trading, limit orders, liquidity");
+section("Trading", "pool buys and sells, limit orders, cancels, liquidity");
 const holders: KeyPairSigner[] = [];
 for (const u of U) if ((await userState(u)).holdings.some((h: any) => h.player === P && BigInt(h.amount) > 0n)) holders.push(u);
 const pick = <X>(xs: X[], i: number) => xs[i % xs.length];
@@ -332,7 +377,7 @@ for (let i = 0; i < 2; i++) {
   if (lp) await order("remove liquidity", u, (n) => ({ RemoveLiquidity: { user: key(u.address), nonce: n, position: BigInt(lp.id), liquidity: BigInt(lp.liquidity), minUsdc: 0n, minTokens: 0n } }));
 }
 
-console.log("== crash: kill -9 the node, deposit on-chain while it's down, restart");
+section("Crash test", "kill -9 the server, deposit on-chain while it's down, restart");
 await sleep(500);
 const pre = await api("/v1/engine");
 killNode();
@@ -357,7 +402,7 @@ rec("restart: catch up deposits made while down", performance.now() - tRestart);
 const lateFree = await Promise.all(late.map(async (u) => BigInt((await userState(u)).free)));
 check("deposits made while the node was down are credited", lateFree.every((f) => f >= 250n * USDC));
 
-console.log("== round: snapshot → result → dividends credited once the batch is final → claim");
+section("Matchday round", "kickoff snapshot → result → dividends credited once the batch is final → claim");
 const e1 = await api("/v1/engine");
 const round = e1.lastSnapshot + 1;
 await admin({ PublishCalendar: { round, lockTs: BigInt(Math.floor(Date.now() / 1000) + 3) } });
@@ -378,7 +423,7 @@ rec("dividend: result → claimable", performance.now() - tRes);
 check("dividends credited only after their batch is final", credited);
 if (credited) await order("claim dividend (USDC)", holder, (n) => ({ Claim: { user: key(holder.address), nonce: n, round, player: P, takeTokens: false } }));
 
-console.log("== on-chain pause: the API refuses withdrawals up front (no hold, no failing transaction)");
+section("On-chain pause", "the API refuses withdrawals up front: no hold, no failing transaction");
 {
   const flags = async () => Number((await api("/v1/status")).programPaused);
   const u = await someone(30n * USDC);
@@ -399,7 +444,7 @@ console.log("== on-chain pause: the API refuses withdrawals up front (no hold, n
   check("withdrawals refused while paused on-chain, nothing put on hold", refused && BigInt((await userState(u)).locked) === lockedBefore && (await flags()) === 0);
 }
 
-console.log("== withdrawals: permit + relayer, USDC back in the user's wallet");
+section("Withdrawals", "signed permit + relayer → USDC back in the user's wallet");
 const modes: string[] = [];
 for (let i = 0; i < 8; i++) modes.push(await withdraw(await someone(30n * USDC), 25n * USDC, "withdraw: click → USDC in wallet"));
 check("small withdrawals stay instant", modes.every((m) => m === "instant"), modes.join(", "));
@@ -407,7 +452,7 @@ const WHALE_OUT = (await capNow()) + 300n * USDC;
 const bigMode = await withdraw(whale, WHALE_OUT, "large withdrawal (over the cap): click → wallet");
 check("large withdrawal goes through the request path and is paid", bigMode === "request");
 
-console.log("== escape hatch: a user posts forced requests straight on Solana (no API, no relayer)");
+section("Escape hatch", "a user posts forced requests straight on Solana: no API, no relayer");
 {
   const { getTransferSolInstruction } = await import("@solana-program/system");
   const fu = await someone(60n * USDC);
@@ -447,7 +492,7 @@ console.log("== escape hatch: a user posts forced requests straight on Solana (n
   check("nobody can switch on exit mode", /ExitNotAllowed/.test(sim), "simulated enter_exit_mode → ExitNotAllowed");
 }
 
-console.log("== the relayer refuses a transaction that would spend its own SOL");
+section("Relayer safety", "it refuses a transaction that would spend its own SOL");
 {
   const { getTransferSolInstruction } = await import("@solana-program/system");
   const evil = getTransferSolInstruction({ source: createNoopSigner(INFO.relayer as Address), destination: U[0].address, amount: 1_000_000n });
@@ -461,7 +506,7 @@ console.log("== the relayer refuses a transaction that would spend its own SOL")
   check("relayer refuses a transaction that touches its own account", refused);
 }
 
-console.log("== final reconciliation");
+section("Final reconciliation", "the chain, the engine and Neon must agree to the last unit");
 // Wait until a batch covers everything but its own "finalized" note, then compare.
 let status: any, eng: any, st: any;
 for (let i = 0; i < 60; i++) {
@@ -479,7 +524,7 @@ check("custody + vault + treasury USDC = the engine's total", onchain === BigInt
 check("vault and treasury accounts = the engine's figures", (await bal(INFO.vault)) === BigInt(eng.vault) && (await bal(INFO.treasury)) === BigInt(eng.treasury));
 check("no relayed transaction failed", status.relay.failed === 0, `${status.relay.landed} landed, ${status.relay.rejected} refused`);
 check("watcher applied every deposit and payout", !/deposit|payout/.test(status.watcher.last_error ?? ""), status.watcher.last_error ?? "");
-if (status.watcher.last_error) console.log(`      watcher's last transient error: ${status.watcher.last_error}`);
+if (status.watcher.last_error) info(`watcher's last transient error: ${status.watcher.last_error}`);
 let pgRows: any[] = [];
 if (status.db.enabled) {
   let count = -1, max = -1;
@@ -491,32 +536,48 @@ if (status.db.enabled) {
       pgRows = await db`select seq, kind, signer, to_timestamp(ts) as at from log order by seq desc limit 6`;
       await db.close();
     } catch (e: any) {
-      console.log(`      (reading Neon: ${e.message})`);
+      info(`reading Neon: ${e.message}`);
     }
     if (count >= eng.applied) break;
     await sleep(1000);
   }
   check("Postgres (Neon) holds every log record, read directly from Neon", count === max && count >= eng.applied, `${count} rows, max seq ${max}, engine at ${eng.applied}`);
-} else console.log("SKIP  Postgres (DATABASE_URL not set)");
+} else console.log(`   ${yellow("–")}  ${dim("Postgres skipped (DATABASE_URL not set)")}`);
 
-console.log("\n== timings (ms)");
 const q = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(xs.length * p))];
-console.log("action".padEnd(52), "n".padStart(4), "median".padStart(8), "p95".padStart(8), "max".padStart(8));
-for (const [k, xs] of Object.entries(T)) console.log(k.padEnd(52), String(xs.length).padStart(4), q(xs, 0.5).toFixed(0).padStart(8), q(xs, 0.95).toFixed(0).padStart(8), Math.max(...xs).toFixed(0).padStart(8));
-console.log(`batches: ${status.batches.batches}, last commit ${status.batches.last_ms} ms (send → finalized)`);
+console.log(`\n${bold("Timings")}  ${dim("measured from the user's side, devnet")}`);
+const W = 52;
+const row = (a: string, n: string, m: string, p: string, x: string) => `   │ ${a.padEnd(W)} │ ${n.padStart(3)} │ ${m.padStart(9)} │ ${p.padStart(9)} │ ${x.padStart(9)} │`;
+const rule = (l: string, m: string, r: string) => `   ${l}${"─".repeat(W + 2)}${m}${"─".repeat(5)}${m}${"─".repeat(11)}${m}${"─".repeat(11)}${m}${"─".repeat(11)}${r}`;
+console.log(gray(rule("╭", "┬", "╮")));
+console.log(bold(row("action", "n", "median", "p95", "max")));
+console.log(gray(rule("├", "┼", "┤")));
+for (const [k, xs] of Object.entries(T)) {
+  const med = q(xs, 0.5);
+  const tint = med < 100 ? green : med < 4000 ? cyan : yellow;
+  console.log(`   │ ${k.padEnd(W)} │ ${String(xs.length).padStart(3)} │ ${tint(fmtMs(med).padStart(9))} │ ${fmtMs(q(xs, 0.95)).padStart(9)} │ ${fmtMs(Math.max(...xs)).padStart(9)} │`);
+}
+console.log(gray(rule("╰", "┴", "╯")));
+info(`${status.batches.batches} batches committed this run · last one ${fmtMs(status.batches.last_ms)} from send to finalized`);
 
-console.log("\n== proof you can open");
-console.log(`the program              https://explorer.solana.com/address/${INFO.program}?cluster=devnet`);
-console.log(`custody (users' USDC)    https://explorer.solana.com/address/${INFO.custody}?cluster=devnet`);
-for (const [k, v] of Object.entries(proof)) console.log(`${k.padEnd(24).slice(0, 24)} ${v}`, k.length > 24 ? `  (${k})` : "");
-if (status.batches.last_signature) console.log(`latest batch (fingerprint ${status.batches.last_state_root.slice(0, 12)}…)  ${explorer(status.batches.last_signature)}`);
+console.log(`\n${bold("Proof you can open")}  ${dim("Solana Explorer, devnet")}`);
+const proofLine = (label: string, url: string) => console.log(`   ${cyan("●")} ${label.padEnd(50)} ${dim(ul(url))}`);
+proofLine("the program", `https://explorer.solana.com/address/${INFO.program}?cluster=devnet`);
+proofLine("custody (all users' USDC)", `https://explorer.solana.com/address/${INFO.custody}?cluster=devnet`);
+for (const [k, v] of Object.entries(proof)) proofLine(k, v);
+if (status.batches.last_signature) proofLine(`latest batch (fingerprint ${status.batches.last_state_root.slice(0, 12)}…)`, explorer(status.batches.last_signature));
 if (pgRows.length) {
-  console.log("\nlatest rows in Neon (table log):");
-  for (const r of pgRows) console.log(`  #${r.seq}  ${String(r.kind).padEnd(16)} ${r.signer ? String(r.signer).slice(0, 8) + "…" : "(system)".padEnd(9)}  ${new Date(r.at).toISOString()}`);
+  console.log(`\n${bold("Latest rows in Neon")}  ${dim("table log, read directly from the database")}`);
+  for (const r of pgRows) console.log(`   ${gray("#" + r.seq)}  ${String(r.kind).padEnd(18)} ${r.signer ? String(r.signer).slice(0, 8) + "…" : dim("(system)".padEnd(9))}  ${dim(new Date(r.at).toISOString())}`);
 }
 writeFileSync(".devnet/node/last-run.log", fullLog);
-console.log("\nfull server log: .devnet/node/last-run.log");
+info("full server log: .devnet/node/last-run.log");
 const failed = checks.filter((c) => !c[1]);
-console.log(`\n${checks.length - failed.length}/${checks.length} checks passed`);
+const verdict = `${failed.length ? "✗" : "✓"}  ${checks.length - failed.length}/${checks.length} checks passed  ·  ${(((performance.now() - RUN0) / 1000) | 0)} s`;
+const box = failed.length ? red : green;
+console.log(`\n   ${box("╭" + "─".repeat(verdict.length + 4) + "╮")}`);
+console.log(`   ${box("│")}  ${bold(box(verdict))}  ${box("│")}`);
+console.log(`   ${box("╰" + "─".repeat(verdict.length + 4) + "╯")}`);
+for (const [n] of failed) console.log(`   ${red("✗")} ${n}`);
 killNode();
 process.exit(failed.length ? 1 : 0);
