@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { Tabs as TabsPrimitive } from "radix-ui"
 
 /**
- * Two kinds (DESIGN.md §6):
+ * Two kinds:
  * - `line` (default): text tabs; inactive soft grey, active ink. No accent, no pill.
  * - `segmented`: a #111 track with the active segment one lightness step up (Buy/Sell, ranges).
  */

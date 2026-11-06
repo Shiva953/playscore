@@ -3,11 +3,7 @@ import { sum } from "./math";
 
 const B = PROTOCOL_CONFIG.boards;
 
-/**
- * Boards (client decision, Nov 2026): one per position across all leagues, plus the Champions
- * League board in UCL windows. Per-league boards were removed. Defenders, midfielders and forwards
- * pay a top 5 (35/25/20/12/8%); goalkeepers a top 3 (44/31/25%).
- */
+/** One board per position across all leagues, plus Champions League in UCL windows. */
 export type BoardKind = "position" | "ucl";
 
 export interface BoardDef {

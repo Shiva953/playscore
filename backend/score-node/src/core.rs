@@ -47,7 +47,6 @@ impl Core {
             std::fs::create_dir_all(dir)?;
         }
         let (mut wal, recs) = FileWal::recover(wal_path)?;
-        // Latest valid snapshot + the log after it; or the whole log.
         let restored = crate::snapshot::restore(&crate::snapshot::path_for(wal_path), &recs)?;
         let seq = restored.seq;
         let max_voucher_id = recs.iter().filter_map(|r| if let Cmd::LockWithdraw { id, .. } = r.cmd { Some(id) } else { None }).max().unwrap_or(0);

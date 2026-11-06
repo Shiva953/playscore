@@ -1,15 +1,6 @@
-//! The background follower: a copy of the engine that replays the saved log stream. It writes
-//! restart snapshots (every 5,000 records or 60 s), and, with `SCORE_ENGINE_LOG=1`, prints the
-//! engine log: one plain-language line per command, explaining what the engine did.
-//!
-//! Zero cost to the trading path. The engine thread is untouched: this runs on its own OS thread,
-//! fed by the same broadcast of already-saved log records the WebSocket uses. It keeps its own
-//! copy of the engine and replays each record (same log in, same result out), so it can show the
-//! before/after of every command: balances, pool vs order book, prices, fees and tax. It also
-//! recomputes each record's hash-chain link and checks it against the engine's: a live proof that
-//! replay reproduces the engine exactly. Off unless `SCORE_ENGINE_LOG=1`.
-//!
-//! Rejected commands never reach the log (they change nothing); the API returns their reason.
+//! Background follower: a copy of the engine, on its own low-priority thread, replaying the saved
+//! log stream. Writes restart snapshots, checks every record's hash against the engine's, and with
+//! `SCORE_ENGINE_LOG=1` prints one plain-language line per command. Never touches the trading path.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -97,7 +88,6 @@ fn rebuild_from(path: &std::path::Path) -> (Sequencer, Option<u64>) {
     }
 }
 
-// ---------------- formatting ----------------
 
 fn usd(micro: u64) -> String {
     let v = micro as f64 / 1e6;
@@ -132,7 +122,6 @@ fn who(u: &UserId) -> String {
     format!("{}…{}", &s[..4], &s[s.len() - 3..])
 }
 
-// ---------------- before / after ----------------
 
 #[derive(Default)]
 struct Mkt {
@@ -366,8 +355,7 @@ fn describe(b: &Before, e: &Engine, c: &Cmd, out: &Outcome, ts: i64) -> String {
     }
 }
 
-/// Background priority for this thread only, so it only ever uses CPU the engine thread doesn't
-/// need (macOS: background QoS, which also keeps it off the performance cores; Linux: nice 19).
+/// Background priority, so it only uses CPU the engine thread doesn't need.
 fn lowest_priority() {
     #[cfg(target_os = "macos")]
     unsafe {

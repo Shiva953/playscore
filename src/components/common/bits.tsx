@@ -19,7 +19,7 @@ export function Delta({ value, decimals = 2, className, children }: { value: num
   );
 }
 
-/** Quiet identity tint per position (DESIGN.md §3). */
+/** Quiet identity tint per position. */
 export function PositionBadge({ position, className }: { position: PositionCode; className?: string }) {
   return (
     <Badge variant={position} className={className} data-position={position}>

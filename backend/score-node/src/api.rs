@@ -1,17 +1,7 @@
-//! HTTP API and live updates.
-//!
-//! User commands arrive as the exact bytes the user signed (`borsh(cmd)`, base64) plus the ed25519
-//! signature; the sequencer checks the signature against the command's own `user` field. The
-//! withdrawal flow is: prepare (voucher id + expiry) → the user signs `LockWithdraw` → the engine
-//! puts the amount on hold → the node signs the permit → the user signs the Solana transaction →
-//! the relayer co-signs as fee payer and sends it.
-//!
-//! Instant or request: decided when the hold is placed (`/v1/withdraw`, returned as `mode`), against
-//! the finalized chain view PLUS every instant permit we've issued that the view doesn't show yet,
-//! so a slightly old view can never make us promise an instant withdrawal the program will refuse.
-//! On-chain pauses and exit mode are mirrored in memory (atomics), so these checks cost nothing.
+//! HTTP API and live updates. User commands arrive as the exact signed bytes (`borsh(cmd)`) plus
+//! the ed25519 signature. Withdrawal: prepare → user signs `LockWithdraw` → hold → permit → user
+//! signs the transaction → relayer co-signs and sends.
 
-// Handlers return early with ready HTTP responses; their size doesn't matter here.
 #![allow(clippy::result_large_err)]
 
 use std::collections::BTreeMap;
@@ -49,7 +39,6 @@ pub struct ChainCache {
     pub cap_min: u64,
     pub cap_bps: u64,
     pub voucher_max_ttl: i64,
-    /// The program's payout counter in the view.
     pub payout_count: u64,
     /// Instant permits issued that the view may not show yet, and their total.
     pub held_instant: u64,
@@ -101,7 +90,7 @@ pub struct App {
     pub voucher: ed25519_dalek::SigningKey,
     pub admin_token: String,
     pub next_voucher: Arc<AtomicU64>,
-    /// On-chain state mirrored for free checks: exit mode, and the program's pause flags.
+    /// Mirrored on-chain exit mode and pause flags.
     pub exit: Arc<AtomicBool>,
     pub paused: Arc<AtomicU8>,
     pub trigger: Arc<Notify>,

@@ -1,24 +1,8 @@
-//! score custody program (Phase 1 of BACKEND_APPROACHES §4).
-//!
-//! Holds all user USDC in one PDA-owned token account. Trading runs in the off-chain engine; this
-//! program makes deposits and withdrawals instant and on-chain, and bounds what the operator can
-//! do with them:
-//! - `deposit`: user-signed, credited by the engine at confirmed; every deposit extends an on-chain
-//!   hash chain the next batch must consume exactly.
-//! - `withdraw`: the user's own transaction, paid in that transaction, against a short-lived
-//!   voucher signed by the engine (verified via the Ed25519 program). Instant payouts since the
-//!   last committed batch are capped (the "unproven exposure cap"); above it, `request_withdrawal`
-//!   records the request and `settle_request` pays it after the next batch.
-//! - `commit_batch`: the operator posts the new state root, the exit root and the deposit/payout
-//!   cuts it consumed; the program checks the cuts against its own chains and that custody covers
-//!   every liability. Phase 2 adds a validity proof to this instruction.
-//! - `force_request` / `enter_exit_mode` / `exit_withdraw`: if the operator stops committing or
-//!   ignores a forced request, anyone can switch on exit mode, and every user withdraws what the
-//!   last committed exit root says they own, adjusted for their deposits and withdrawals after
-//!   that batch (kept on-chain in the `Pending` log).
-//!
-//! Layout: `instructions/<area>/<instruction>.rs` holds each instruction's accounts and handler;
-//! this file only dispatches.
+//! score custody program (Phase 1). Holds all user USDC; trading runs in the off-chain engine.
+//! Deposits and withdrawals are on-chain and instant (withdrawals against engine-signed permits,
+//! capped since the last batch). Batches post the engine's roots and are checked against the
+//! program's own deposit/payout chains and reserves. If the operator stops committing or ignores a
+//! forced request, anyone can switch on exit mode and every user withdraws their committed share.
 
 pub mod constants;
 pub mod error;
@@ -40,7 +24,6 @@ declare_id!("3tP3HKuoPDYKvUuGUYeRXbNQZHQeHU5BabRCwZwcXELo");
 pub mod score {
     use super::*;
 
-    // ---------------- admin ----------------
 
     /// One-time setup. Only the program's upgrade authority may call it, so it can't be
     /// front-run after deployment.
@@ -75,7 +58,6 @@ pub mod score {
         instructions::admin::withdraw_treasury::handle_withdraw_treasury(ctx, amount)
     }
 
-    // ---------------- custody ----------------
 
     pub fn init_voucher_page(ctx: Context<InitVoucherPage>, index: u64) -> Result<()> {
         instructions::custody::init_voucher_page::handle_init_voucher_page(ctx, index)
@@ -102,13 +84,11 @@ pub mod score {
         instructions::custody::settle_request::handle_settle_request(ctx)
     }
 
-    // ---------------- batches ----------------
 
     pub fn commit_batch(ctx: Context<CommitBatch>, b: Batch) -> Result<()> {
         instructions::batch::commit_batch::handle_commit_batch(ctx, b)
     }
 
-    // ---------------- escape hatch ----------------
 
     /// A request the operator must include in a batch within `forced_deadline`, or exit mode opens.
     pub fn force_request(ctx: Context<ForceRequest>, index: u64, kind: u8, data: [u8; 32]) -> Result<()> {

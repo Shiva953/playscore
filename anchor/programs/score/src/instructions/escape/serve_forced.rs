@@ -17,8 +17,7 @@ pub struct ServeForced<'info> {
     pub state: AccountLoader<'info, State>,
     #[account(mut)]
     pub pending: AccountLoader<'info, Pending>,
-    /// Forced requests are only created by `force_request`, at their own PDA (one per index), so
-    /// the stored index (checked below) identifies the account: no PDA derivation needed.
+    /// Only `force_request` creates these, at their own PDA, so the stored index identifies it.
     #[account(mut, close = user)]
     pub forced_request: Account<'info, ForcedRequest>,
     /// The requester: gets the rent back.
@@ -36,10 +35,8 @@ pub struct ServeForced<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-/// Answer forced request `index` (the oldest unserved one). A forced withdrawal pays `amount`
-/// (what the engine put on hold for it: at most what was asked) to the user's USDC account, on the
-/// payout chain under id `FORCED_ID_BIT | index`, outside the instant cap (it needs the operator
-/// key). Any other request, or a withdrawal with nothing to pay, is answered with `amount` = 0.
+/// Answer the oldest unserved forced request. A withdrawal pays `amount` (at most what was asked)
+/// as payout id `FORCED_ID_BIT | index`, outside the instant cap; anything else answers with 0.
 pub fn handle_serve_forced(ctx: Context<ServeForced>, index: u64, amount: u64) -> Result<()> {
     let a = &ctx.accounts;
     let r = &a.forced_request;

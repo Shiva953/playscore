@@ -1,12 +1,6 @@
-//! Restart snapshots: `borsh(Sequencer)` (the engine state, sequence number, hash-chain head and
-//! last timestamp), written by the background follower so the trading path never pays for it.
-//!
-//! File: magic (8 bytes) · sha256(body) (32) · body. Written to a temp file, fsynced, then renamed,
-//! so a crash mid-write leaves the previous snapshot intact.
-//!
-//! A snapshot is only used if its checksum matches AND its hash-chain head equals the log's hash at
-//! the same sequence number. Then only the log after it is re-applied (signatures and hashes still
-//! checked). Otherwise the whole log is replayed, as before.
+//! Restart snapshots: magic · sha256(body) · borsh(Sequencer), written via temp file + fsync +
+//! rename. Used only if the checksum matches and its head equals the log's hash at that sequence
+//! number; then only the later log is re-applied. Otherwise the whole log is replayed.
 
 use std::fs::{self, File};
 use std::io::Write;
@@ -15,7 +9,7 @@ use std::path::{Path, PathBuf};
 use score_engine::wal::{Record, Sequencer};
 use sha2::{Digest, Sha256};
 
-/// Bumped whenever the engine's state layout changes (02: forced-request counter; 03: hold kinds).
+/// Bump when the engine's state layout changes.
 const MAGIC: &[u8; 8] = b"SCSNAP03";
 
 pub fn path_for(wal: &Path) -> PathBuf {

@@ -59,3 +59,9 @@ docs/demo/
 
 # backend build output
 backend/target/
+
+# Working docs, screenshots and the founder's materials stay local. Only the key docs are tracked.
+/PLAN.md
+/docs/*
+!/docs/BACKEND.md
+.taste-skill/

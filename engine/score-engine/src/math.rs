@@ -1,5 +1,5 @@
 //! Integer maths for score, ported from the spec (scorespecification.pdf v3.0, sections 2, 5, 6, 7, 13)
-//! and shaped after the reference program's calls into `score_math` (docs/concept/scorefunv1.rs).
+//! and shaped after the reference program's calls into `score_math`.
 //!
 //! UNVERIFIED against the client's `score_math` crate (not supplied). Every rounding choice follows
 //! the spec text: fees round up, everything else rounds down unless stated. Function names and

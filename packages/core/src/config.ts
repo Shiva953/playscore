@@ -167,7 +167,7 @@ export const PROTOCOL_CONFIG = {
     /** Defenders, midfielders, forwards (and the Champions League board): top 5. */
     payoutShares: [0.35, 0.25, 0.2, 0.12, 0.08] as readonly number[],
     maxRanked: 5,
-    /** Goalkeepers: top 3 (client decision, Nov 2026: replaces the GK top 5). */
+    /** Goalkeepers: top 3. */
     gkShares: [0.44, 0.31, 0.25] as readonly number[],
     positionMultiplier: 1,
     uclMultiplier: 1.05,

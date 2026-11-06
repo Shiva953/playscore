@@ -1,12 +1,6 @@
-//! Chain watcher. Applies on-chain facts to the engine, only once they are FINALIZED:
-//! - a long-lived `logsSubscribe` at `finalized` for speed;
-//! - catch-up from transaction history (`getSignaturesForAddress` + `getTransaction`) whenever the
-//!   on-chain counters are ahead of the engine, after a reconnect, and at startup, so a missed
-//!   notification or downtime never loses a deposit or payout;
-//! - deposits, payouts and forced requests are applied strictly in the program's order (the
-//!   engine refuses gaps); a forced request wakes the committer, which answers it on-chain;
-//! - expired, unused withdrawal locks are released only when finalized state shows the voucher
-//!   unused at a time past its expiry.
+//! Chain watcher: applies on-chain facts to the engine only once FINALIZED, in the program's order.
+//! `logsSubscribe` for speed, plus catch-up from history whenever the program's counters are ahead
+//! (startup, reconnects, missed notifications), so nothing is ever lost.
 
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -93,7 +87,6 @@ struct Pending {
     payouts: BTreeMap<u64, (u8, u64, u64)>,
     requested: Vec<u64>,
     forced: BTreeMap<u64, (Pubkey, u8, [u8; 32])>,
-    /// Forced requests answered on-chain without a payment.
     unpaid: Vec<u64>,
     exit: bool,
 }
@@ -138,7 +131,6 @@ async fn ingest(core: Core, rpc: Rpc, addrs: Addrs, mut rx: mpsc::UnboundedRecei
                 None => return,
             },
             _ = tick.tick() => {
-                // Reconcile against the program's own counters (finalized).
                 if let Ok((Some(d), _)) = rpc.account(&addrs.state, FINALIZED).await {
                     if let Ok(st) = program::decode_state(&d) {
                         if st.in_exit_mode() { p.exit = true; }
@@ -177,8 +169,7 @@ async fn ingest(core: Core, rpc: Rpc, addrs: Addrs, mut rx: mpsc::UnboundedRecei
     }
 }
 
-/// Read program transactions newest → oldest until every deposit and payout the engine is missing
-/// has been seen.
+/// Read program transactions newest → oldest until everything the engine is missing is seen.
 async fn catch_up(rpc: &Rpc, core: &Core, addrs: &Addrs, p: &mut Pending) -> anyhow::Result<u64> {
     let (dep, pay, frc) = core.read(|s| (s.engine.deposits(), s.engine.payouts(), s.engine.forced())).await;
     let st = program::decode_state(&rpc.account(&addrs.state, FINALIZED).await?.0.ok_or_else(|| anyhow::anyhow!("no state account"))?)?;

@@ -7,10 +7,7 @@ In the diagrams:
 - a **thick** arrow is USDC moving;
 - a **dotted** arrow is something being checked.
 
-For more detail, see:
-- `BACKEND_APPROACHES.md`: why we chose this design;
-- `BACKEND_ENGINE_EXPLAINED.md`: the trading maths;
-- `engine/README.md` and `anchor/README.md`: how to run and test the code.
+For more detail, see `anchor/README.md`, `engine/README.md` and `backend/README.md`: how to run and test the code.
 
 ---
 

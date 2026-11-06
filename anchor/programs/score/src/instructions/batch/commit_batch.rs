@@ -54,13 +54,10 @@ pub fn handle_commit_batch(ctx: Context<CommitBatch>, b: Batch) -> Result<()> {
             State::lookup(&st.payout_ring, (st.payout_count, st.payout_total, st.payout_hash), b.payouts).ok_or(ScoreError::BadPayouts)?;
         require!(pay_hash == b.payout_hash, ScoreError::BadPayouts);
         // A treasury withdrawal must be in this cut, so the engine's figure already excludes it.
-        // (Every treasury payout is therefore at or before the cut, and `paid_since` below is all
-        // custody payouts.)
         if let Some(payout) = st.uncovered_treasury_payout() {
             require!(b.payouts >= payout, ScoreError::TreasuryPending);
         }
-        // Forced requests are answered one by one by `serve_forced` (which pays forced
-        // withdrawals); a batch can't mark them served.
+        // Only `serve_forced` marks forced requests served.
         require!(b.forced_served == st.forced_served, ScoreError::BadForced);
 
         // Money sync: the vault moves either way (fees in, dividends out to holders' balances);

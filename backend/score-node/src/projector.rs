@@ -1,7 +1,5 @@
-//! Postgres writer (Neon). Copies every log record into `log` (seq, time, command, signer, hash).
-//! Off the trading path: it reads the broadcast of already-saved records, and on startup fills in
-//! anything the database is missing from the log file itself, so a database outage never loses or
-//! changes anything. Disabled when DATABASE_URL is unset.
+//! Postgres writer: copies every saved log record into `log`, off the trading path. Gaps (outages,
+//! startup) are refilled from the log file, the source of truth. Off unless DATABASE_URL is set.
 
 use std::path::PathBuf;
 use std::sync::Arc;

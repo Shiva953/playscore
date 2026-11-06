@@ -41,13 +41,7 @@ pub enum Side {
 /// `fixed::PX_SCALE`); `0` as a limit means "no limit".
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 pub enum Cmd {
-    // ---- facts observed on Solana (system, unsigned) ----
-    //
-    // Rule for every command in this group: the chain watcher submits it only once the transaction
-    // it reports is FINALIZED, never at processed or confirmed. An optimistic report that
-    // later disappears would leave the engine crediting or releasing money that doesn't exist.
-    // Counters (`seq`) make a missed or repeated report an error instead of a silent gap, and each
-    // batch is checked on-chain against the program's own counts.
+    // ---- facts observed on Solana: submitted only once FINALIZED; `seq` counters refuse gaps ----
     /// A finalized on-chain deposit. `seq` is the program's deposit counter and must be the next one,
     /// which deduplicates deposits and matches the batch's on-chain deposit hash.
     Deposit { user: UserId, amount: u64, seq: u64 },
@@ -77,11 +71,9 @@ pub enum Cmd {
     Claim { user: UserId, nonce: u64, round: u32, player: PlayerId, take_tokens: bool },
 
     // ---- system, oracle and admin (unsigned here; only the operator/admin channel may submit) ----
-    /// Return an expired, never-used lock to the trading balance. The watcher submits it only after
-    /// seeing, in FINALIZED state, a block whose clock is past the voucher's expiry, with the
-    /// voucher still unused and the program's payout counter at `payouts_through`. The engine
-    /// requires it has already applied every payout up to that count, so a payout of this voucher
-    /// can't still be on its way. Also only after expiry + grace on the engine's clock.
+    /// Return an expired, never-used permit hold. Submitted only when finalized state past expiry
+    /// shows the voucher unused at payout count `payouts_through`, which the engine must already
+    /// have applied (so a payout of it can't still be on its way).
     ReleaseLock { id: u64, payouts_through: u64 },
     ListPlayer { player: PlayerId },
     /// Kickoff time of a round. A lock time that has passed can't be moved.
@@ -107,15 +99,11 @@ pub enum Cmd {
     /// The batch covering the log up to `cut` (a log sequence number) is FINALIZED on Solana, so
     /// every vault → custody move it made is final. Credits each set-aside round that batch funded.
     BatchFinalized { cut: u64 },
-    /// A user's forced request, FINALIZED on-chain (the escape hatch for when our API won't serve
-    /// them), in the program's order. Never refused for its content, so it can't stall the
-    /// watcher. A withdrawal puts min(asked, free) on hold as `FORCED_ID_BIT | index` (never
-    /// expiring); the committer then pays it on-chain with `serve_forced`, and the watcher reports
-    /// that payout as `WithdrawPaid`. A cancel cancels the user's order if it exists.
+    /// A user's on-chain forced request (escape hatch), in the program's order. Never refused for
+    /// its content, so it can't stall the watcher. Withdraw holds min(asked, free) as
+    /// `FORCED_ID_BIT | index`, paid by `serve_forced`; cancel cancels the user's own order.
     Forced { index: u64, user: UserId, kind: u8, data: [u8; 32] },
-    /// Forced request `index` was answered on-chain (FINALIZED) without a payment, e.g. the user has
-    /// no USDC account to pay into, or withdrawals were paused: its hold goes back to the user's
-    /// free balance. Safe: an answered request can never be paid.
+    /// Forced request `index` was answered on-chain without payment: its hold goes back to free.
     ForcedUnpaid { index: u64 },
 }
 

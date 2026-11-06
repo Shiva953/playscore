@@ -1,12 +1,6 @@
-//! score-node: the score backend in one process (Phase 1, devnet).
-//!
-//! Engine + log (one thread, group-committed to disk) · HTTP API and live updates · permit signer ·
-//! relayer · chain watcher (finalized only) · batch committer · Postgres writer (optional).
-//!
-//! Run from the repo root: `cargo run --release --manifest-path backend/Cargo.toml`.
-//! Config (env, or `.env.local` / `.env`): `NEXT_PUBLIC_SOLANA_RPC_DEVNET` or `DEVNET_RPC` (Helius
-//! devnet URL), optional `DATABASE_URL`, `SCORE_PORT` (8787), `SCORE_WAL` (.devnet/node/wal.log).
-//! Keys from `.devnet/` (created by `bun run devnet:setup`).
+//! score-node: engine + log, API, permit signer, relayer, chain watcher, batch committer and
+//! Postgres writer in one process. Config: `NEXT_PUBLIC_SOLANA_RPC_DEVNET` or `DEVNET_RPC`, optional
+//! `DATABASE_URL`, `SCORE_PORT`, `SCORE_WAL` (env or `.env.local`); keys from `.devnet/`.
 
 mod api;
 mod chain;
@@ -60,7 +54,6 @@ async fn main() -> Result<()> {
     let voucher = ed25519_dalek::SigningKey::from_bytes(&voucher_kp.secret_bytes()[..32].try_into()?);
     let admin_token = std::fs::read_to_string(".devnet/admin-token").context("missing .devnet/admin-token: run bun run devnet:setup")?.trim().to_string();
 
-    // The deployment, and a check that our keys are the ones the program trusts.
     let (cfg, _) = rpc.account(&score::constants::CONFIG_ADDRESS, FINALIZED).await?;
     let cfg = program::decode_config(&cfg.context("program not initialized: run bun run devnet:setup")?)?;
     if cfg.keys.operator != operator.pubkey() || cfg.keys.voucher_signer.to_bytes() != voucher.verifying_key().to_bytes() {
@@ -87,13 +80,11 @@ async fn main() -> Result<()> {
 
     watcher::spawn(core.clone(), rpc.clone(), addrs, trigger.clone(), exit.clone(), watch.clone());
     committer::spawn(core.clone(), rpc.clone(), addrs, operator.clone(), trigger.clone(), exit.clone(), batches.clone());
-    // The background follower: snapshots for fast restarts, and the engine log if asked.
     engine_log::spawn(wal.clone(), core.records.subscribe(), std::env::var("SCORE_ENGINE_LOG").is_ok_and(|v| v == "1"));
     projector::spawn(std::env::var("DATABASE_URL").ok().filter(|s| !s.is_empty()), wal.clone(), core.records.subscribe(), db.clone());
 
-    // The chain view for the withdrawal flow (exposure-cap inputs, pause flags, exit mode),
-    // refreshed from finalized state. Instant permits stay counted until the view shows their
-    // payout (the program's payout counter has reached it), or they can no longer be used.
+    // Finalized chain view for withdrawals. Instant permits stay counted until the view's payout
+    // counter has passed their payout, or they can no longer be used.
     {
         let (rpc, cache, a, exit, paused) = (rpc.clone(), chain_cache.clone(), addrs, exit.clone(), paused.clone());
         let mut rx = core.records.subscribe();
@@ -149,7 +140,7 @@ async fn main() -> Result<()> {
         });
     }
 
-    // Keep the voucher page of the next permit id, and the one after it, created ahead of use.
+    // Create the next permit ids' voucher pages ahead of use.
     let next_voucher = Arc::new(AtomicU64::new(rec.max_voucher_id + 1));
     {
         let (rpc, relayer, next) = (rpc.clone(), relayer.clone(), next_voucher.clone());

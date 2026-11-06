@@ -61,7 +61,7 @@ fn ladder_is_deeper_than_constant_product() {
     let Outcome::Traded { tokens, .. } = h.buy(11, u, P, 1_000 * USDC).unwrap() else { panic!() };
     let px1 = h.px(P);
     let impact = (px1 - px0) as f64 / px0 as f64;
-    // Plain x·y=k on the same seed: 86,232 tokens and +11.7% (BACKEND_ENGINE_EXPLAINED §2.3).
+    // Plain x·y=k on the same seed: 86,232 tokens and +11.7%.
     assert!(tokens / TOKEN > 86_232, "got {}", tokens / TOKEN);
     assert!(impact < 0.05, "impact {impact}");
     h.check();

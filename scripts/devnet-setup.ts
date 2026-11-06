@@ -1,11 +1,6 @@
-// One-time devnet setup for the backend (score-node). Idempotent.
-// - Separate devnet keys in .devnet/: operator (signs batches), relayer (pays users' fees),
-//   voucher (signs withdrawal permits), plus an admin token for the oracle/admin endpoints.
-// - Funds the operator and relayer from your CLI wallet.
-// - Creates a test USDC mint (your CLI wallet is its mint authority) and initializes the program:
-//   your CLI wallet is the admin and the pauser.
-//
-//   bun run devnet:setup
+// One-time, idempotent devnet setup: operator, relayer and voucher keys plus an admin token in
+// .devnet/, funded from your CLI wallet; a test USDC mint; the program initialized with your CLI
+// wallet as admin and pauser.
 import { writeFileSync, mkdirSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { address, getAddressEncoder, getProgramDerivedAddress, lamports } from "@solana/kit";

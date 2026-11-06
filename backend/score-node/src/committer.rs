@@ -1,13 +1,7 @@
-//! Batch committer: every 10 s, and immediately when a round result, a large withdrawal or a forced
-//! request is waiting. Takes an atomic snapshot of the engine (fingerprint, exit table, counts,
-//! figures), posts `commit_batch`, waits until it is FINALIZED, then tells the engine
-//! (`BatchFinalized`) so set-aside dividends are credited, and settles any large-withdrawal
-//! requests now payable.
-//!
-//! Forced requests (a user's on-chain escape hatch) are answered with `serve_forced`, in order,
-//! inside the batch transaction when they fit (no extra transaction), otherwise right after it.
-//! Each one is answered within seconds of the engine applying it, far inside the program's
-//! deadline, so they can't be used to switch on exit mode.
+//! Batch committer: every 10 s, or at once for a round result, large withdrawal or forced request.
+//! Posts the engine's snapshot with `commit_batch`, waits for FINALIZED, then sends `BatchFinalized`
+//! and settles payable requests. Forced requests are answered with `serve_forced` inside the batch
+//! transaction when they fit, otherwise right after it.
 
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -25,9 +19,7 @@ use crate::chain::{Rpc, FINALIZED};
 use crate::core::Core;
 use crate::program::{self, Addrs};
 
-/// Solana's transaction size limit.
 const TX_LIMIT: usize = 1232;
-/// Forced requests looked up per pass.
 const SERVE_PER_PASS: u64 = 16;
 const SERVE_CU: u32 = 15_000;
 
@@ -61,7 +53,6 @@ struct Snap {
     forced_holds: BTreeMap<u64, u64>,
 }
 
-/// One forced request's on-chain answer.
 struct Serve {
     index: u64,
     user: Pubkey,
@@ -73,7 +64,6 @@ pub fn spawn(core: Core, rpc: Rpc, addrs: Addrs, operator: Arc<Keypair>, trigger
     tokio::spawn(async move {
         let mut last_cut = 0u64;
         let mut last_commit = Instant::now() - Duration::from_secs(3600);
-        // The chain's forced-served count, as last seen.
         let mut served = 0u64;
         loop {
             tokio::select! {
@@ -107,10 +97,7 @@ pub fn spawn(core: Core, rpc: Rpc, addrs: Addrs, operator: Arc<Keypair>, trigger
                 continue;
             }
             let t0 = Instant::now();
-            // A request recorded before this batch can be paid in the same transaction (the program
-            // sees the new batch number right after `commit_batch`); forced requests are answered
-            // in it too. If that combined transaction fails, the batch goes alone, so a batch is
-            // never held up by a settlement or an answer.
+            // Settle and answer in the batch transaction; if that fails, the batch goes alone.
             let first = settle_candidate(&rpc, &addrs, &snap.requested).await;
             let mut extras = false;
             let mut res = commit(&rpc, &addrs, &operator, &snap, idle, first, true, &mut extras).await;
@@ -168,7 +155,6 @@ pub fn spawn(core: Core, rpc: Rpc, addrs: Addrs, operator: Arc<Keypair>, trigger
                 let n = settle(&rpc, &addrs, &operator, &snap.requested).await;
                 status.lock().await.settled_requests += n;
             }
-            // Forced requests that didn't fit in the batch transaction.
             if snap.forced > served {
                 match serve_rest(&rpc, &addrs, &operator, &snap).await {
                     Ok((now_served, n)) => {
@@ -215,8 +201,7 @@ async fn commit(rpc: &Rpc, a: &Addrs, operator: &Keypair, s: &Snap, idle: bool, 
     let st = program::decode_state(&rpc.account(&a.state, FINALIZED).await?.0.ok_or_else(|| anyhow::anyhow!("no state"))?)?;
     anyhow::ensure!(!st.in_exit_mode(), "exit mode is on: no more batches");
     if idle && st.state_root == s.state_root && settle.is_none() {
-        // Nothing new for a batch (requests are already payable against this one); forced
-        // requests, if any, are answered after this on their own.
+        // Nothing new to commit; forced requests are answered separately.
         return Ok(Committed { batch: None, served: st.forced_served, answered: 0 });
     }
     let serves = if answer { forced_serves(rpc, a, &st, s).await? } else { vec![] };
@@ -243,7 +228,6 @@ async fn commit(rpc: &Rpc, a: &Addrs, operator: &Keypair, s: &Snap, idle: bool, 
         body.push(program::settle_request(a, id, user, payer, operator.pubkey()));
         cu += 40_000;
     }
-    // As many answers as fit in this transaction, in order.
     let mut answered = 0;
     for sv in &serves {
         let mut trial = with_budget(cu + SERVE_CU, &body);

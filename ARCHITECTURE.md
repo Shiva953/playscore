@@ -2,7 +2,7 @@
 
 > Football player trading protocol on Solana. Players launch on a bonding curve, graduate into a protocol-owned trading pool, and every matchday the holders of real footballers who finish top 5 on a leaderboard earn USDC dividends from a shared vault.
 >
-> **Audience for this doc:** Claude Code (and humans) building the app. Read it end to end before writing code. `PLAN.md` says *what to do in which order*; this file says *what the product is and how it works*.
+> **Audience for this doc:** Claude Code (and humans) building the app. Read it end to end before writing code. `PLAN.md` (kept locally, not in git) says *what to do in which order*; this file says *what the product is and how it works*.
 
 ---
 
@@ -11,7 +11,7 @@
 
 | Source                                | What it is                                                                  | Use it for                                                                                                                                                                                                                                        |
 | ------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/concept/score-terminal-v4.html` | The founder's working prototype (single HTML file, simulated, devnet copy). | Exact numbers, formulas, tables (`MX`, `MXC`, `COEF`, `T`, curve functions), seed player list, copy for Docs/Terms. **If this doc and the prototype disagree on a number, flag it in** `docs/ANALYSIS.md` **and ask — do not silently pick one.** |
+| `docs/concept/score-terminal-v4.html` | The founder's working prototype (single HTML file, simulated, devnet copy; kept locally, not in git). | Exact numbers, formulas, tables (`MX`, `MXC`, `COEF`, `T`, curve functions), seed player list, copy for Docs/Terms. **If this doc and the prototype disagree on a number, flag it in** `docs/ANALYSIS.md` **and ask — do not silently pick one.** |
 | This file                             | Distilled spec + architecture decisions.                                    | Mechanics, competition logic, system design, stack, repo layout.                                                                                                                                                                                  |
 | `PLAN.md`                             | Ordered steps with gates.                                                   | What to build now.                                                                                                                                                                                                                                |
 
@@ -486,16 +486,11 @@ Global: header (logo, nav, **matchday pill** with countdown/live dot, DEVNET bad
 
 ```
 score/
-├─ PLAN.md · ARCHITECTURE.md · README.md
-├─ docs/
-│  ├─ concept/score-terminal-v4.html   # prototype (source of numbers)
-│  ├─ ANALYSIS.md                      # Step 0.1 output
-│  ├─ DECISIONS.md                     # running decision log
-│  ├─ INSPIRATION.md + inspiration/    # Step 1.1 research of existing products (screenshots: internal only)
-│  ├─ UI_SKILLS.md                     # Step 1 skill inventory + mapping
-│  ├─ DIRECTIONS.md                    # Step 1.5 the four design directions
-│  └─ DESIGN.md                        # Step 1.6 design system of the chosen direction
-├─ anchor/                             # template example program — DO NOT TOUCH (contracts come later)
+├─ ARCHITECTURE.md · README.md
+├─ docs/BACKEND.md                     # the backend (other working docs and screenshots stay local)
+├─ anchor/                             # the score Solana program
+├─ engine/                             # the off-chain trading engine
+├─ backend/                            # score-node (API, relayer, watcher, committer)
 ├─ packages/
 │  └─ core/                            # pure TS: config, curve, fees, sell tax, pool math, scoring,
 │                                      # boards, controller, claims, demo simulator + tests

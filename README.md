@@ -1,10 +1,10 @@
 # score▮
 
 Own the players. Earn when they perform.
-Real footballers launch as tokens on a bonding curve, graduate into a permanent trading pool at $25k raised, and every matchday the holders of players who finish top 5 on a leaderboard share USDC dividends from a funded vault.
-This repo is the devnet demo: a Next.js app over a mock protocol that runs the real economics in TypeScript. Solana programs come later (see `PLAN.md`).
+Real footballers launch as tokens on a bonding curve, graduate into a permanent trading pool at $25k raised, and every matchday the holders of players who finish top 5 on a position leaderboard (top 3 for goalkeepers) share USDC dividends from a funded vault.
+This repo holds the app (Next.js, currently on a mock protocol that runs the real economics in TypeScript) and the backend: the Solana program, the trading engine and the server, running end to end on devnet.
 
-> **Status: Step 0 (foundation).** Wireframe UI on shadcn defaults, full domain logic, mock protocol. Design polish is Step 1. Nothing touches a chain yet.
+> **Status: devnet.** The app still uses the mock; the backend is tested end to end on devnet (`bun run e2e:backend`). Not ready for mainnet: see `docs/BACKEND.md`.
 
 ## Run it
 
@@ -22,7 +22,10 @@ bun run dev          # http://localhost:3000
 | `bun run lint` | ESLint |
 | `bun run typecheck` | `tsc` for the app and `packages/core` |
 | `bun run test` | Vitest: core maths, §9 test vectors, property tests, mock end-to-end |
-| `bun run demo:loop` | Drives the full loop in a real browser and saves screenshots to `docs/screenshots/step-0/` (needs `bun run dev` running; `BASE_URL` to override) |
+| `bun run demo:loop` | Drives the full loop in a real browser and saves screenshots to `docs/screenshots/` (local only; needs `bun run dev` running; `BASE_URL` to override) |
+| `bun run program:test` | Builds the Solana program and runs its tests |
+| `bun run node` | Builds and starts the backend server (see `backend/README.md`) |
+| `bun run e2e:backend` | Full backend test on devnet |
 
 ## Demo mode
 
@@ -37,27 +40,27 @@ A 2-minute demo: sign in → buy a launching player → *Fill to 96%* → buy ag
 ## Repo map
 
 ```
-├─ PLAN.md · ARCHITECTURE.md        product spec and build plan
-├─ docs/
-│  ├─ concept/score-terminal-v4.html   founder prototype (source of numbers)
-│  ├─ ANALYSIS.md                      Step 0 analysis + open questions (SQ-n)
-│  ├─ DECISIONS.md                     decision log
-│  └─ screenshots/step-0/              verification screenshots
-├─ anchor/                           template example program, untouched (contracts come in Step 3)
+├─ ARCHITECTURE.md                   product spec
+├─ docs/BACKEND.md                   how the backend works, with diagrams
+├─ anchor/                           the score Solana program (custody, batches, escape hatch)
+├─ engine/                           the off-chain trading engine (Rust)
+├─ backend/                          score-node: API, relayer, chain watcher, batch committer
 ├─ packages/core/                    pure TS domain logic + tests
 │  └─ src/  config · curve · bonding · pool · fees · holdAge · scoring · boards
 │           controller · claims · snapshot · calendar · points · sim/ (seed, match sim, ambient market)
 ├─ src/
-│  ├─ app/                           routes: / · /markets · /player/[id] · /matchday · /portfolio · /docs/[section] · /terms
-│  ├─ components/                    ui/ (shadcn) · shell · modals · markets · player · matchday · portfolio · docs · landing · common
+│  ├─ app/                           routes: / · /launch · /trade · /player/[id] · /matchday · /portfolio · /docs/[section] · /terms · /lab
+│  ├─ components/                    ui/ (shadcn) · shell · modals · launch · trade · player · matchday · portfolio · docs · landing · common
 │  ├─ lib/protocol/                  ProtocolClient seam, MockProtocolClient, DemoClock, React hooks
 │  ├─ lib/format/                    numbers, prices, time
 │  └─ lib/solana/                    template wallet-standard + RPC client (for the later on-chain client)
-└─ scripts/demo-loop.mjs             browser verification
+└─ scripts/                          devnet setup, backend end-to-end test, browser verification
 ```
+
+Working docs, screenshots and the founder's materials are kept locally and are not in git.
 
 The UI only talks to `ProtocolClient` (`src/lib/protocol/types.ts`). The mock implements it with `packages/core`. A later `OnchainProtocolClient` (Codama client + indexer) implements the same interface.
 
-## Not in this step
+## Not built yet
 
-No Solana program, oracle, real match data, indexer or production wallet keys. Dividends are a product mechanic, not a promise: see `/docs` and `/terms` (draft for legal review).
+The app isn't connected to the backend, and there's no match-data oracle or production key management yet. Dividends are a product mechanic, not a promise: see `/docs` and `/terms` (draft for legal review).

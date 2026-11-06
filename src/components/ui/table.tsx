@@ -3,7 +3,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-/** Rules and alignment: 12px grey sentence-case headers, no band, 44px rows over 1px rules (DESIGN.md §5). */
+/** Rules and alignment: 12px grey sentence-case headers, no band, 44px rows over 1px rules. */
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div data-slot="table-container" className="relative w-full overflow-x-auto overscroll-x-contain">

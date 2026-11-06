@@ -11,7 +11,7 @@ fn curve_vectors_from_the_spec() {
     assert_eq!(m::price_micro(0).unwrap(), 390);
     let p = m::price_micro(6_400_040 * m::MICRO).unwrap();
     assert!((10_900..=10_980).contains(&p), "closing price {p}");
-    // First buyer, $50: 126,180 tokens (BACKEND_ENGINE_EXPLAINED §3.3).
+    // First buyer, $50: 126,180 tokens.
     let net = 50 * m::MICRO * m::BPS / (m::BPS + m::ICO_FEE_BPS);
     let tokens = m::curve_tokens_for(0, net).unwrap();
     assert_eq!(tokens / m::MICRO, 126_180);

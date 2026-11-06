@@ -1,6 +1,6 @@
 # score program (Anchor)
 
-Phase 1 custody program for score (`docs/BACKEND_APPROACHES.md` §4). It holds all user USDC in one
+Phase 1 custody program for score (see `docs/BACKEND.md`). It holds all user USDC in one
 PDA-owned custody account (with the dividend vault and treasury in two more, each with its own
 authority), makes deposits and withdrawals instant and on-chain, and bounds what the
 off-chain engine's operator can do. Trading itself runs in the engine (`../engine`).

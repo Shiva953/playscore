@@ -30,10 +30,7 @@ pub struct SettleRequest<'info> {
     pub custody_auth: UncheckedAccount<'info>,
     pub usdc_mint: Account<'info, Mint>,
     pub token_program: Program<'info, Token>,
-    /// The operator's approval. A request is usually above the instant-withdrawal cap (that's why
-    /// it was recorded), so paying it above the cap needs the operator key as well as the permit
-    /// key: a stolen permit key alone stays bounded by the cap. The operator approves only
-    /// requests whose lock the engine holds.
+    /// The operator's approval, needed to pay above the cap: a stolen permit key alone stays capped.
     pub operator: Option<Signer<'info>>,
 }
 

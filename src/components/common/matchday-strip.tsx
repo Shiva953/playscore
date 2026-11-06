@@ -8,7 +8,7 @@ import { useNow, useRound } from "@/lib/protocol/react/hooks";
 import { cn } from "@/lib/utils";
 
 /**
- * The signature element (DESIGN.md §1): the matchday as one line, from the kickoff snapshot through live play
+ * The signature element: the matchday as one line, from the kickoff snapshot through live play
  * to the data freeze, with every club's kickoff on it and "now" moving along.
  * Zones are drawn at fixed proportions (the real "before kickoff" period can be days long).
  */

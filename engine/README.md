@@ -1,6 +1,6 @@
 # score engine
 
-The off-chain trading engine (`docs/BACKEND_APPROACHES.md` §4–5). `Engine::apply(ts, &Cmd)` is a
+The off-chain trading engine (see `docs/BACKEND.md`). `Engine::apply(ts, &Cmd)` is a
 pure, deterministic, integer-only state transition; `wal::Sequencer` adds signatures, timestamps,
 the hash-chained log and the file WAL.
 

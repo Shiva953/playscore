@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 import { Slot } from "radix-ui"
 
 /**
- * Pills only (DESIGN.md §6). Primary is an inverted white pill: one per screen.
+ * Pills only. Primary is an inverted white pill: one per screen.
  * Press scales to 0.96 over 150ms (better-ui); never when disabled. Hover compiles under (hover: hover).
  */
 const buttonVariants = cva(

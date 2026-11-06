@@ -128,7 +128,6 @@ impl Engine {
         Self::default()
     }
 
-    // ---- read access ----
     pub fn paused(&self) -> bool {
         self.paused
     }
@@ -217,7 +216,6 @@ impl Engine {
         self.claims.get(&(*user, round, p)).copied().unwrap_or(0)
     }
 
-    // ---- staged writes ----
     pub(crate) fn begin(&self) -> Tx {
         Tx { accts: BTreeMap::new(), holds: BTreeMap::new(), orders: BTreeMap::new(), vault: self.vault, treasury: self.treasury, claimable: self.claimable }
     }
@@ -380,7 +378,6 @@ impl Engine {
         }
     }
 
-    // ---- forced requests ----
     fn apply_forced(&mut self, index: u64, user: &UserId, kind: u8, data: &[u8; 32]) -> Res<Outcome> {
         if index != self.forced + 1 {
             return Err(Error::BadSequence);
@@ -439,7 +436,6 @@ impl Engine {
         Ok(Outcome::None)
     }
 
-    // ---- custody ----
     fn deposit(&mut self, user: &UserId, amount: u64, seq: u64) -> Res<Outcome> {
         if amount == 0 || *user == PROTOCOL {
             return Err(Error::BadAmount);
@@ -581,7 +577,6 @@ impl Engine {
         let mut vault = self.vault;
         let mut treasury = add64(self.treasury, fee)?;
 
-        // Graduation runs inside the crossing event (the spec's separate `graduate` call is not needed).
         let graduated = u(mk.raised) >= m::THRESHOLD;
         let mut seeded = None;
         // (USDC spent incl. the buy fee, buy fee, tokens) bought from the new pool.
@@ -601,9 +596,7 @@ impl Engine {
             mk.raised = 0;
             mk.minted = add64(mk.minted, pool.reserve0)?;
 
-            // The rest of the crossing order continues into the new pool at its opening price, so
-            // the order fills completely instead of leaving the remainder unspent. The book is
-            // empty at graduation, so the pool is the whole market here. Normal pool fees apply.
+            // The rest of the crossing order buys from the new pool at its opening price.
             let left = u(usdc_in) - u(cost) - u(fee);
             let f0 = m::fee(left, m::BUY_FEE_BPS)?;
             let budget = left - f0;
@@ -692,8 +685,8 @@ impl Engine {
     }
 }
 
-/// The protocol seed at graduation, as a fixed liquidity ladder around the opening price p0
-/// (BACKEND_APPROACHES §5.1): 30% in [0.75·p0, 1.33·p0], 30% in [0.4·p0, 2.5·p0], and the rest
+/// The protocol seed at graduation, as a fixed liquidity ladder around the opening price p0:
+/// 30% in [0.75·p0, 1.33·p0], 30% in [0.4·p0, 2.5·p0], and the rest
 /// (~40%) full range. Each range is geometric around p0, so each slice takes USDC and tokens in
 /// the ratio p0. Returns the pool (reserves = amounts actually used) and the slices
 /// (lower, upper, liquidity). Never asks for more than `seed` USDC and `pool_tokens` tokens.

@@ -1,6 +1,6 @@
 //! Bonded markets: the router (order book + pool), limit orders, and range liquidity.
 //!
-//! Routing (BACKEND_ENGINE_EXPLAINED §3.6): a taker is always filled from the cheaper venue. The
+//! Routing: a taker is always filled from the cheaper venue. The
 //! pool is swapped only until its price reaches the next resting order's price (or the taker's
 //! limit), then that order is filled, and so on. At equal prices the book goes first. Each taker
 //! order is planned read-only (`plan_buy` / `plan_sell`), checked against its slippage bound, and

@@ -1,15 +1,6 @@
-// End-to-end test of the score program on devnet, through the generated client the app uses.
-//
-// Setup (once, reused on later runs): a USDC-like test mint, `initialize`, a test user who holds no
-// SOL (the relayer, here your CLI wallet, pays every fee), a voucher page.
-// Then N real deposits and N real voucher withdrawals, each timed from the moment the transaction
-// is sent until (a) Solana reports it finalized and (b) our program's event reaches a log
-// subscription at `finalized`, which is what the chain watcher will use. Finally one batch.
-//
-//   bun run e2e:devnet [N]
-// The RPC URL comes from DEVNET_RPC, or else NEXT_PUBLIC_SOLANA_RPC_DEVNET in .env / .env.local
-// (Bun loads those automatically). Use a Helius devnet URL: the public endpoint refuses WebSockets
-// as soon as it rate-limits.
+// Program-only devnet test (no score-node): N deposits and N permit withdrawals, timed to finalized
+// and to our log subscription, then one batch. Needs a Helius URL in DEVNET_RPC or
+// NEXT_PUBLIC_SOLANA_RPC_DEVNET.   bun run e2e:devnet [N]
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import {
@@ -133,7 +124,7 @@ async function sendTimed(ixs: Instruction[], cu: number, label: string) {
   const t0 = performance.now();
   await rpc.sendTransaction(getBase64EncodedWireTransaction(tx), { encoding: "base64", skipPreflight: true, maxRetries: 0n }).send();
   const row: Record<string, number | string> = { label };
-  // Our own rebroadcast every 2 s until finalized (maxRetries 0, as the landing guide recommends).
+  // Rebroadcast every 2 s until finalized.
   const rebroadcast = setInterval(() => rpc.sendTransaction(getBase64EncodedWireTransaction(tx), { encoding: "base64", skipPreflight: true, maxRetries: 0n }).send().catch(() => {}), 2000);
   const until = (p: Promise<void>) => Promise.race([p, new Promise<void>((r) => setTimeout(r, 20_000))]);
   await until(

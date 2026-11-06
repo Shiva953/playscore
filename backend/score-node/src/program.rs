@@ -1,5 +1,4 @@
-//! The on-chain side, using the program crate's own types: account layouts, instruction builders,
-//! events. Nothing here re-encodes the program's formats by hand.
+//! Program accounts, instructions and events, via the program crate's own types.
 
 use anchor_lang::{AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas};
 use score::constants::*;
@@ -20,7 +19,6 @@ pub fn pda(seeds: &[&[u8]]) -> Pubkey {
     Pubkey::find_program_address(seeds, &score::ID).0
 }
 
-/// The deployment's accounts.
 #[derive(Debug, Clone, Copy)]
 pub struct Addrs {
     pub config: Pubkey,
@@ -54,7 +52,6 @@ pub fn ata(owner: &Pubkey, mint: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(&[owner.as_ref(), TOKEN_PROGRAM.as_ref(), mint.as_ref()], &ATA_PROGRAM).0
 }
 
-// ---- account decoding ----
 
 fn zero_copy<T: bytemuck::Pod>(data: &[u8]) -> anyhow::Result<T> {
     let size = std::mem::size_of::<T>();
@@ -90,7 +87,6 @@ pub fn payout_cut(st: &State, count: u64) -> Option<[u8; 32]> {
     State::lookup(&st.payout_ring, (st.payout_count, st.payout_total, st.payout_hash), count).map(|x| x.1)
 }
 
-// ---- instructions ----
 
 fn ix(accounts: impl ToAccountMetas, data: impl InstructionData) -> Instruction {
     Instruction {
@@ -183,7 +179,6 @@ pub fn disc_request() -> &'static [u8] {
     score::instruction::RequestWithdrawal::DISCRIMINATOR
 }
 
-// ---- events ----
 
 #[derive(Debug, Clone)]
 pub enum Event {

@@ -1,6 +1,5 @@
-//! Minimal Solana JSON-RPC client. Transactions are sent with `skipPreflight` and `maxRetries: 0`,
-//! and rebroadcast by us every 2 s until finalized or until their blockhash expires (the landing
-//! guide's recommendation). Everything the node acts on is read at `finalized`.
+//! Minimal Solana JSON-RPC client. We rebroadcast transactions ourselves (`maxRetries: 0`) until
+//! finalized or expired.
 
 use std::time::Duration;
 
@@ -111,8 +110,7 @@ impl Rpc {
         let mut last_send = started;
         loop {
             tokio::time::sleep(Duration::from_millis(150)).await;
-            // A hard deadline: never wait forever on a transaction (a stuck send would hold up
-            // the next batch).
+            // Hard deadline, so a stuck send can't hold up the next batch.
             if started.elapsed() > Duration::from_secs(75) {
                 bail!("transaction {sig} not finalized after 75 s");
             }

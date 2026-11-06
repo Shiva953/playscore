@@ -1,10 +1,6 @@
-//! TLS for Postgres (Neon) with working channel binding.
-//!
-//! Neon's URLs ask for `channel_binding=require`: SCRAM-SHA-256-PLUS, which ties the login to the
-//! TLS session (RFC 5929 `tls-server-end-point`: a hash of the server's certificate). The
-//! `tokio-postgres-rustls` adapter (0.13) tries to support it but parses the whole certificate as
-//! its inner part, so it always reports no binding and the login is refused. This is the same
-//! adapter with the hash computed correctly. Certificates are still fully verified (webpki roots).
+//! Postgres TLS with working channel binding (Neon requires it). `tokio-postgres-rustls` 0.13
+//! hashes the wrong part of the certificate, so Neon refuses the login; this computes the RFC 5929
+//! `tls-server-end-point` hash correctly. Certificates are still fully verified.
 
 use std::future::Future;
 use std::io;

@@ -1,13 +1,7 @@
-//! Relayer: pays the fee on users' deposit and withdrawal transactions, so users never need SOL.
-//! It co-signs only transactions it can fully account for:
-//! - no address lookup tables;
-//! - the relayer is the fee payer (account 0) and appears in no instruction, except as the rent
-//!   payer of `request_withdrawal` (refunded to it when the request is paid);
-//! - instructions are only compute-budget (capped), the Ed25519 signature check, and our program's
-//!   `deposit`, `withdraw` or `request_withdrawal`;
-//! - every other required signature is present and valid.
-//!
-//! Then it adds its signature and sends with rebroadcast until finalized.
+//! Relayer: pays the fee on users' deposit and withdrawal transactions. Co-signs only if: no lookup
+//! tables; it is the fee payer and appears in no instruction (except as `request_withdrawal`'s
+//! refunded rent payer); only capped compute-budget, Ed25519 and one of our three instructions;
+//! every other signature is valid.
 
 use anyhow::{bail, ensure, Result};
 use solana_sdk::signature::{Keypair, Signer};

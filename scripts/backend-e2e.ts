@@ -1,11 +1,6 @@
-// End-to-end test of the whole backend on devnet: score-node (engine + log, API, permit signer,
-// relayer, chain watcher, batch committer, Postgres writer) + the program.
-//
-// Test users hold USDC but no SOL, and act only through the API and the relayer, as the app will.
-// The driver runs score-node as a child process, kills it mid-run and restarts it.
-//
-//   bun run devnet:setup     (once)
-//   bun run e2e:backend [users]
+// End-to-end test of the backend on devnet (score-node + the program). Users hold USDC but no SOL
+// and act only through the API and the relayer. Kills and restarts the node mid-run.
+//   bun run devnet:setup (once), then bun run e2e:backend [users]
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
   appendTransactionMessageInstructions,
@@ -38,7 +33,6 @@ const enc = getAddressEncoder();
 const b64 = (b: Uint8Array) => Buffer.from(b).toString("base64");
 const key = (a: Address) => Uint8Array.from(enc.encode(a));
 
-// ---------------- timings ----------------
 const T: Record<string, number[]> = {};
 const rec = (k: string, ms: number) => (T[k] ??= []).push(ms);
 const checks: [string, boolean, string][] = [];
@@ -48,7 +42,6 @@ const check = (name: string, ok: boolean, detail = "") => {
   if (!ok) fetch(`${NODE}/v1/status`).then((r) => r.json()).then((s) => console.log("      node status:", JSON.stringify({ batches: s.batches, watcher: s.watcher, relay: s.relay }))).catch(() => {});
 };
 
-// ---------------- the node, as a child process ----------------
 let node: ReturnType<typeof Bun.spawn> | null = null;
 let nodeLog = "";
 let fullLog = "";
@@ -56,8 +49,6 @@ const proof: Record<string, string> = {};
 const explorer = (sig: string) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 async function startNode(): Promise<string> {
   nodeLog = "";
-  // SCORE_ENGINE_LOG=1: one line per engine command, from a separate copy of the engine (no cost to
-  // the trading path). Set SCORE_ENGINE_LOG=0 to hide them.
   node = Bun.spawn(["./backend/target/release/score-node"], { stderr: "pipe", stdout: "pipe", env: { ...process.env, SCORE_ENGINE_LOG: process.env.SCORE_ENGINE_LOG ?? "1" } });
   (async () => {
     const r = (node!.stderr as ReadableStream<Uint8Array>).getReader();
@@ -90,7 +81,6 @@ function killNode() {
 }
 process.on("exit", () => node?.kill("SIGKILL"));
 
-// ---------------- API ----------------
 async function api(path: string, body?: unknown, headers: Record<string, string> = {}) {
   const r = await fetch(`${NODE}${path}`, body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body, (_, v) => (typeof v === "bigint" ? v.toString() : v)) });
   const j: any = await r.json().catch(() => ({}));
@@ -125,7 +115,6 @@ function openStream() {
 const awaitRecord = (pred: (r: Rec) => boolean, ms = 30_000) =>
   Promise.race([new Promise<Rec>((done) => waiters.push({ pred, done })), sleep(ms).then(() => { throw new Error("timed out waiting for the engine"); })]);
 
-// ---------------- users ----------------
 async function users(n: number): Promise<KeyPairSigner[]> {
   const path = ".devnet/users.json";
   const saved: number[][] = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : [];
@@ -139,7 +128,6 @@ async function users(n: number): Promise<KeyPairSigner[]> {
   return Promise.all(saved.slice(0, n).map((b) => createKeyPairSignerFromBytes(new Uint8Array(b))));
 }
 
-// ---------------- transactions the user signs; the relayer pays ----------------
 let INFO: any;
 async function userTx(u: KeyPairSigner, ixs: Instruction[], cu: number) {
   const relayer = createNoopSigner(INFO.relayer as Address);
@@ -230,7 +218,6 @@ async function withdraw(u: KeyPairSigner, amount: bigint, label: string) {
   return mode;
 }
 
-// =====================================================================================
 const me = await cliWallet();
 const ALL = await users(N_USERS + 3);
 const [U, late, whale] = [ALL.slice(0, N_USERS), ALL.slice(N_USERS, N_USERS + 2), ALL[N_USERS + 2]];
@@ -475,8 +462,7 @@ console.log("== the relayer refuses a transaction that would spend its own SOL")
 }
 
 console.log("== final reconciliation");
-// Wait until a batch covers everything the engine has logged (except that batch's own
-// "finalized" note), then compare.
+// Wait until a batch covers everything but its own "finalized" note, then compare.
 let status: any, eng: any, st: any;
 for (let i = 0; i < 60; i++) {
   [status, eng] = [await api("/v1/status"), await api("/v1/engine")];
@@ -485,8 +471,6 @@ for (let i = 0; i < 60; i++) {
   await sleep(1000);
 }
 const hex = (b: ArrayLike<number>) => Buffer.from(Uint8Array.from(b)).toString("hex");
-// The committer posts the engine's fingerprint at the batch's cut; after it, only the engine's own
-// "batch finalized" note was logged.
 check("on-chain fingerprint = the engine's at the batch cut", hex(st.stateRoot) === status.batches.last_state_root && eng.applied <= status.batches.last_cut + 1, `batch ${st.batchSeq}, cut ${status.batches.last_cut}, engine at ${eng.applied}`);
 check("on-chain deposit and payout counts = the engine's", BigInt(eng.deposits) === st.depositCount && BigInt(eng.payouts) === st.payoutCount, `${eng.deposits} deposits, ${eng.payouts} payouts`);
 const bal = async (a: Address) => BigInt((await rpc.getTokenAccountBalance(a, { commitment: "finalized" }).send()).value.amount);
@@ -498,7 +482,6 @@ check("watcher applied every deposit and payout", !/deposit|payout/.test(status.
 if (status.watcher.last_error) console.log(`      watcher's last transient error: ${status.watcher.last_error}`);
 let pgRows: any[] = [];
 if (status.db.enabled) {
-  // Read Neon directly (not the node's own status).
   let count = -1, max = -1;
   for (let i = 0; i < 30; i++) {
     try {

@@ -5,7 +5,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * score: true-black-flat (docs/DESIGN.md). Dark only.
+ * score: true-black-flat. Dark only.
  * Elevation by lightness alone: ground #000 → surface #111 → raised #2a2a2a.
  * The accent (lime) is data-only: gains, earnings, live state, bonding fill, the mark.
  * It never touches buttons, tabs or nav.
@@ -191,7 +191,7 @@
     background: var(--ink);
     color: #000;
   }
-  /* 44px touch targets on coarse pointers (DESIGN.md §5). */
+  /* 44px touch targets on coarse pointers. */
   @media (pointer: coarse) {
     [data-slot="button"]:not([data-size="xs"]):not([data-size="icon-xs"]),
     [data-slot="tabs-trigger"],

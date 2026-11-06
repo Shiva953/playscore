@@ -50,7 +50,7 @@ export default function Page() {
         </section>
       ))}
       <p className="text-xs text-soft">
-        Open item for counsel: section 4 doesn&apos;t yet mention the proposed 0.25% liquidity-provider fee on pool swaps (see docs/ANALYSIS.md, SQ-22).
+        Open item for counsel: section 4 doesn&apos;t yet mention the proposed 0.25% liquidity-provider fee on pool swaps.
       </p>
     </article>
   );

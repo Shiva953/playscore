@@ -14,9 +14,7 @@ pub const REQUEST_SEED: &[u8] = b"withdraw_request";
 pub const FORCE_SEED: &[u8] = b"forced_request";
 pub const EXITED_SEED: &[u8] = b"exited";
 
-// The fixed program accounts, precomputed for this program id (checked by `tests/addresses.rs`).
-// Checking an account against a constant costs a 32-byte compare; re-deriving a PDA from its
-// seeds costs ~1,500 CU (`create_program_address`) or more (`find_program_address`).
+// Fixed program accounts, precomputed to avoid deriving PDAs at runtime (`tests/addresses.rs`).
 pub const CONFIG_ADDRESS: Pubkey = pubkey!("fkGqYX7mVEByCJm3A7ZBHCmQ3HfRT5rRCnf4FYwnmv9");
 pub const STATE_ADDRESS: Pubkey = pubkey!("3qp5fMusLQznsDKXpoYM17sannNy9Zd6SiVkE7Uyyh9y");
 pub const CUSTODY_AUTH_ADDRESS: Pubkey = pubkey!("6f9huAVGgnL6Z5XpD4dsZxjM2S6t7zQktD6kC1AC1GqS");
@@ -42,8 +40,8 @@ pub const PAYOUT_EXIT: u8 = 2;
 pub const BPS: u64 = 10_000;
 
 /// Forced-request kinds (`force_request`'s `kind`; the engine uses the same values).
-/// Withdraw: `data[0..8]` = amount (u64 LE); 0 = everything (the user's open orders are cancelled
-/// first). Cancel: `data[0..8]` = order id. Any other kind is answered with no effect.
+/// Withdraw: `data[0..8]` = amount (u64 LE), 0 = all free balance. Cancel: `data[0..8]` = order id.
+/// Any other kind is answered with no effect.
 pub const FORCED_WITHDRAW: u8 = 0;
 pub const FORCED_CANCEL: u8 = 1;
 /// The engine's hold for forced request `index` has id `FORCED_ID_BIT | index`, so it can never
