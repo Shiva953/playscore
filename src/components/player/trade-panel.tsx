@@ -26,6 +26,7 @@ import {
   useSellQuote,
   useSell,
   useSession,
+  usePlaceLimit,
 } from "@/lib/protocol/react/hooks";
 import { useProtocolClient } from "@/lib/protocol/react/provider";
 import { useUi } from "@/lib/protocol/react/ui-store";
@@ -38,11 +39,17 @@ type SellInput = { usdc: number } | { tokens: number };
 export function TradePanel({
   player,
   compact = false,
+  allowLimit = false,
 }: {
   player: PlayerDetail;
   compact?: boolean;
+  /** Offer limit orders (the trade terminal); pool only. */
+  allowLimit?: boolean;
 }) {
   const [side, setSide] = useState<Side>("buy");
+  const [orderType, setOrderType] = useState<"market" | "limit">("market");
+  const limit =
+    allowLimit && player.status === "trading" && orderType === "limit";
   const [amount, setAmount] = useState("");
   const [sellTokens, setSellTokens] = useState<number | null>(null);
   const session = useSession();
@@ -145,114 +152,146 @@ export function TradePanel({
             <TabsTrigger value="buy">Buy</TabsTrigger>
             <TabsTrigger value="sell">Sell</TabsTrigger>
           </TabsList>
-          <TabsContent value={side} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-baseline justify-between text-xs">
-                <label htmlFor={`amt-${player.id}`} className="text-soft">
-                  {side === "buy" ? "You pay" : "You sell (USDC value)"}
-                </label>
-                {session.data ? (
-                  <span className="num text-faint">
-                    {side === "buy"
-                      ? `Balance ${formatUsd(pf.data?.usdc)}`
-                      : `Holding ${formatTokens(holding?.tokens ?? 0)} $${player.ticker}`}
-                  </span>
-                ) : null}
-              </div>
-              <div className="flex h-14 items-center gap-2 rounded-2xl bg-ground px-4 ring-1 ring-control transition-[box-shadow] duration-150 focus-within:ring-ink">
-                <span className="text-2xl text-faint">$</span>
-                <input
-                  id={`amt-${player.id}`}
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={amount}
-                  onChange={(e) => {
-                    setAmount(e.target.value);
-                    setSellTokens(null);
-                  }}
-                  className="num w-full min-w-0 bg-transparent text-2xl font-medium text-ink outline-none placeholder:text-faint"
-                  autoComplete="off"
-                />
-                <UsdcIcon className="size-5" label="USDC" />
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {side === "buy"
-                  ? [10, 50, 100].map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        className={chip}
-                        onClick={() => setAmount(String(v))}
-                      >
-                        ${v}
-                      </button>
-                    ))
-                  : [0.25, 0.5, 1].map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        className={chip}
-                        onClick={() => setPct(v)}
-                        disabled={!holding}
-                      >
-                        {v === 1 ? "All" : `${v * 100}%`}
-                      </button>
-                    ))}
-                {side === "buy" && launching && maxUsdc !== null ? (
-                  <button
-                    type="button"
-                    className={chip}
-                    onClick={() => setAmount(String(maxUsdc))}
-                    disabled={maxUsdc <= 0}
-                  >
-                    Max {formatUsd(maxUsdc)}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            <QuoteBreakdown quote={quote} player={player} />
-
-            {quote?.error ? (
-              <p
-                className="flex items-start gap-2 text-sm text-ink"
-                role="alert"
-              >
-                <span
-                  className="mt-1.5 size-1.5 shrink-0 rounded-full bg-down"
-                  aria-hidden="true"
-                />
-                {quote.error.message}
-              </p>
-            ) : null}
-            {quote?.warnings.map((w) => (
-              <p key={w} className="text-sm text-soft">
-                {w}
-              </p>
-            ))}
-
-            <div className="flex flex-col gap-2">
-              <Button
-                size="lg"
-                className="w-full"
-                onClick={submit}
-                disabled={!!session.data && (!quote || !quote.ok || pending)}
-                data-testid="trade-submit"
-              >
-                {pending ? "Confirming…" : cta}
-              </Button>
-              {quote?.error?.code === "INSUFFICIENT_USDC" ? (
-                <Button
-                  variant="secondary"
-                  className="w-full"
-                  onClick={() => faucet.mutate(1_000)}
-                  disabled={faucet.isPending}
+          {allowLimit && player.status === "trading" ? (
+            <div
+              role="radiogroup"
+              aria-label="Order type"
+              className="flex gap-4 text-[13px]"
+            >
+              {(["market", "limit"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  role="radio"
+                  aria-checked={orderType === t}
+                  onClick={() => setOrderType(t)}
+                  className={cn(
+                    "h-7 border-b-2 transition-colors duration-150",
+                    orderType === t
+                      ? "border-ink text-ink"
+                      : "border-transparent text-soft hover:text-ink"
+                  )}
                 >
-                  Top up
-                </Button>
-              ) : null}
+                  {t === "market" ? "Market" : "Limit"}
+                </button>
+              ))}
             </div>
+          ) : null}
+          <TabsContent value={side} className="flex flex-col gap-4">
+            {limit ? (
+              <LimitForm player={player} side={side} />
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-baseline justify-between text-xs">
+                    <label htmlFor={`amt-${player.id}`} className="text-soft">
+                      {side === "buy" ? "You pay" : "You sell (USDC value)"}
+                    </label>
+                    {session.data ? (
+                      <span className="num text-faint">
+                        {side === "buy"
+                          ? `Balance ${formatUsd(pf.data?.usdc)}`
+                          : `Holding ${formatTokens(holding?.tokens ?? 0)} $${player.ticker}`}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex h-14 items-center gap-2 rounded-2xl bg-ground px-4 ring-1 ring-control transition-[box-shadow] duration-150 focus-within:ring-ink">
+                    <span className="text-2xl text-faint">$</span>
+                    <input
+                      id={`amt-${player.id}`}
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={amount}
+                      onChange={(e) => {
+                        setAmount(e.target.value);
+                        setSellTokens(null);
+                      }}
+                      className="num w-full min-w-0 bg-transparent text-2xl font-medium text-ink outline-none placeholder:text-faint"
+                      autoComplete="off"
+                    />
+                    <UsdcIcon className="size-5" label="USDC" />
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {side === "buy"
+                      ? [10, 50, 100].map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            className={chip}
+                            onClick={() => setAmount(String(v))}
+                          >
+                            ${v}
+                          </button>
+                        ))
+                      : [0.25, 0.5, 1].map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            className={chip}
+                            onClick={() => setPct(v)}
+                            disabled={!holding}
+                          >
+                            {v === 1 ? "All" : `${v * 100}%`}
+                          </button>
+                        ))}
+                    {side === "buy" && launching && maxUsdc !== null ? (
+                      <button
+                        type="button"
+                        className={chip}
+                        onClick={() => setAmount(String(maxUsdc))}
+                        disabled={maxUsdc <= 0}
+                      >
+                        Max {formatUsd(maxUsdc)}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
 
+                <QuoteBreakdown quote={quote} player={player} />
+
+                {quote?.error ? (
+                  <p
+                    className="flex items-start gap-2 text-sm text-ink"
+                    role="alert"
+                  >
+                    <span
+                      className="mt-1.5 size-1.5 shrink-0 rounded-full bg-down"
+                      aria-hidden="true"
+                    />
+                    {quote.error.message}
+                  </p>
+                ) : null}
+                {quote?.warnings.map((w) => (
+                  <p key={w} className="text-sm text-soft">
+                    {w}
+                  </p>
+                ))}
+
+                <div className="flex flex-col gap-2">
+                  <Button
+                    size="lg"
+                    className="w-full"
+                    onClick={submit}
+                    disabled={
+                      !!session.data && (!quote || !quote.ok || pending)
+                    }
+                    data-testid="trade-submit"
+                  >
+                    {pending ? "Confirming…" : cta}
+                  </Button>
+                  {quote?.error?.code === "INSUFFICIENT_USDC" ? (
+                    <Button
+                      variant="secondary"
+                      className="w-full"
+                      onClick={() => faucet.mutate(1_000)}
+                      disabled={faucet.isPending}
+                    >
+                      Top up
+                    </Button>
+                  ) : null}
+                </div>
+              </>
+            )}
             <KickoffNote launching={launching} />
             {launching ? (
               <CapMeter player={player} />
@@ -423,5 +462,137 @@ function KickoffNote({ launching }: { launching: boolean }) {
     );
   return (
     <p className="rounded-xl bg-ground px-3 py-2.5 text-sm text-soft">{body}</p>
+  );
+}
+
+/** Limit order form (terminal): rests on the pool until the price reaches the limit. */
+function LimitForm({ player, side }: { player: PlayerDetail; side: Side }) {
+  const session = useSession();
+  const openSignIn = useUi((s) => s.openSignIn);
+  const pf = usePortfolio();
+  const place = usePlaceLimit();
+  const [price, setPrice] = useState(() => player.price.toFixed(5));
+  const [amount, setAmount] = useState("");
+  const px = parseAmount(price);
+  const amt = parseAmount(amount);
+  const holding = player.holding;
+  const tokensOut = side === "buy" && px > 0 ? amt / px : 0;
+  const usdcIn = side === "sell" ? amt * px : 0;
+  const away = px > 0 ? px / player.price - 1 : 0;
+  const ok = !!session.data && px > 0 && amt > 0 && !place.isPending;
+
+  const submit = () => {
+    if (!session.data) return openSignIn();
+    place.mutate(
+      { id: player.id, side, amount: amt, price: px },
+      { onSuccess: () => setAmount("") }
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-baseline justify-between text-xs">
+          <label htmlFor={`lim-px-${player.id}`} className="text-soft">
+            Limit price
+          </label>
+          <button
+            type="button"
+            className="text-faint hover:text-ink"
+            onClick={() => setPrice(player.price.toFixed(5))}
+          >
+            Use {formatPrice(player.price)}
+          </button>
+        </div>
+        <div className="flex h-12 items-center gap-2 rounded-2xl bg-ground px-4 ring-1 ring-control focus-within:ring-ink">
+          <span className="text-xl text-faint">$</span>
+          <input
+            id={`lim-px-${player.id}`}
+            inputMode="decimal"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            className="fig w-full min-w-0 bg-transparent text-xl text-ink outline-none"
+            autoComplete="off"
+          />
+        </div>
+        {px > 0 ? (
+          <span
+            className={cn(
+              "text-xs",
+              Math.abs(away) < 0.0005
+                ? "text-faint"
+                : (side === "buy" ? away < 0 : away > 0)
+                  ? "text-soft"
+                  : "text-down"
+            )}
+          >
+            {Math.abs(away) < 0.0005
+              ? "At the current price: fills on the next tick."
+              : `${formatPct(Math.abs(away), { decimals: 1 })} ${away < 0 ? "below" : "above"} the current price${(side === "buy" ? away > 0 : away < 0) ? ", so it fills right away" : ""}.`}
+          </span>
+        ) : null}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-baseline justify-between text-xs">
+          <label htmlFor={`lim-amt-${player.id}`} className="text-soft">
+            {side === "buy" ? "You pay (USDC)" : `You sell ($${player.ticker})`}
+          </label>
+          {session.data ? (
+            <span className="fig text-faint">
+              {side === "buy"
+                ? `Balance ${formatUsd(pf.data?.usdc)}`
+                : `Holding ${formatTokens(holding?.tokens ?? 0)}`}
+            </span>
+          ) : null}
+        </div>
+        <div className="flex h-12 items-center gap-2 rounded-2xl bg-ground px-4 ring-1 ring-control focus-within:ring-ink">
+          <input
+            id={`lim-amt-${player.id}`}
+            inputMode="decimal"
+            placeholder="0"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="fig w-full min-w-0 bg-transparent text-xl text-ink outline-none placeholder:text-faint"
+            autoComplete="off"
+          />
+          {side === "buy" ? (
+            <UsdcIcon className="size-5" label="USDC" />
+          ) : (
+            <span className="text-sm text-faint">${player.ticker}</span>
+          )}
+        </div>
+      </div>
+      {amt > 0 && px > 0 ? (
+        <p className="text-sm text-soft">
+          {side === "buy" ? (
+            <>
+              About{" "}
+              <span className="fig text-ink">{formatTokens(tokensOut)}</span> $
+              {player.ticker} at your limit. The USDC is set aside until it
+              fills or you cancel.
+            </>
+          ) : (
+            <>
+              About <span className="fig text-ink">{formatUsd(usdcIn)}</span>{" "}
+              before the sell tax (
+              {formatPct(holding?.sellTaxNow ?? 0.05, { decimals: 1 })} now).
+            </>
+          )}
+        </p>
+      ) : null}
+      <Button
+        size="lg"
+        className="w-full"
+        onClick={submit}
+        disabled={!!session.data && !ok}
+        data-testid="limit-submit"
+      >
+        {!session.data
+          ? "Sign in to trade"
+          : place.isPending
+            ? "Placing…"
+            : `Place limit ${side}`}
+      </Button>
+    </div>
   );
 }

@@ -13,6 +13,7 @@ import { errorMessage } from "@/lib/protocol/errors";
 import type { SignInMethod } from "@/lib/protocol/types";
 import { useSignIn } from "@/lib/protocol/react/hooks";
 import { useUi } from "@/lib/protocol/react/ui-store";
+import { useAuthBridge } from "@/lib/auth/auth-provider";
 
 export function SignInDialog() {
   const open = useUi((s) => s.signInOpen);
@@ -29,11 +30,18 @@ function SignInBody({ onDone }: { onDone: () => void }) {
   const [accepted, setAccepted] = useState(false);
   const [blocked, setBlocked] = useState<string | null>(null);
   const signIn = useSignIn();
+  const auth = useAuthBridge();
   const restricted = (RESTRICTED_COUNTRIES as readonly string[]).includes(country);
 
   const go = (method: SignInMethod) => {
     if (restricted) {
       setBlocked(country);
+      return;
+    }
+    if (auth.privy && method !== "demo") {
+      // Our gate passed; Privy takes it from here (email, Google or Phantom) and the bridge signs us in.
+      onDone();
+      auth.login({ country, acceptedTerms: accepted });
       return;
     }
     signIn.mutate({ method, country, acceptedTerms: accepted }, { onSuccess: onDone });
@@ -70,7 +78,11 @@ function SignInBody({ onDone }: { onDone: () => void }) {
     <>
       <DialogHeader>
         <DialogTitle>Sign in</DialogTitle>
-        <DialogDescription>An embedded wallet is created for you. No SOL or seed phrase needed. Devnet only: simulated sign-in.</DialogDescription>
+        <DialogDescription>
+          {auth.privy
+            ? "A Solana wallet is created for you when you sign in. No SOL or seed phrase needed. Devnet, with test USDC."
+            : "A wallet is created for you. No SOL or seed phrase needed. Devnet only: simulated sign-in."}
+        </DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
@@ -106,14 +118,25 @@ function SignInBody({ onDone }: { onDone: () => void }) {
           </Alert>
         ) : null}
         <div className="grid gap-2">
-          <Button onClick={() => go("google")} disabled={!ready && !restricted}>
-            Continue with Google
-          </Button>
-          <Button variant="outline" onClick={() => go("email")} disabled={!ready && !restricted}>
-            Continue with email
-          </Button>
-          <Button variant="outline" onClick={() => go("phantom")} disabled={!ready && !restricted}>
-            Connect Phantom
+          {auth.privy ? (
+            <Button onClick={() => go("email")} disabled={!ready && !restricted}>
+              Continue with email, Google or Phantom
+            </Button>
+          ) : (
+            <>
+              <Button onClick={() => go("google")} disabled={!ready && !restricted}>
+                Continue with Google
+              </Button>
+              <Button variant="outline" onClick={() => go("email")} disabled={!ready && !restricted}>
+                Continue with email
+              </Button>
+              <Button variant="outline" onClick={() => go("phantom")} disabled={!ready && !restricted}>
+                Connect Phantom
+              </Button>
+            </>
+          )}
+          <Button variant="ghost" onClick={() => go("demo")} disabled={!ready && !restricted}>
+            Try a demo account
           </Button>
         </div>
         {!country || !accepted ? <p className="text-xs text-soft">Choose your country and accept the Terms to continue.</p> : null}

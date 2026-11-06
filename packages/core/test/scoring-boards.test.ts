@@ -62,23 +62,32 @@ function fullField(): RankEntry[] {
   return entries;
 }
 
-describe("boards & payout split (ARCHITECTURE §4.8 worked example)", () => {
+describe("boards & payout split (position boards across leagues; GK top 3)", () => {
   const alloc = allocateRoundPool(buildBoards(fullField(), false), 10_000);
 
-  it("Σ weights = 52.05", () => {
-    expect(alloc.totalWeight).toBeCloseTo(52.05, 10);
+  it("only the four position boards: no per-league boards", () => {
+    expect(alloc.boards.map((b) => b.def.key).sort()).toEqual(["pos:DEF", "pos:FWD", "pos:GK", "pos:MID"]);
   });
 
-  it("Premier League board = $960.61, #1 = $336.22", () => {
-    const pl = alloc.boards.find((b) => b.def.key === "lg:PL")!;
-    expect(pl.poolUsd).toBeCloseTo(960.61, 2);
-    expect(pl.winners[0]!.playerId).toBe("haaland");
-    expect(pl.winners[0]!.usd).toBeCloseTo(336.22, 2);
+  it("Σ weights = 5 + 5 + 5 + 3 = 18 (goalkeepers pay three places)", () => {
+    expect(alloc.totalWeight).toBeCloseTo(18, 10);
   });
 
-  it("Haaland #1 FWD and #1 PL → $672.43; a 1% holder → $6.72", () => {
-    expect(alloc.playerPayouts.haaland).toBeCloseTo(672.43, 2);
-    expect(holderPayout(alloc.playerPayouts.haaland!, 1, 100)).toBeCloseTo(6.72, 2);
+  it("forward board = $2,777.78; Haaland #1 = 35% = $972.22; a 1% holder → $9.72", () => {
+    const fwd = alloc.boards.find((b) => b.def.key === "pos:FWD")!;
+    expect(fwd.poolUsd).toBeCloseTo(2777.78, 2);
+    expect(fwd.winners).toHaveLength(5);
+    expect(fwd.winners[0]!.playerId).toBe("haaland");
+    expect(fwd.winners[0]!.usd).toBeCloseTo(972.22, 2);
+    expect(alloc.playerPayouts.haaland).toBeCloseTo(972.22, 2);
+    expect(holderPayout(alloc.playerPayouts.haaland!, 1, 100)).toBeCloseTo(9.72, 2);
+  });
+
+  it("goalkeeper board = $1,666.67, paid 44 / 31 / 25% to its top three", () => {
+    const gk = alloc.boards.find((b) => b.def.key === "pos:GK")!;
+    expect(gk.poolUsd).toBeCloseTo(1666.67, 2);
+    expect(gk.winners.map((w) => w.share)).toEqual([0.44, 0.31, 0.25]);
+    expect(gk.winners[0]!.usd).toBeCloseTo(733.33, 2);
   });
 
   it("allocates the whole pool when boards exist", () => {
@@ -105,6 +114,12 @@ describe("boards & payout split (ARCHITECTURE §4.8 worked example)", () => {
 });
 
 describe("renormalisation and tie-breaks", () => {
+  it("2 goalkeepers ranked → 44/31 scaled to 100%", () => {
+    const s = payoutShares(2, [0.44, 0.31, 0.25]);
+    expect(s[0]).toBeCloseTo(0.44 / 0.75, 12);
+    expect(s[1]).toBeCloseTo(0.31 / 0.75, 12);
+  });
+
   it("3 ranked → 35/25/20 scaled to 100%", () => {
     const s = payoutShares(3);
     expect(s[0]).toBeCloseTo(0.4375, 12);
@@ -127,7 +142,7 @@ describe("renormalisation and tie-breaks", () => {
     const alloc = allocateRoundPool(buildBoards([e], true), 1_000);
     const ucl = alloc.boards.find((b) => b.def.kind === "ucl")!;
     expect(ucl.weight).toBeCloseTo(1.05, 12);
-    // MID (1) + PL (1) + UCL (1.05): the sole player wins all three
+    // MID (1) + UCL (1.05): the sole player wins both
     expect(alloc.playerPayouts.x).toBeCloseTo(1_000, 8);
   });
 });

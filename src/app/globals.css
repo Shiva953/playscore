@@ -281,3 +281,28 @@
   }
 }
 
+
+/* Homepage motion (taste: masked headline, one live slot). Transform and opacity only. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero-mask > span {
+    animation: hero-rise 700ms var(--ease-out) both;
+  }
+  .hero-mask > span:nth-child(2) {
+    animation-delay: 90ms;
+  }
+  .slot-swap {
+    animation: slot-swap 260ms var(--ease-out) both;
+  }
+}
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.28em);
+  }
+}
+@keyframes slot-swap {
+  from {
+    opacity: 0;
+    transform: translateY(0.18em);
+  }
+}

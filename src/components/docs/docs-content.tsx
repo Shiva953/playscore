@@ -296,9 +296,9 @@ function BoardsDoc() {
       <Cards
         items={[
           ["Who ranks", "Bonded players who played in the window, scored on their own contribution."],
-          ["Boards", "4 position boards, 7 league boards, and a Champions League board in midweek windows."],
-          ["Payout", "Top 5 per board get 35 / 25 / 20 / 12 / 8%. Rank only, no market-cap weighting."],
-          ["Board weight", "Players ranked (max 5) × the board's multiplier. League boards use the league coefficient, Champions League 1.05, positions 1.00."],
+          ["Boards", "4 position boards across all leagues (FWD, MID, DEF, GK), and a Champions League board in midweek windows."],
+          ["Payout", "Forwards, midfielders and defenders: top 5 get 35 / 25 / 20 / 12 / 8%. Goalkeepers: top 3 get 44 / 31 / 25%. Rank only, no market-cap weighting."],
+          ["Board weight", "Players ranked (up to the paid places: 5, or 3 for goalkeepers) × the board's multiplier. Champions League 1.05, positions 1.00. League coefficients still scale each player's points."],
           ["Tie-breaks", "Goals + assists, then fewer minutes, then player ID."],
           ["Holders", "Paid pro rata to tokens held at the kickoff snapshot, including liquidity-pool shares. Trading stays open."],
         ]}

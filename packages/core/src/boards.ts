@@ -1,23 +1,22 @@
-import {
-  COEFFICIENTS,
-  LEAGUE_NAMES,
-  LEAGUES,
-  POSITIONS,
-  PROTOCOL_CONFIG,
-  type LeagueCode,
-  type PositionCode,
-} from "./config";
+import { POSITIONS, PROTOCOL_CONFIG, type LeagueCode, type PositionCode } from "./config";
 import { sum } from "./math";
 
 const B = PROTOCOL_CONFIG.boards;
 
-export type BoardKind = "position" | "league" | "ucl";
+/**
+ * Boards (client decision, Nov 2026): one per position across all leagues, plus the Champions
+ * League board in UCL windows. Per-league boards were removed. Defenders, midfielders and forwards
+ * pay a top 5 (35/25/20/12/8%); goalkeepers a top 3 (44/31/25%).
+ */
+export type BoardKind = "position" | "ucl";
 
 export interface BoardDef {
   key: string;
   kind: BoardKind;
   label: string;
   multiplier: number;
+  /** Payout shares by rank; its length is the number of paid places. */
+  shares: readonly number[];
 }
 
 /** One ranked player's frozen (or provisional) result for the window. */
@@ -40,11 +39,9 @@ export function boardDefinitions(uclWindow: boolean): BoardDef[] {
     kind: "position" as const,
     label: p,
     multiplier: B.positionMultiplier,
+    shares: p === "GK" ? B.gkShares : B.payoutShares,
   }));
-  for (const lg of LEAGUES) {
-    defs.push({ key: `lg:${lg}`, kind: "league", label: LEAGUE_NAMES[lg], multiplier: COEFFICIENTS[lg] });
-  }
-  if (uclWindow) defs.push({ key: "ucl", kind: "ucl", label: "Champions League", multiplier: B.uclMultiplier });
+  if (uclWindow) defs.push({ key: "ucl", kind: "ucl", label: "Champions League", multiplier: B.uclMultiplier, shares: B.payoutShares });
   return defs;
 }
 
@@ -63,7 +60,6 @@ export function compareEntries(a: RankEntry, b: RankEntry): number {
 
 function belongs(def: BoardDef, e: RankEntry): boolean {
   if (def.kind === "position") return `pos:${e.position}` === def.key;
-  if (def.kind === "league") return `lg:${e.league}` === def.key;
   return !!e.ucl;
 }
 
@@ -82,18 +78,18 @@ export function buildBoards(entries: readonly RankEntry[], uclWindow: boolean): 
   }));
 }
 
-/** Top-k payout shares, renormalised to sum to 1 when fewer than 5 are ranked. */
-export function payoutShares(rankedCount: number): number[] {
-  const k = Math.min(rankedCount, B.maxRanked);
+/** A board's payout shares, renormalised to sum to 1 when fewer players than paid places rank. */
+export function payoutShares(rankedCount: number, shares: readonly number[] = B.payoutShares): number[] {
+  const k = Math.min(rankedCount, shares.length);
   if (k <= 0) return [];
-  const raw = B.payoutShares.slice(0, k);
+  const raw = shares.slice(0, k);
   const total = sum(raw);
   return raw.map((s) => s / total);
 }
 
-/** weight = min(ranked, 5) × multiplier */
-export function boardWeight(rankedCount: number, multiplier: number): number {
-  return Math.min(rankedCount, B.maxRanked) * multiplier;
+/** weight = min(ranked, paid places) × multiplier */
+export function boardWeight(rankedCount: number, multiplier: number, places: number = B.maxRanked): number {
+  return Math.min(rankedCount, places) * multiplier;
 }
 
 export interface BoardWinner {
@@ -121,15 +117,15 @@ export interface RoundAllocation {
   allocated: number;
 }
 
-/** Board share = roundPool × weight / Σ weights; within a board 35/25/20/12/8 (renormalised). */
+/** Board share = roundPool × weight / Σ weights; within a board its own shares (renormalised). */
 export function allocateRoundPool(boards: readonly RankedBoard[], roundPool: number): RoundAllocation {
-  const weighted = boards.map((b) => ({ ...b, weight: boardWeight(b.entries.length, b.def.multiplier) }));
+  const weighted = boards.map((b) => ({ ...b, weight: boardWeight(b.entries.length, b.def.multiplier, b.def.shares.length) }));
   const totalWeight = sum(weighted.map((b) => b.weight));
   const playerPayouts: Record<string, number> = {};
   let allocated = 0;
   const out: BoardPayout[] = weighted.map((b) => {
     const poolUsd = totalWeight > 0 ? (roundPool * b.weight) / totalWeight : 0;
-    const shares = payoutShares(b.entries.length);
+    const shares = payoutShares(b.entries.length, b.def.shares);
     const winners: BoardWinner[] = shares.map((share, i) => {
       const e = b.entries[i]!;
       const usd = poolUsd * share;
@@ -142,7 +138,7 @@ export function allocateRoundPool(boards: readonly RankedBoard[], roundPool: num
   return { roundPool, totalWeight, boards: out, playerPayouts, allocated };
 }
 
-/** Which boards a player currently places on (rank ≤ 5), for "#1 FWD · #2 PL" style labels. */
+/** Which boards a player currently places on (a paid rank), for "#1 FWD · #2 GK" style labels. */
 export function placementsFor(allocation: RoundAllocation, playerId: string): { board: BoardDef; rank: number; usd: number }[] {
   const out: { board: BoardDef; rank: number; usd: number }[] = [];
   for (const b of allocation.boards) {

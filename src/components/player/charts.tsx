@@ -3,11 +3,13 @@
 import {
   AreaSeries,
   ColorType,
+  HistogramSeries,
   LineSeries,
   LineStyle,
   createChart,
   type IChartApi,
   type ISeriesApi,
+  type HistogramData,
   type LineData,
   type UTCTimestamp,
 } from "lightweight-charts";
@@ -30,6 +32,9 @@ const C = {
   down: "#ff6b81",
   upFill: "rgba(198,255,61,0.12)",
   downFill: "rgba(255,107,129,0.12)",
+  /** Volume bars stay recessive: the up/down hues at low alpha, under the price line. */
+  upVol: "rgba(198,255,61,0.32)",
+  downVol: "rgba(255,107,129,0.32)",
 };
 
 // ---------------------------------------------------------------- bonding curve (SVG)
@@ -96,15 +101,23 @@ export function BondingCurveChart({ sold, myAvgEntry }: { sold: number; myAvgEnt
 
 // ---------------------------------------------------------------- price chart (Lightweight Charts)
 
-function toSeries(points: readonly PricePoint[]): LineData<UTCTimestamp>[] {
-  const out: LineData<UTCTimestamp>[] = [];
+function toSeries(points: readonly PricePoint[]): { price: LineData<UTCTimestamp>[]; volume: HistogramData<UTCTimestamp>[] } {
+  const price: LineData<UTCTimestamp>[] = [];
+  const vols: number[] = [];
   for (const pt of points) {
     const time = Math.floor(pt.t / 1000) as UTCTimestamp;
-    const last = out[out.length - 1];
-    if (last && last.time === time) last.value = pt.p;
-    else if (!last || time > last.time) out.push({ time, value: pt.p });
+    const last = price[price.length - 1];
+    if (last && last.time === time) {
+      last.value = pt.p;
+      vols[vols.length - 1]! += pt.v ?? 0;
+    } else if (!last || time > last.time) {
+      price.push({ time, value: pt.p });
+      vols.push(pt.v ?? 0);
+    }
   }
-  return out;
+  // Each bar takes the direction of its own move.
+  const volume = price.map((d, i) => ({ time: d.time, value: vols[i]!, color: i > 0 && d.value < price[i - 1]!.value ? C.downVol : C.upVol }));
+  return { price, volume };
 }
 
 export interface Indicators {
@@ -112,6 +125,8 @@ export interface Indicators {
   ema: boolean;
   bb: boolean;
   rsi: boolean;
+  /** Volume bars along the bottom of the price pane. */
+  vol?: boolean;
 }
 
 const RANGES: PriceRange[] = ["24H", "3D", "6D", "ALL"];
@@ -139,10 +154,11 @@ export function PriceChart({ playerId, range, indicators, height = 280 }: { play
 function LwChart({ points, indicators, height }: { points: PricePoint[]; indicators?: Indicators; height: number }) {
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
-  const series = useRef<{ main: ISeriesApi<"Area">; overlays: ISeriesApi<"Line">[] } | null>(null);
-  const data = useMemo(() => toSeries(points), [points]);
+  const series = useRef<{ main: ISeriesApi<"Area">; overlays: ISeriesApi<"Line">[]; volume: ISeriesApi<"Histogram"> | null } | null>(null);
+  const series2 = useMemo(() => toSeries(points), [points]);
+  const data = series2.price;
   const up = data.length < 2 || data[data.length - 1]!.value >= data[0]!.value;
-  const indKey = indicators ? `${indicators.ma}${indicators.ema}${indicators.bb}${indicators.rsi}` : "";
+  const indKey = indicators ? `${indicators.ma}${indicators.ema}${indicators.bb}${indicators.rsi}${indicators.vol}` : "";
 
   // Created once per indicator set; data and direction updates below don't recreate the chart.
   useEffect(() => {
@@ -152,12 +168,17 @@ function LwChart({ points, indicators, height }: { points: PricePoint[]; indicat
       autoSize: true,
       layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: C.text, fontSize: 12, fontFamily: "Instrument Sans, system-ui, sans-serif", attributionLogo: false },
       grid: { vertLines: { visible: false }, horzLines: { color: C.grid } },
-      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.12, bottom: 0.08 } },
+      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.12, bottom: indicators?.vol ? 0.24 : 0.08 } },
       timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
       crosshair: { vertLine: { color: C.soft, labelBackgroundColor: "#2a2a2a" }, horzLine: { color: C.soft, labelBackgroundColor: "#2a2a2a" } },
       localization: { priceFormatter: (p: number) => formatPrice(p) },
       handleScale: false,
     });
+    // Volume sits on its own hidden scale in the bottom fifth of the price pane, drawn before the line.
+    const volume = indicators?.vol
+      ? c.addSeries(HistogramSeries, { priceScaleId: "vol", priceLineVisible: false, lastValueVisible: false, priceFormat: { type: "volume" } })
+      : null;
+    if (volume) c.priceScale("vol").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 }, visible: false });
     const main = c.addSeries(AreaSeries, { lineWidth: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerRadius: 4 });
     const overlays: ISeriesApi<"Line">[] = [];
     const quiet = { lineWidth: 1 as const, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false };
@@ -169,7 +190,7 @@ function LwChart({ points, indicators, height }: { points: PricePoint[]; indicat
     }
     if (indicators?.rsi) overlays.push(c.addSeries(LineSeries, { ...quiet, color: C.soft, title: "RSI 14", priceFormat: { type: "price", precision: 0, minMove: 1 } }, 1));
     chart.current = c;
-    series.current = { main, overlays };
+    series.current = { main, overlays, volume };
     return () => {
       c.remove();
       chart.current = null;
@@ -183,6 +204,7 @@ function LwChart({ points, indicators, height }: { points: PricePoint[]; indicat
     if (!s) return;
     s.main.applyOptions({ lineColor: up ? C.up : C.down, topColor: up ? C.upFill : C.downFill, bottomColor: "rgba(0,0,0,0)" });
     s.main.setData(data);
+    s.volume?.setData(series2.volume);
     const values = data.map((d) => d.value);
     const line = (vals: (number | null)[]) => vals.flatMap((v, i) => (v == null ? [] : [{ time: data[i]!.time, value: v }]));
     let k = 0;
@@ -196,7 +218,7 @@ function LwChart({ points, indicators, height }: { points: PricePoint[]; indicat
     if (indicators?.rsi) s.overlays[k++]?.setData(line(rsi(values, 14)));
     chart.current?.timeScale().fitContent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, up, indKey]);
+  }, [series2, up, indKey]);
 
   return <div ref={el} style={{ height }} className="w-full" data-testid="price-chart" />;
 }

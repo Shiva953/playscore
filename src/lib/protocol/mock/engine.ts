@@ -42,7 +42,7 @@ import {
   type SimEvent,
 } from "@score/core";
 import { ProtocolError } from "../errors";
-import type { ActivityItem, MatchEventView, ProtocolEvent, TradeRecord, TxResult } from "../types";
+import type { ActivityItem, LimitOrder, MatchEventView, ProtocolEvent, TradeRecord, TxResult } from "../types";
 import {
   coefficientFor,
   eventLabel,
@@ -73,12 +73,11 @@ const MAX_PRICE_POINTS = 1_500;
 
 // ---------------------------------------------------------------- bookkeeping
 
-function recordPrice(p: PlayerRuntime, t: number): void {
-  const pt = { t, p: spot(p) };
+function recordPrice(p: PlayerRuntime, t: number, usd = 0): void {
   const h = p.priceHistory;
   const last = h[h.length - 1];
-  if (last && t - last.t < PRICE_POINT_MIN_GAP) h[h.length - 1] = { t: last.t, p: pt.p };
-  else h.push(pt);
+  if (last && t - last.t < PRICE_POINT_MIN_GAP) h[h.length - 1] = { t: last.t, p: spot(p), v: (last.v ?? 0) + usd };
+  else h.push({ t, p: spot(p), v: usd });
   if (h.length > MAX_PRICE_POINTS) h.splice(0, h.length - MAX_PRICE_POINTS);
 }
 
@@ -91,7 +90,7 @@ function recordTrade(ctx: EngineCtx, p: PlayerRuntime, t: Omit<TradeRecord, "id"
   while (p.volumeLog.length && p.volumeLog[0]!.t < cutoff) p.volumeLog.shift();
   ctx.s.tape.unshift(trade);
   if (ctx.s.tape.length > 200) ctx.s.tape.length = 200;
-  recordPrice(p, ctx.now);
+  recordPrice(p, ctx.now, t.usdc);
   ctx.emit({ type: "trade", trade });
   return trade;
 }
@@ -727,4 +726,81 @@ export function startRound(ctx: EngineCtx, round: number, phase: "open" | "live"
     events: [],
     snapshot: null,
   };
+}
+
+
+// ---------------------------------------------------------------- limit orders (UI need for the trade terminal)
+
+/**
+ * Rest a limit order on a bonded player's pool. A buy escrows its USDC now (refunded on cancel);
+ * a sell is checked against the tokens held when it fills. Orders fill at the pool's price once it
+ * crosses the limit (see fillLimitOrders), so a fill is at the limit or better at that moment.
+ */
+export function placeLimitOrder(ctx: EngineCtx, id: string, side: "buy" | "sell", amount: number, price: number): TxResult {
+  const s = ctx.s;
+  const u = requireUser(s);
+  const p = getPlayer(s, id);
+  const pr = profile(id);
+  if (!(amount > 0) || !Number.isFinite(amount)) throw new ProtocolError("INVALID_AMOUNT", "Enter an amount.");
+  if (!(price > 0) || !Number.isFinite(price)) throw new ProtocolError("INVALID_AMOUNT", "Enter a limit price.");
+  if (p.status !== "trading" || !p.pool) throw new ProtocolError("NOT_LAUNCHED", `Limit orders open once ${pr.name} bonds.`);
+  if (side === "buy") {
+    if (u.usdc < amount) throw new ProtocolError("INSUFFICIENT_USDC", "Not enough USDC for this order.");
+    u.usdc -= amount;
+  } else {
+    const held = u.positions[id]?.tokens ?? 0;
+    if (held < amount) throw new ProtocolError("INSUFFICIENT_TOKENS", `You hold ${Math.floor(held).toLocaleString("en-US")} $${pr.ticker}.`);
+  }
+  const order: LimitOrder = {
+    id: nextId(s, "ord"),
+    playerId: id,
+    ticker: pr.ticker,
+    side,
+    price,
+    usdc: side === "buy" ? amount : 0,
+    tokens: side === "sell" ? amount : 0,
+    createdAt: ctx.now,
+  };
+  (u.orders ??= []).push(order);
+  ctx.emit({ type: "user" });
+  const what = side === "buy" ? `$${amount.toFixed(2)} of $${pr.ticker}` : `${Math.floor(amount).toLocaleString("en-US")} $${pr.ticker}`;
+  return { ok: true, id: order.id, summary: `Limit ${side} placed: ${what} at $${price.toPrecision(4)}` };
+}
+
+export function cancelLimitOrder(ctx: EngineCtx, orderId: string): TxResult {
+  const u = requireUser(ctx.s);
+  const i = (u.orders ?? []).findIndex((o) => o.id === orderId);
+  if (i < 0) throw new ProtocolError("NOT_FOUND", "That order is no longer open.");
+  const [o] = u.orders!.splice(i, 1);
+  if (o!.side === "buy") u.usdc += o!.usdc;
+  ctx.emit({ type: "user" });
+  return { ok: true, id: orderId, summary: `Limit ${o!.side} on $${o!.ticker} cancelled` };
+}
+
+/** Fill every resting order whose limit the pool's price has crossed. Called on each clock tick. */
+export function fillLimitOrders(ctx: EngineCtx): void {
+  const u = ctx.s.user;
+  if (!u?.orders?.length) return;
+  for (const o of [...u.orders]) {
+    const p = ctx.s.players[o.playerId];
+    if (!p || p.status !== "trading" || !p.pool) continue;
+    const spot = spotPrice(p.pool);
+    const crossed = o.side === "buy" ? spot <= o.price : spot >= o.price;
+    if (!crossed) continue;
+    u.orders = u.orders.filter((x) => x.id !== o.id);
+    try {
+      if (o.side === "buy") {
+        u.usdc += o.usdc; // release the escrow, then spend it
+        const r = userBuy(ctx, o.playerId, o.usdc);
+        ctx.emit({ type: "order-filled", order: o, summary: `Limit buy filled: ${r.summary}` });
+      } else {
+        const held = u.positions[o.playerId]?.tokens ?? 0;
+        if (held <= 0) continue;
+        const r = userSell(ctx, o.playerId, { tokens: Math.min(held, o.tokens) });
+        ctx.emit({ type: "order-filled", order: o, summary: `Limit sell filled: ${r.summary}` });
+      }
+    } catch {
+      // A fill that can't execute (e.g. balance moved) simply drops the order; buys already got their escrow back.
+    }
+  }
 }

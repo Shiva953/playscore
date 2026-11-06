@@ -20,6 +20,7 @@ import {
   holdAgeDays,
   holderPayout,
   impactLadder,
+  ammBook,
   impermanentLoss,
   lpTokensFor,
   lpUsdcFor,
@@ -323,6 +324,7 @@ export function detailOf(s: MockState, id: string, now: number): PlayerDetail {
     dividendsPaid: p.dividendsPaid,
     form: p.form,
     impactLadder: pool ? impactLadder(pool) : null,
+    book: pool ? ammBook(pool, 10, 0.005) : null,
     recentTrades: p.trades.slice(0, 20),
     holders: holdersOf(s, p),
     dividendHistory,
@@ -340,10 +342,20 @@ export function priceHistoryOf(s: MockState, id: string, range: PriceRange, now:
   const out = pts.length >= 2 ? pts : p.priceHistory.slice(-2);
   const cur = spot(p);
   if (p.status !== "scheduled" && (!out.length || out[out.length - 1]!.t < now - 1000)) out.push({ t: now, p: cur });
-  // Downsample to ≤ 500 points
+  // Downsample to ≤ 500 points; each kept point carries the volume of the points it stands for.
   if (out.length <= 500) return out;
   const step = out.length / 500;
-  return Array.from({ length: 500 }, (_, i) => out[Math.floor(i * step)]!).concat(out[out.length - 1]!);
+  const kept: PricePoint[] = [];
+  for (let i = 0; i < 500; i++) {
+    const from = Math.floor(i * step);
+    const to = Math.floor((i + 1) * step);
+    let v = 0;
+    for (let j = from; j < to; j++) v += out[j]!.v ?? 0;
+    kept.push({ ...out[to - 1]!, v });
+  }
+  const tail = out[out.length - 1]!;
+  if (kept[kept.length - 1]!.t !== tail.t) kept.push(tail);
+  return kept;
 }
 
 // ---------------------------------------------------------------- round
@@ -415,8 +427,9 @@ export function buildBoardViews(
         multiplier: b.def.multiplier,
         weight: b.weight,
         poolUsd: b.poolUsd,
-        rows: b.entries.slice(0, 5).map(toRow),
-        others: b.entries.slice(5).map((e, i) => toRow(e, i + 5)),
+        paid: b.def.shares.length,
+        rows: b.entries.slice(0, b.def.shares.length).map(toRow),
+        others: b.entries.slice(b.def.shares.length).map((e, i) => toRow(e, i + b.def.shares.length)),
       };
     });
 }
@@ -584,6 +597,7 @@ export function portfolioOf(s: MockState, now: number): Portfolio | null {
     lp,
     claimable: claimableOf(s),
     history: u.history,
+    orders: u.orders ?? [],
     points: { ...u.points, total: totalPoints(u.points) },
   };
 }

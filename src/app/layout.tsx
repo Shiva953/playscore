@@ -34,18 +34,20 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="min-h-dvh antialiased">
         <Providers>
           <div className="flex min-h-dvh flex-col">
-            <ChromeGate>
+            <ChromeGate app>
               <AppHeader />
             </ChromeGate>
             <main id="main" className="mx-auto w-full max-w-[1200px] flex-1 px-4 pt-6 pb-24 md:px-6 md:pt-8 md:pb-16 has-[>[data-fullbleed]]:max-w-none has-[>[data-fullbleed]]:px-0 has-[>[data-fullbleed]]:pt-0 has-[>[data-fullbleed]]:pb-0">
               {children}
             </main>
-            <ChromeGate>
+            <ChromeGate app>
               <SiteFooter />
             </ChromeGate>
           </div>
-          <ChromeGate>
+          <ChromeGate app>
             <BottomTabBar />
+          </ChromeGate>
+          <ChromeGate>
             <GlobalModals />
           </ChromeGate>
         </Providers>

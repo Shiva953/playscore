@@ -93,7 +93,7 @@ function YourPlayers({ r }: { r: RoundState }) {
           title={r.phase === "open" ? "You don't hold a bonded player yet" : "You weren't holding a bonded player at kickoff"}
           action={
             <Button asChild variant="secondary" size="sm">
-              <Link href="/markets">Find a player</Link>
+              <Link href="/trade">Find a player</Link>
             </Button>
           }
         >
@@ -242,22 +242,13 @@ function BoardCard({ b, projection }: { b: BoardView; projection: boolean }) {
 }
 
 function Boards({ r }: { r: RoundState }) {
-  const [all, setAll] = useState(false);
-  const main = r.boards.filter((b) => b.kind !== "league" || b.rows.length >= 3);
-  const boards = all ? r.boards : main;
+  const boards = r.boards;
   const title = r.projection ? "Boards · projection" : r.phase === "ended" ? "Boards · final whistle" : "Boards · provisional";
   return (
     <Section
       title={title}
       id="boards"
-      description={`Top five on each board share ${formatUsd(r.pool.usd, { decimals: 0 })}: 35 / 25 / 20 / 12 / 8%.`}
-      action={
-        r.boards.length > main.length ? (
-          <Button variant="ghost" size="sm" onClick={() => setAll((v) => !v)}>
-            {all ? "Main boards" : `All ${r.boards.length} boards`}
-          </Button>
-        ) : null
-      }
+      description={`Boards share ${formatUsd(r.pool.usd, { decimals: 0 })}. Defenders, midfielders and forwards: top five, 35 / 25 / 20 / 12 / 8%. Goalkeepers: top three, 44 / 31 / 25%.`}
     >
       {r.boards.length === 0 ? (
         <EmptyState title="Nobody ranked yet">Only bonded players who play in this window are ranked.</EmptyState>
@@ -269,7 +260,7 @@ function Boards({ r }: { r: RoundState }) {
         </div>
       )}
       <p className="text-xs text-faint">
-        A board&apos;s share of the pool is the players ranked (up to five) times its multiplier. One player can win on several boards.
+        A board&apos;s share of the pool is the players ranked (up to its paid places) times its multiplier. One player can win on several boards.
         {r.projection ? " Before kickoff the boards are projected from form ratings." : ""}
       </p>
     </Section>

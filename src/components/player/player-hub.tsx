@@ -12,6 +12,8 @@ import { EmptyState, ErrorState, LoadingBlock } from "@/components/common/states
 import { formatDateTime, formatPct, formatPrice, formatScore, formatUsd, formatUsdCompact } from "@/lib/format";
 import { isProtocolError } from "@/lib/protocol/errors";
 import { cn } from "@/lib/utils";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { neighbours, usePlayerOrder } from "@/components/trade/player-order";
 import type { PlayerDetail, PriceRange } from "@/lib/protocol/types";
 import { usePlayer } from "@/lib/protocol/react/hooks";
 import { useUi } from "@/lib/protocol/react/ui-store";
@@ -45,7 +47,7 @@ export function PlayerHub({ id }: { id: string }) {
           title="Player not found"
           action={
             <Button asChild variant="secondary" size="sm">
-              <Link href="/markets">Back to markets</Link>
+              <Link href="/trade">Go to trading</Link>
             </Button>
           }
         >
@@ -95,7 +97,8 @@ function TitleRow({ player: p, proView, onProView }: { player: PlayerDetail; pro
             {p.club}, {p.leagueName} · {p.country}, {p.age}
           </p>
         </div>
-        <div className="flex items-center gap-2 pt-1">
+        <div className="flex items-center gap-3 pt-1">
+          <PlayerStepper id={p.id} />
           <Switch id="pro-view" checked={proView} onCheckedChange={onProView} />
           <Label htmlFor="pro-view" className="text-sm text-soft">
             Pro view
@@ -182,6 +185,28 @@ function StandardLayout({ player: p }: { player: PlayerDetail }) {
       <div className="min-w-0 pt-2 lg:col-start-1 lg:row-start-2">
         <PlayerTabs player={p} />
       </div>
+    </div>
+  );
+}
+
+
+/** Previous / next player, in the same order as the trade terminal's list ("click top down"). */
+function PlayerStepper({ id }: { id: string }) {
+  const order = usePlayerOrder();
+  const { prev, next } = neighbours(order, id);
+  if (!prev || !next) return null;
+  return (
+    <div className="flex items-center rounded-full bg-surface" role="group" aria-label="Switch player">
+      <Button asChild variant="ghost" size="icon-sm" aria-label="Previous player">
+        <Link href={`/player/${prev}`} scroll={false}>
+          <ChevronUp aria-hidden="true" />
+        </Link>
+      </Button>
+      <Button asChild variant="ghost" size="icon-sm" aria-label="Next player">
+        <Link href={`/player/${next}`} scroll={false}>
+          <ChevronDown aria-hidden="true" />
+        </Link>
+      </Button>
     </div>
   );
 }

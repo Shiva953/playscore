@@ -1,10 +1,10 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { errorMessage, isProtocolError } from "../errors";
-import type { ClaimMode, PlayerFilter, PriceRange, RoundState, SignInMethod } from "../types";
+import type { ClaimMode, PlayerFilter, PriceRange, RoundState, SignInInput } from "../types";
 import { qk } from "./keys";
 import { useProtocolClient } from "./provider";
 import { useUi } from "./ui-store";
@@ -26,9 +26,15 @@ export function usePlayers(filter?: PlayerFilter) {
   return useQuery({ queryKey: qk.players(filter ?? {}), queryFn: () => c.listPlayers(filter), placeholderData: (prev) => prev });
 }
 
-export function usePlayer(id: string) {
+export function usePlayer(id: string, opts: { keepPrevious?: boolean } = {}) {
   const c = useProtocolClient();
-  return useQuery({ queryKey: qk.player(id), queryFn: () => c.getPlayer(id), retry: (n, e) => !(isProtocolError(e) && e.code === "NOT_FOUND") && n < 1 });
+  return useQuery({
+    queryKey: qk.player(id),
+    queryFn: () => c.getPlayer(id),
+    retry: (n, e) => !(isProtocolError(e) && e.code === "NOT_FOUND") && n < 1,
+    // The terminal switches players in place: keep the last one on screen until the next has loaded.
+    placeholderData: opts.keepPrevious ? keepPreviousData : undefined,
+  });
 }
 
 export function usePriceHistory(id: string, range: PriceRange) {
@@ -129,6 +135,16 @@ export function useSell() {
   return useAction((v: { id: string; input: { usdc: number } | { tokens: number } }) => c.sell(v.id, v.input));
 }
 
+export function usePlaceLimit() {
+  const c = useProtocolClient();
+  return useAction((v: { id: string; side: "buy" | "sell"; amount: number; price: number }) => c.placeLimit(v.id, v.side, v.amount, v.price));
+}
+
+export function useCancelOrder() {
+  const c = useProtocolClient();
+  return useAction((orderId: string) => c.cancelOrder(orderId));
+}
+
 export function useAddLiquidity() {
   const c = useProtocolClient();
   return useAction((v: { id: string; usdc: number; mode: "pair" | "zap" }) => c.addLiquidity(v.id, v.usdc, v.mode));
@@ -153,9 +169,11 @@ export function useSignIn() {
   const c = useProtocolClient();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { method: SignInMethod; country: string; acceptedTerms: boolean }) => c.signIn(v),
-    onSuccess: () => {
-      toast.success("Signed in on devnet", { description: "1,000 test USDC added to your balance." });
+    mutationFn: (v: SignInInput) => c.signIn(v),
+    onSuccess: (_s, v) => {
+      toast.success(v.method === "demo" ? "Demo account ready" : "Signed in on devnet", {
+        description: v.method === "demo" ? "A few players bought from 1,000 test USDC." : "1,000 test USDC added to your balance.",
+      });
       void qc.invalidateQueries();
     },
   });

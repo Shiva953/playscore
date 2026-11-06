@@ -15,6 +15,8 @@ import { LiveFigure } from "@/components/common/bits";
 import { UsdcIcon } from "@/components/common/usdc";
 import { UserAvatar } from "@/components/common/user-avatar";
 import { cn } from "@/lib/utils";
+import { METHOD_LABEL } from "@/lib/protocol/labels";
+import { useAuthBridge } from "@/lib/auth/auth-provider";
 import { formatUsd, shortAddress } from "@/lib/format";
 import { useFaucet, usePortfolio, useSession, useSignOut } from "@/lib/protocol/react/hooks";
 import { useUi } from "@/lib/protocol/react/ui-store";
@@ -49,6 +51,7 @@ export function AccountMenu() {
   const setDemoOpen = useUi((s) => s.setDemoOpen);
   const faucet = useFaucet();
   const signOut = useSignOut();
+  const auth = useAuthBridge();
   const pf = usePortfolio();
 
   if (session.isPending) return <Skeleton className="h-8 w-20 rounded-full" />;
@@ -65,7 +68,7 @@ export function AccountMenu() {
     );
   }
   const s = session.data;
-  const method = s.method === "google" ? "Google" : s.method === "email" ? "Email" : "Phantom";
+  const method = METHOD_LABEL[s.method];
   const copy = () => {
     void navigator.clipboard?.writeText(s.address).then(() => toast.success("Address copied"));
   };
@@ -115,7 +118,7 @@ export function AccountMenu() {
           <SlidersHorizontal className="size-4 text-soft" aria-hidden="true" />
           Demo settings
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => signOut.mutate()} className="gap-2.5 text-soft">
+        <DropdownMenuItem onSelect={() => signOut.mutate(undefined, { onSuccess: () => void auth.logout() })} className="gap-2.5 text-soft">
           <LogOut className="size-4" aria-hidden="true" />
           Sign out
         </DropdownMenuItem>

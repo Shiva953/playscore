@@ -11,6 +11,7 @@ import type {
   CompetitionCode,
   EventCode,
   FormEntry,
+  BookLevel,
   ImpactRow,
   LeagueCode,
   MatchWindow,
@@ -23,7 +24,7 @@ export type PlayerId = string;
 export type UserId = string;
 export type Unsubscribe = () => void;
 export type PriceRange = "24H" | "3D" | "6D" | "ALL";
-export type SignInMethod = "google" | "email" | "phantom";
+export type SignInMethod = "google" | "email" | "phantom" | "demo";
 export type ClockMode = "demo" | "calendar";
 
 export type { ClaimMode, PlayerStatus, RoundPhase };
@@ -187,6 +188,21 @@ export interface UserSession {
   createdAt: number;
 }
 
+/** A resting limit order (pool only). Buys escrow their USDC; sells need the tokens held when they fill. */
+export interface LimitOrder {
+  id: string;
+  playerId: PlayerId;
+  ticker: string;
+  side: "buy" | "sell";
+  /** Limit price in USDC per token. */
+  price: number;
+  /** Buy: USDC to spend. */
+  usdc: number;
+  /** Sell: tokens to sell. */
+  tokens: number;
+  createdAt: number;
+}
+
 export interface Portfolio {
   user: UserSession;
   usdc: number;
@@ -202,6 +218,8 @@ export interface Portfolio {
   lp: LpPositionView[];
   claimable: ClaimableView;
   history: ActivityItem[];
+  /** Resting limit orders. */
+  orders: LimitOrder[];
   points: ActivityPoints & { total: number };
 }
 
@@ -241,6 +259,8 @@ export interface PlayerDetail extends PlayerSummary {
   dividendsPaid: number;
   form: FormEntry[];
   impactLadder: ImpactRow[] | null;
+  /** The pool's liquidity as bid/ask levels (AMM-implied order book), plus nothing while launching. */
+  book: { mid: number; asks: BookLevel[]; bids: BookLevel[] } | null;
   recentTrades: TradeRecord[];
   holders: HolderRow[];
   dividendHistory: { round: number; label: string; playerPayout: number; per10kTokens: number }[];
@@ -251,6 +271,8 @@ export interface PlayerDetail extends PlayerSummary {
 export interface PricePoint {
   t: number;
   p: number;
+  /** USDC traded since the previous point (volume bars). */
+  v?: number;
 }
 
 export interface BoardRowView {
@@ -272,7 +294,9 @@ export interface BoardView {
   multiplier: number;
   weight: number;
   poolUsd: number;
-  /** Top 5 (paid). */
+  /** Paid places on this board: 5, or 3 for goalkeepers. */
+  paid: number;
+  /** The paid ranks. */
   rows: BoardRowView[];
   /** Everyone else ranked on the board. */
   others: BoardRowView[];
@@ -489,6 +513,8 @@ export type ProtocolEvent =
   | { type: "launched"; playerIds: PlayerId[] }
   | { type: "settled"; round: number; pool: number; myDividends: number }
   | { type: "user" }
+  /** A resting limit order filled. */
+  | { type: "order-filled"; order: LimitOrder; summary: string }
   /** Round timing moved without a phase change (lab pin). */
   | { type: "clock" }
   | { type: "session" }
@@ -512,6 +538,9 @@ export interface ProtocolClient {
   // actions
   buy(id: PlayerId, usdc: number): Promise<TxResult>;
   sell(id: PlayerId, input: { usdc: number } | { tokens: number }): Promise<TxResult>;
+  /** Rest a limit order on a bonded player's pool. Buys take `amount` in USDC, sells in tokens. */
+  placeLimit(id: PlayerId, side: "buy" | "sell", amount: number, price: number): Promise<TxResult>;
+  cancelOrder(orderId: string): Promise<TxResult>;
   addLiquidity(id: PlayerId, usdc: number, mode: "pair" | "zap"): Promise<TxResult>;
   removeLiquidity(id: PlayerId, fraction?: number): Promise<TxResult>;
   claim(mode: ClaimMode): Promise<TxResult>;
@@ -523,8 +552,19 @@ export interface ProtocolClient {
 /** Sign-in (Privy-style embedded wallet or Phantom later). Mocked in Step 0. */
 export interface AuthClient {
   getSession(): Promise<UserSession | null>;
-  signIn(input: { method: SignInMethod; country: string; acceptedTerms: boolean }): Promise<UserSession>;
+  signIn(input: SignInInput): Promise<UserSession>;
   signOut(): Promise<void>;
+}
+
+/**
+ * Sign-in input. With Privy, `identity` carries the Privy user id, the Solana embedded wallet's address and a
+ * display handle (email or Google name); without it the mock makes them up. `demo` seeds a few holdings.
+ */
+export interface SignInInput {
+  method: SignInMethod;
+  country: string;
+  acceptedTerms: boolean;
+  identity?: { id: string; address: string; handle: string };
 }
 
 export interface DemoSettings {

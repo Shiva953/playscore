@@ -125,7 +125,7 @@ function Watchlist({ selected }: { selected: string }) {
   );
 }
 
-function PositionsMini() {
+export function PositionsMini() {
   const session = useSession();
   const pf = usePortfolio();
   if (!session.data) return <SignedOutState title="Sign in to see positions" />;

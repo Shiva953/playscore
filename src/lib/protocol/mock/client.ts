@@ -22,9 +22,9 @@ import type {
   Quote,
   RoundResult,
   RoundState,
-  SignInMethod,
   TradeRecord,
   TxResult,
+  SignInInput,
   Unsubscribe,
   UserSession,
 } from "../types";
@@ -39,6 +39,9 @@ import {
   startRound,
   userAddLiquidity,
   userBuy,
+  placeLimitOrder,
+  cancelLimitOrder,
+  fillLimitOrders,
   userClaim,
   userFaucet,
   userRemoveLiquidity,
@@ -138,6 +141,7 @@ export class MockProtocolClient implements ProtocolClient, AuthClient, DemoContr
     }
     if (this.s.settings.clockMode === "calendar") launchDue(ctx);
     ambientTick(ctx);
+    fillLimitOrders(ctx);
     this.dirty = true;
     this.save(false);
   }
@@ -279,6 +283,14 @@ export class MockProtocolClient implements ProtocolClient, AuthClient, DemoContr
     return this.act((ctx) => userSell(ctx, id, input));
   }
 
+  placeLimit(id: PlayerId, side: "buy" | "sell", amount: number, price: number): Promise<TxResult> {
+    return this.act((ctx) => placeLimitOrder(ctx, id, side, amount, price));
+  }
+
+  cancelOrder(orderId: string): Promise<TxResult> {
+    return this.act((ctx) => cancelLimitOrder(ctx, orderId));
+  }
+
   addLiquidity(id: PlayerId, usdc: number, mode: "pair" | "zap"): Promise<TxResult> {
     return this.act((ctx) => userAddLiquidity(ctx, id, usdc, mode));
   }
@@ -306,25 +318,30 @@ export class MockProtocolClient implements ProtocolClient, AuthClient, DemoContr
     return this.s.user?.session ?? null;
   }
 
-  async signIn(input: { method: SignInMethod; country: string; acceptedTerms: boolean }): Promise<UserSession> {
+  async signIn(input: SignInInput): Promise<UserSession> {
     if (this.s.settings.latencyMs > 0) await new Promise((r) => setTimeout(r, 400));
     if ((RESTRICTED_COUNTRIES as readonly string[]).includes(input.country)) {
       throw new ProtocolError("RESTRICTED", `score isn't available to people located in ${input.country}.`);
     }
     if (!input.acceptedTerms) throw new ProtocolError("TERMS_NOT_ACCEPTED", "Accept the Terms to continue.");
-    const handle = Math.random().toString(36).slice(2, 8);
-    const label = { google: "Google", email: "Email", phantom: "Phantom" }[input.method];
+    const id = input.identity?.id ?? `usr_${Math.random().toString(36).slice(2, 8)}`;
+    // The same Privy user signing in again keeps their devnet balance and holdings.
+    if (this.s.user && this.s.user.session.id === id) return this.s.user.session;
+    const handle = input.identity?.handle ?? id.slice(-6);
+    const label = { google: "Google", email: "Email", phantom: "Phantom", demo: "Demo" }[input.method];
     const session: UserSession = {
-      id: `usr_${handle}`,
+      id,
       method: input.method,
       label: `${label} · ${handle}`,
-      address: mockAddress(handle),
+      address: input.identity?.address ?? mockAddress(id),
       country: input.country,
       createdAt: this.clockNow(),
     };
     this.s.user = newUser(session);
+    const ctx = this.ctx(this.clockNow());
     // First sign-in gets the devnet faucet (prototype behaviour).
-    userFaucet(this.ctx(this.clockNow()), DEMO_DEFAULTS.faucetUsdc);
+    userFaucet(ctx, DEMO_DEFAULTS.faucetUsdc);
+    if (input.method === "demo") seedDemoHoldings(ctx);
     this.dirty = true;
     this.save(true);
     this.emit({ type: "session" });
@@ -446,6 +463,27 @@ function publicResult(r: MockState["results"][number]): RoundResult {
 }
 
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+/**
+ * The demo account: a spread of bonded players bought from the faucet balance, plus one launch on its curve,
+ * so the portfolio, claims and terminal all have something to show. Picks by status at the time, so it
+ * works whatever the clock has launched or bonded.
+ */
+function seedDemoHoldings(ctx: EngineCtx): void {
+  const bonded = Object.values(ctx.s.players).filter((p) => p.status === "trading");
+  const launching = Object.values(ctx.s.players).filter((p) => p.status === "launching");
+  const buys: [string, number][] = [
+    ...bonded.slice(0, 4).map((p, i): [string, number] => [p.id, [180, 120, 90, 60][i]!]),
+    ...launching.slice(0, 1).map((p): [string, number] => [p.id, 40]),
+  ];
+  for (const [id, usdc] of buys) {
+    try {
+      userBuy(ctx, id, usdc);
+    } catch {
+      // A cap or a closed curve skips that player; the rest still seed.
+    }
+  }
+}
+
 function mockAddress(seed: string): string {
   let h = 0;
   for (const c of seed) h = (h * 31 + c.charCodeAt(0)) >>> 0;

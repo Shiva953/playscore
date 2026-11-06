@@ -340,3 +340,40 @@ export function impactLadder(pool: PoolState, sizes: readonly number[] = [100, 5
     return { usdc, buyImpact: b.ok ? b.priceImpact : NaN, sellImpact: s.ok ? s.priceImpact : NaN };
   });
 }
+
+export interface BookLevel {
+  /** Level price (USDC per token). */
+  price: number;
+  /** Tokens the pool fills between the previous level and this one. */
+  tokens: number;
+  /** USDC value of those tokens at the level price. */
+  usdc: number;
+  /** Running total of `tokens` from the mid outwards. */
+  cumulativeTokens: number;
+}
+
+/**
+ * The pool's liquidity laid out as an order book (fees excluded). For x·y = k the token reserve at
+ * price p is √(k/p), so the tokens a buyer takes moving the price from p₁ up to p₂ are √(k/p₁) − √(k/p₂);
+ * a seller moving it down from p₁ to p₂ adds √(k/p₂) − √(k/p₁). Levels step `stepPct` from the mid.
+ */
+export function ammBook(pool: PoolState, levels = 10, stepPct = 0.005): { mid: number; asks: BookLevel[]; bids: BookLevel[] } {
+  const mid = spotPrice(pool);
+  const k = pool.usdc * pool.tokens;
+  const reserveAt = (p: number) => Math.sqrt(k / p);
+  const side = (dir: 1 | -1): BookLevel[] => {
+    const out: BookLevel[] = [];
+    let prev = mid;
+    let cum = 0;
+    for (let i = 1; i <= levels; i++) {
+      const price = mid * (1 + dir * stepPct * i);
+      if (price <= 0) break;
+      const tokens = Math.abs(reserveAt(prev) - reserveAt(price));
+      cum += tokens;
+      out.push({ price, tokens, usdc: tokens * price, cumulativeTokens: cum });
+      prev = price;
+    }
+    return out;
+  };
+  return { mid, asks: side(1), bids: side(-1) };
+}

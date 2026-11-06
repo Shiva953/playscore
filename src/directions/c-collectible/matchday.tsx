@@ -188,7 +188,7 @@ function Board({ b }: { b: BoardView }) {
             </motion.li>
           );
         })}
-        {Array.from({ length: Math.max(0, 5 - b.rows.length) }, (_, i) => (
+        {Array.from({ length: Math.max(0, b.paid - b.rows.length) }, (_, i) => (
           <li key={`o${i}`} className="grid h-9 grid-cols-[18px_1fr] items-center gap-2 px-2 text-[13px] text-[var(--c-mute)]">
             <span className="c-num text-center">{b.rows.length + i + 1}</span>
             <span>Open place</span>

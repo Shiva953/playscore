@@ -164,3 +164,45 @@ Fonts and backgrounds below were measured from computed styles, not guessed. Mot
 8. **A light ground with colour on the objects reads premium and friendly.** Robinhood, Polymarket, FotMob and Kalshi all put a white or #fafafa ground under one strong typeface, with colour only on buttons, chips and data. This matches the stated preference for light backgrounds.
 9. **Sign-in belongs inside the first action.** Sorare's in-hero manager name and Kalshi's one-sheet "Continue with Google / Apple / email" beat a modal on page load.
 10. **Avoid the crypto default.** Lime or mint on near-black (Jupiter, Hyperliquid, Sport.fun, Meteora) is now the generic look of on-chain apps. The fourth, dark direction must earn its place against that; the light directions start from football media and consumer finance instead.
+
+## Step 1B: .fun homepages (3 Nov 2026)
+
+Fetched as raw HTML on 3 Nov (no browser captures this round). pump.fun (403, Cloudflare), Believe (402) and letsbonk.fun (client-rendered shell, title only) gave nothing usable; their notes below are from the Step 1.1 round and are marked so.
+
+### Sport.fun (formerly Football.fun)
+- One line of meta copy carries the product: "Own football players, make five-player Picks and compete for real rewards."
+- The homepage is the market, not a brochure: a "Market Call" head-to-head (Olise vs Yamal, prices to four decimals, manager votes, a closing time in UTC), then "Transfer Market · Prices & 24H", "Biggest movers · 24H", "Biggest pack pulls", "Top performers" and "Top managers by division".
+- The action is written as the first thing you do: "Build your first squad for free", repeated at the close as "Ready to build your squad?".
+- Honest small print sits in the page, not hidden: "Figures can be up to a minute behind", restricted jurisdictions, no league or club affiliation.
+- Weak spot: a promotion banner in tracked capitals across the top, and the page is long and modular, so the first screen does not say what it is.
+
+### Zora
+- Title: "Post, discover, and trade what's next". Three verbs, the last one is money. The page itself renders client-side.
+
+### fomo
+- "where traders become legends." Lower-case, one sentence, then "From memecoins to viral tokens, trade any crypto in seconds." Two actions: "Start trading" and "Download app".
+- Features as one short line each (leaderboard, feed, alerts, easy onboarding, gasless, "fund with apple pay"), then one social figure ("join 2,500,000 traders") and the line repeated as the close.
+- The marketing page and the app are separate: the page has a Login and a Start trading button and no live data.
+
+### designeer.xyz
+- A catalogue that is its own proof: the page is the product (filters by Interface, Motion, 3D, Typography, Dashboard, colour), with one sentence of what it is. No hero image, no features, no claims; the work shown is the argument.
+- Small wordmark with the TLD set apart (designeer | .xyz), a plain nav of nouns (Finds, Inspiration, Resources, Tools, Portfolios), sponsor slots that say what they are.
+
+### pump.fun, letsbonk, Believe (from Step 1.1 notes)
+- The homepage is the live board: newest launches and those closest to bonding, each with a progress bar and market cap, and one button to start a coin. Liveness comes from the list moving, not from decoration.
+
+### Patterns score's homepage takes
+1. The first screen shows the live product: a real launch with its curve progress to $25k and the matchday's real figures, not a picture of them.
+2. The headline is one short sentence of what you do and get; one supporting sentence says it plainly (football players, tokens, USDC at matchdays).
+3. The primary action is the first thing you do: "Buy player shares". The second is where ICOs happen: "Explore launches".
+4. The marketing page and the app are separate (fomo, Zora): own header with "Open the app", no app tab bar.
+5. Real movement only: prices, launch progress and the kickoff countdown tick from the mock protocol; no decorative motion.
+6. A head-to-head or a ranked list is a stronger picture than any illustration (Sport.fun's Market Call, pump.fun's board).
+7. The honest print stays visible: devnet, test USDC, payouts depend on board finishes.
+8. The close repeats the action, short (fomo, Sport.fun).
+
+### What it must avoid
+- Promotion banners and tracked capitals (Sport.fun's top strip).
+- A long modular stack of every board; three screens at most.
+- Social-proof numbers we don't have (fomo's 2.5M): only real mock figures.
+- Gradients, glows, pill eyebrows, icon cards, emoji, the "trade any crypto in seconds" register.

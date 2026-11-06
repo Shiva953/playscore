@@ -2,24 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, ChartLine, Trophy, Wallet } from "lucide-react";
+import { BookOpen, ChartCandlestick, Rocket, Trophy, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/markets", label: "Markets", icon: ChartLine, match: "/markets" },
+  { href: "/launch", label: "Launch", icon: Rocket, match: "/launch" },
+  { href: "/trade", label: "Trade", icon: ChartCandlestick, match: "/trade" },
   { href: "/matchday", label: "Matchday", icon: Trophy, match: "/matchday" },
   { href: "/portfolio", label: "Portfolio", icon: Wallet, match: "/portfolio" },
   { href: "/docs/stats", label: "Docs", icon: BookOpen, match: "/docs" },
 ];
 
-/** Phone navigation: four destinations, active by brightness alone (hidden ≥ md). */
+/** Phone navigation: five destinations, active by brightness alone (hidden ≥ md). */
 export function BottomTabBar() {
   const path = usePathname();
   return (
     <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 bg-ground pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_var(--rule)] md:hidden">
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-5">
         {TABS.map((t) => {
-          const active = path.startsWith(t.match);
+          const active = path.startsWith(t.match) || (t.match === "/trade" && path.startsWith("/player"));
           const Icon = t.icon;
           return (
             <li key={t.href}>

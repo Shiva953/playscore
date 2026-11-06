@@ -241,3 +241,64 @@ describe("lab pin and seek", () => {
     expect((await client.getRound()).phase).toBe("ended");
   });
 });
+
+describe("limit orders", () => {
+  it("escrows a buy, fills it once the price crosses, and refunds on cancel", async () => {
+    const { client, advance } = makeClient();
+    await client.signIn({ method: "google", country: "Germany", acceptedTerms: true });
+    const spot = (await client.getPlayer("kane")).price;
+    const before = (await client.getPortfolio())!.usdc;
+
+    // Below the price: rests, USDC escrowed
+    await client.placeLimit("kane", "buy", 50, spot * 0.5);
+    let pf = (await client.getPortfolio())!;
+    expect(pf.orders).toHaveLength(1);
+    expect(pf.usdc).toBeCloseTo(before - 50, 6);
+    advance(3);
+    expect((await client.getPortfolio())!.orders).toHaveLength(1);
+
+    // Cancel: refunded
+    await client.cancelOrder(pf.orders[0]!.id);
+    pf = (await client.getPortfolio())!;
+    expect(pf.orders).toHaveLength(0);
+    expect(pf.usdc).toBeCloseTo(before, 6);
+
+    // At or above the price: fills on the next tick
+    await client.placeLimit("kane", "buy", 40, spot * 1.5);
+    advance(1);
+    pf = (await client.getPortfolio())!;
+    expect(pf.orders).toHaveLength(0);
+    expect(pf.positions.find((p) => p.playerId === "kane")!.tokens).toBeGreaterThan(0);
+  });
+
+  it("rejects limits on players still on the launch curve, and sells beyond holdings", async () => {
+    const { client } = makeClient();
+    await client.signIn({ method: "google", country: "Germany", acceptedTerms: true });
+    await expect(client.placeLimit("haaland", "buy", 10, 0.01)).rejects.toThrow(/bonds/);
+    await expect(client.placeLimit("kane", "sell", 1_000, 0.02)).rejects.toThrow(/You hold/);
+  });
+});
+
+describe("sign-in identities", () => {
+  it("demo account seeds holdings from the faucet balance", async () => {
+    const { client } = makeClient();
+    await client.signIn({ method: "demo", country: "Germany", acceptedTerms: true });
+    const pf = (await client.getPortfolio())!;
+    expect(pf.user.method).toBe("demo");
+    expect(pf.positions.length).toBeGreaterThanOrEqual(3);
+    expect(pf.usdc).toBeLessThan(1_000);
+    expect(pf.usdc + pf.positionsValue).toBeGreaterThan(900);
+  });
+
+  it("uses the Privy wallet address and keeps the account on a repeat sign-in", async () => {
+    const { client } = makeClient();
+    const identity = { id: "did:privy:abc", address: "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin", handle: "fan@example.com" };
+    const s = await client.signIn({ method: "email", country: "Germany", acceptedTerms: true, identity });
+    expect(s.address).toBe(identity.address);
+    expect(s.label).toBe("Email · fan@example.com");
+    await client.buy("kane", 25);
+    await client.signIn({ method: "email", country: "Germany", acceptedTerms: true, identity });
+    const pf = (await client.getPortfolio())!;
+    expect(pf.positions.find((p) => p.playerId === "kane")).toBeDefined();
+  });
+});

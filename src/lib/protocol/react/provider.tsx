@@ -31,6 +31,8 @@ function keysFor(e: ProtocolEvent): QueryKey[] {
       return [qk.round(), qk.players()];
     case "clock":
       return [qk.round()];
+    case "order-filled":
+      return [qk.portfolio(), qk.player(e.order.playerId), qk.players()];
     case "snapshot":
       return [qk.round(), qk.portfolio(), qk.playersAll()];
     case "bonded":
@@ -93,6 +95,8 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
       } else if (e.type === "settled") {
         if (e.myDividends > 0.005) ui.showFullTime({ round: e.round, amount: e.myDividends });
         else toast(`Full time · round ${e.round} settled`, { description: `Round pool paid ${formatUsd(e.pool)}.` });
+      } else if (e.type === "order-filled") {
+        toast.success(e.summary);
       } else if (e.type === "launched") {
         const names = e.playerIds.map((id) => PLAYERS_BY_ID[id]?.name ?? id).join(" and ");
         toast(`Now launching: ${names}`);

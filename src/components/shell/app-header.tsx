@@ -8,10 +8,11 @@ import { AccountMenu, HeaderBalance } from "./account-menu";
 import { MatchdayPill } from "./matchday-pill";
 
 export const NAV = [
-  { href: "/markets", label: "Markets", match: "/markets" },
-  { href: "/matchday", label: "Matchday", match: "/matchday" },
-  { href: "/portfolio", label: "Portfolio", match: "/portfolio" },
-  { href: "/docs/stats", label: "Docs", match: "/docs" },
+  { href: "/launch", label: "Launch", match: ["/launch"] },
+  { href: "/trade", label: "Trade", match: ["/trade", "/player"] },
+  { href: "/matchday", label: "Matchday", match: ["/matchday"] },
+  { href: "/portfolio", label: "Portfolio", match: ["/portfolio"] },
+  { href: "/docs/stats", label: "Docs", match: ["/docs"] },
 ] as const;
 
 /** The product's mark: the name, and the scoreboard cell from the prototype logo in the data hue. */
@@ -39,11 +40,12 @@ function ProductHeader({ path }: { path: string }) {
   }, []);
   return (
     <header className={cn("sticky top-0 z-40 bg-ground pt-[env(safe-area-inset-top)] transition-[box-shadow] duration-150", scrolled && "shadow-[0_1px_0_var(--rule)]")}>
-      <div className="mx-auto flex h-12 w-full max-w-[1200px] items-center gap-6 px-4 md:px-6">
+      {/* The terminal runs wider than the other pages; the header lines up with whichever page it's on. */}
+      <div className={cn("mx-auto flex h-12 w-full items-center gap-4 px-4 lg:gap-6", path.startsWith("/trade") ? "max-w-[1680px] md:px-4" : "max-w-[1200px] md:px-6")}>
         <Logo />
-        <nav className="hidden items-center gap-5 md:flex" aria-label="Main">
+        <nav className="hidden items-center gap-4 md:flex lg:gap-5" aria-label="Main">
           {NAV.map((n) => {
-            const active = path.startsWith(n.match);
+            const active = n.match.some((m) => path.startsWith(m));
             return (
               <Link
                 key={n.href}
@@ -58,7 +60,7 @@ function ProductHeader({ path }: { path: string }) {
         </nav>
         <div className="ml-auto flex items-center gap-3">
           <MatchdayPill />
-          <span className="hidden rounded-full border border-control px-2 py-0.5 text-[11px] leading-4 font-medium text-soft sm:inline">Devnet</span>
+          <span className="hidden rounded-full border border-control px-2 py-0.5 text-[11px] leading-4 font-medium text-soft sm:inline md:hidden lg:inline">Devnet</span>
           <HeaderBalance />
           <AccountMenu />
         </div>

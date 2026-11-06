@@ -7,7 +7,9 @@
  *
  * Loop: restricted-country block → sign in → faucet → launch buy → simulated demand → bonding buy
  * (bonded modal) → sell with hold-age tax → buy a bonded player → kickoff snapshot → live board →
- * full time → claim tokens → next round → claim USDC → portfolio. Then every route at 375px and 1280px.
+ * full time → claim tokens → next round → claim USDC → portfolio. Step 1B adds: the trade terminal (↑/↓
+ * switching with the URL following, a resting limit order, cancel), the Launch page and a demo account.
+ * Then every route at 375px and 1280px.
  *
  * Uses Playwright's Chromium if installed, otherwise the local Google Chrome.
  */
@@ -107,11 +109,11 @@ async function main() {
   watch(page);
 
   // Fresh demo
-  await page.goto(`${BASE}/markets`);
+  await page.goto(`${BASE}/launch`);
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle" });
-  await page.getByTestId("matchday-strip").waitFor();
-  await shot(page, "markets-signed-out-desktop");
+  await page.getByRole("heading", { name: "Live launches" }).waitFor();
+  await shot(page, "launch-signed-out-desktop");
 
   // Restricted country is blocked
   await page.getByRole("button", { name: "Sign in" }).first().click();
@@ -220,6 +222,28 @@ async function main() {
   await shot(page, "player-liquidity-desktop");
   log("added liquidity (zap)");
 
+  // Trade terminal: ↑/↓ switch players and the URL follows; a limit buy rests on the pool, then cancel.
+  await page.goto(`${BASE}/trade/kane`, { waitUntil: "networkidle" });
+  await page.getByTestId("price-chart").waitFor();
+  await page.locator("body").click({ position: { x: 4, y: 4 } });
+  await page.keyboard.press("ArrowDown");
+  await page.waitForURL((u) => !u.pathname.endsWith("/trade/kane"));
+  await page.keyboard.press("ArrowUp");
+  await page.waitForURL(/\/trade\/kane$/);
+  log("terminal ↑/↓ switching");
+  await page.getByRole("radio", { name: "Limit" }).click();
+  // Half the pool price, so the order rests instead of filling at once.
+  const px = await page.locator("#lim-px-kane").inputValue();
+  await page.locator("#lim-px-kane").fill((Number(px) * 0.5).toFixed(5));
+  await page.locator("#lim-amt-kane").fill("50");
+  await page.getByTestId("limit-submit").click();
+  await toast(page, /Limit buy placed/);
+  await page.getByRole("tab", { name: /Open orders/ }).click();
+  await shot(page, "trade-terminal-desktop");
+  await page.getByRole("button", { name: "Cancel" }).first().click();
+  await toast(page, /cancelled/);
+  log("limit order placed and cancelled");
+
   // Portfolio reflects everything
   await page.goto(`${BASE}/portfolio`, { waitUntil: "networkidle" });
   await page.getByTestId("portfolio-summary").waitFor();
@@ -230,7 +254,9 @@ async function main() {
   const storage = await ctx.storageState();
   const routes = [
     ["landing", "/"],
-    ["markets", "/markets"],
+    ["launch", "/launch"],
+    ["trade", "/trade/kane"],
+    ["trade-launching", "/trade/olise"],
     ["player-trading", "/player/kane"],
     ["player-launching", "/player/olise"],
     ["player-scheduled", "/player/quinones"],
@@ -291,6 +317,15 @@ async function main() {
   watch(p2);
   await p2.goto(`${BASE}/portfolio`, { waitUntil: "networkidle" });
   await shot(p2, "portfolio-signed-out-mobile");
+  // /markets folded into Trade
+  await p2.goto(`${BASE}/markets`, { waitUntil: "networkidle" });
+  if (!new URL(p2.url()).pathname.startsWith("/trade")) errors.push(`/markets did not redirect to /trade (${p2.url()})`);
+  // One-step demo account from the signed-out portfolio
+  await p2.goto(`${BASE}/portfolio`, { waitUntil: "networkidle" });
+  await p2.getByRole("button", { name: "Try a demo account" }).first().click();
+  await p2.getByTestId("portfolio-summary").waitFor();
+  await shot(p2, "portfolio-demo-mobile");
+  log("demo account");
   await c2.close();
 
   await browser.close();

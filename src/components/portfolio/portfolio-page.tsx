@@ -7,15 +7,16 @@ import { toast } from "sonner";
 import { PLAYERS_BY_ID, type PositionCode } from "@score/core";
 import { Button } from "@/components/ui/button";
 import { Delta, LiveFigure, Section, Sparkline, Ticker } from "@/components/common/bits";
-import { EmptyState, ErrorState, LoadingBlock, SignedOutState } from "@/components/common/states";
+import { EmptyState, ErrorState, LoadingBlock } from "@/components/common/states";
 import { UsdcIcon } from "@/components/common/usdc";
 import { UserAvatar } from "@/components/common/user-avatar";
-import { LiveMatchdayStrip } from "@/components/common/matchday-strip";
 import { formatCountdown, formatDate, formatPct, formatRelative, formatTokens, formatUsd, shortAddress } from "@/lib/format";
 import type { ActivityItem, Portfolio, PositionView } from "@/lib/protocol/types";
-import { useFaucet, useNow, usePlayers, usePortfolio, useRound, useRoundHistory, useSession } from "@/lib/protocol/react/hooks";
+import { useFaucet, useNow, usePlayers, usePortfolio, useRound, useRoundHistory, useSession, useSignIn } from "@/lib/protocol/react/hooks";
+import { useUi } from "@/lib/protocol/react/ui-store";
 import { ClaimPanel } from "./claim-panel";
 import { cn } from "@/lib/utils";
+import { METHOD_LABEL } from "@/lib/protocol/labels";
 
 /**
  * Portfolio as a consumer home (after Phantom's home, Robinhood's portfolio and the .fun profile pages):
@@ -62,7 +63,7 @@ export function PortfolioPage() {
 function Profile({ d }: { d: Portfolio }) {
   const faucet = useFaucet();
   const s = d.user;
-  const method = s.method === "google" ? "Google" : s.method === "email" ? "Email" : "Phantom";
+  const method = METHOD_LABEL[s.method];
   const copy = () => void navigator.clipboard?.writeText(s.address).then(() => toast.success("Address copied"));
   return (
     <header className="flex flex-wrap items-center justify-between gap-4">
@@ -228,7 +229,7 @@ function Squad({ d }: { d: Portfolio }) {
           title="No players yet"
           action={
             <Button asChild size="sm">
-              <Link href="/markets">Find players</Link>
+              <Link href="/trade">Find players</Link>
             </Button>
           }
         >
@@ -456,28 +457,107 @@ function Points({ d }: { d: Portfolio }) {
 
 // ---------------------------------------------------------------- signed out
 
+/**
+ * Signed out (PLAN 1B.5): a way in on top (sign in, or a one-step demo account that seeds a few holdings),
+ * then what a portfolio looks like, drawn from live prices and labelled as an example.
+ */
 function SignedOut() {
+  const openSignIn = useUi((s) => s.openSignIn);
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl leading-8 font-semibold tracking-[-0.02em] text-ink">Portfolio</h1>
-      <SignedOutState title="Sign in to see your portfolio">Your players, payouts and claims live here.</SignedOutState>
-      <div className="mt-6 rounded-2xl bg-surface px-5 py-5">
-        <LiveMatchdayStrip />
+    <div className="flex flex-col gap-10">
+      <section aria-labelledby="pf-signin" className="flex flex-col gap-5 rounded-2xl bg-surface p-5 md:flex-row md:items-center md:justify-between md:p-6">
+        <div className="flex flex-col gap-2">
+          <h1 id="pf-signin" className="text-[28px] leading-8 font-semibold tracking-[-0.02em] text-ink">
+            Your players and payouts live here
+          </h1>
+          <p className="max-w-[52ch] text-[15px] leading-relaxed text-soft">
+            Sign in with email, Google or Phantom and a wallet is made for you, with 1,000 test USDC on devnet. Or open a demo account that already holds a few players.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button size="lg" onClick={openSignIn}>
+            Sign in
+          </Button>
+          <DemoAccountButton />
+        </div>
+      </section>
+      <ExamplePortfolio />
+    </div>
+  );
+}
+
+/** One step: our country and Terms defaults for the devnet demo, then a seeded account. */
+function DemoAccountButton() {
+  const signIn = useSignIn();
+  return (
+    <Button
+      size="lg"
+      variant="secondary"
+      disabled={signIn.isPending}
+      onClick={() => signIn.mutate({ method: "demo", country: "Germany", acceptedTerms: true })}
+    >
+      {signIn.isPending ? "Opening…" : "Try a demo account"}
+    </Button>
+  );
+}
+
+/** The example: five live players at today's prices, bought a little lower, so the figures move with the market. */
+const EXAMPLE_STAKES = [220, 160, 120, 90, 60];
+
+function ExamplePortfolio() {
+  const players = usePlayers();
+  if (players.isPending) return <LoadingBlock className="h-64" />;
+  const pick = (players.data ?? [])
+    .filter((p) => p.status === "trading")
+    .sort((a, b) => b.marketCap - a.marketCap)
+    .slice(0, EXAMPLE_STAKES.length);
+  if (!pick.length) return null;
+  const positions: PositionView[] = pick.map((p, i) => {
+    const value = EXAMPLE_STAKES[i]!;
+    const costBasis = value / (1 + [0.18, 0.07, -0.04, 0.22, 0.03][i]!);
+    return {
+      playerId: p.id,
+      ticker: p.ticker,
+      name: p.name,
+      position: p.position,
+      status: p.status,
+      tokens: value / Math.max(p.price, 1e-9),
+      price: p.price,
+      value,
+      costBasis,
+      pnl: value - costBasis,
+      pnlPct: value / costBasis - 1,
+      holdAgeDays: 9,
+      sellTaxNow: 0.02,
+      realisableUsd: value * 0.97,
+      curvePurchased: 0,
+      snapshotTokens: null,
+      countsNextKickoff: true,
+    };
+  });
+  const positionsValue = positions.reduce((a, p) => a + p.value, 0);
+  const pnl = positions.reduce((a, p) => a + p.pnl, 0);
+  const usdc = 352.4;
+  const spark = new Map(pick.map((p) => [p.id, p.sparkline]));
+  const example = { usdc, positionsValue, lpValue: 0, totalValue: usdc + positionsValue, pnl, dividendsEarned: 41.6 } as Portfolio;
+  return (
+    <section aria-labelledby="pf-example" className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="pf-example" className="text-[20px] leading-7 font-semibold tracking-[-0.01em] text-ink">
+          An example portfolio
+        </h2>
+        <p className="text-[13px] text-soft">Not a real account. Live prices, made-up holdings.</p>
       </div>
-      <Section title="How payouts reach you" id="how">
-        <ol className="grid gap-px overflow-hidden rounded-2xl bg-rule md:grid-cols-3">
-          {[
-            ["Hold at kickoff", "Every bonded player you hold at the first kickoff of a matchday is counted for that round."],
-            ["Finish top five", "Players who finish in the top five of their position or league board share the round's pool."],
-            ["Claim after the freeze", "When the match data freezes, take your share in USDC, or in more of the same player with a 10% bonus."],
-          ].map(([t, b]) => (
-            <li key={t} className="flex flex-col gap-1.5 bg-surface px-5 py-4">
-              <span className="text-sm font-medium text-ink">{t}</span>
-              <span className="text-sm leading-relaxed text-soft">{b}</span>
+      <div aria-hidden="true" inert className="flex flex-col gap-4 select-none">
+        <Hero d={example} />
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {positions.map((p) => (
+            <li key={p.playerId}>
+              <PlayerTile p={p} spark={spark.get(p.playerId) ?? []} />
             </li>
           ))}
-        </ol>
-      </Section>
-    </div>
+        </ul>
+      </div>
+    </section>
   );
 }

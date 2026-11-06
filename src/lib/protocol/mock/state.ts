@@ -10,7 +10,7 @@ import {
   type SeedPlayerState,
   type SimState,
 } from "@score/core";
-import type { ActivityItem, DemoSettings, MatchEventView, RoundResult, TradeRecord, UserSession } from "../types";
+import type { ActivityItem, DemoSettings, LimitOrder, MatchEventView, RoundResult, TradeRecord, UserSession } from "../types";
 
 export const STATE_VERSION = 1;
 
@@ -52,6 +52,8 @@ export interface UserRuntime {
   dividendsEarned: number;
   feesPaid: number;
   faucetTotal: number;
+  /** Resting limit orders (absent in states saved before limit orders existed). */
+  orders?: LimitOrder[];
 }
 
 export interface RoundSnapshot {

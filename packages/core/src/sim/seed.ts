@@ -12,6 +12,8 @@ export interface PricePoint {
   /** ms timestamp */
   t: number;
   p: number;
+  /** USDC traded since the previous point (volume bars). Absent on old persisted states. */
+  v?: number;
 }
 
 export interface FormEntry {
@@ -52,6 +54,11 @@ export interface WorldSeed {
 const HIST_POINTS = 48;
 const HIST_STEP_MS = 3 * 3_600_000;
 
+/** One 3h bucket of background volume around the player's 24h figure (8 buckets a day). Demo only. */
+function seedVolume(r: { next(): number }, perDay: number): number {
+  return Math.round((perDay / 8) * (0.4 + r.next() * 1.2));
+}
+
 /** Reserves for a seeded bonded pool that traded from the open price to `price` with no fees (SPEC-QUESTION: SQ-27). */
 export function seededPoolAtPrice(price: number): PoolState {
   const k = PROTOCOL_CONFIG.bond.poolSeedShare * PROTOCOL_CONFIG.curve.bondThresholdUsdc * PROTOCOL_CONFIG.supply.poolSeedTokens;
@@ -88,6 +95,8 @@ export function buildSeed(now: number): WorldSeed {
     const form: FormEntry[] = md.map((score, i) => ({ label: `MD −${8 - i}`, round: null, score, rank: rk[i]! }));
 
     const start = now - (HIST_POINTS - 1) * HIST_STEP_MS;
+    // Volume bars draw from their own sequence, so the prototype's draws above stay in parity.
+    const vr = createRng(p.index * 31 + 7);
     if (bonded) {
       const last = walk[walk.length - 1]!;
       let pool = seededPoolAtPrice(last);
@@ -104,7 +113,7 @@ export function buildSeed(now: number): WorldSeed {
         pool,
         reserveLeft: reserveAfterBond(S_MAX),
         minted: 0,
-        priceHistory: walk.map((p_, i) => ({ t: start + i * HIST_STEP_MS, p: p_ })),
+        priceHistory: walk.map((p_, i) => ({ t: start + i * HIST_STEP_MS, p: p_, v: seedVolume(vr, baseVolume24h) })),
         baseVolume24h,
         dividendsPaid,
         form,
@@ -114,7 +123,7 @@ export function buildSeed(now: number): WorldSeed {
       const hist: PricePoint[] = [];
       for (let i = 0; i < HIST_POINTS; i++) {
         const frac = Math.pow((i + 1) / HIST_POINTS, 1.15);
-        hist.push({ t: start + i * HIST_STEP_MS, p: priceAt(sold * frac) });
+        hist.push({ t: start + i * HIST_STEP_MS, p: priceAt(sold * frac), v: seedVolume(vr, baseVolume24h * 0.15) });
       }
       state[p.id] = {
         id: p.id,

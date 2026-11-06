@@ -33,16 +33,18 @@ export default function nextConfig(phase: string): NextConfig {
   return {
     ...baseConfig,
     pageExtensions: lab ? ["dev.tsx", "tsx", "ts", "jsx", "js"] : ["tsx", "ts", "jsx", "js"],
-    ...(reviewC
-      ? {
-          async redirects() {
-            return [
+    async redirects() {
+      return [
+        // Markets folded into Trade (the terminal's list) and Launch (Step 1B.1).
+        { source: "/markets", destination: "/trade", permanent: false },
+        ...(reviewC
+          ? [
               { source: "/", destination: "/lab/c-collectible/landing", permanent: false },
               { source: "/lab", destination: "/lab/c-collectible/landing", permanent: false },
-            ];
-          },
-        }
-      : {}),
+            ]
+          : []),
+      ];
+    },
     // The build type-checks without the dev server's generated route types (they list the /lab routes)
     // and without the lab code itself; `bun run typecheck` still checks everything.
     typescript: { tsconfigPath: dev ? "tsconfig.json" : "tsconfig.build.json" },
