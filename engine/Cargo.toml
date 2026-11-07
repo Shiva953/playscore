@@ -7,3 +7,11 @@ overflow-checks = true
 lto = "fat"
 codegen-units = 1
 panic = "abort"
+
+# CI tests: release speed without the slow whole-program optimisation (fat LTO). Production
+# builds and the latency benchmark keep `release`.
+[profile.ci]
+inherits = "release"
+lto = false
+codegen-units = 16
+incremental = false

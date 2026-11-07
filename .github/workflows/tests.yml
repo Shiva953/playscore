@@ -3,10 +3,13 @@
 # and the summary at the top.
 name: tests
 
+# Docs-only changes skip CI. A manual run (Run workflow) always runs everything.
 on:
   push:
     branches: [main]
+    paths-ignore: ["**/*.md", "docs/**"]
   pull_request:
+    paths-ignore: ["**/*.md", "docs/**"]
   workflow_dispatch:
 
 concurrency:
@@ -41,12 +44,26 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: engine
+      # The `ci` profile is release without fat LTO: same optimised code, much faster to compile.
       - name: Engine tests (exact rounding, pool, order book, routing, fuzzing)
-        run: cargo test --release
+        run: cargo test --profile ci
       - name: 3,000 random trading runs, every rule checked after every action
         env:
           PROPTEST_CASES: "3000"
-        run: cargo test --release --test properties
+        run: cargo test --profile ci --test properties
+
+  latency:
+    name: Engine latency (production build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: engine
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine
       - name: Latency benchmark
         run: |
           cargo run --release -q --example latency | tee latency.txt
@@ -104,7 +121,7 @@ jobs:
         run: |
           solana --version
           anchor --version
-          anchor build --ignore-keys --arch v2
+          anchor build --ignore-keys --arch v2 --no-idl # the tests only need the .so
 
       - name: Contract tests (deposits, withdrawals, batches, forced requests, exit mode)
         working-directory: anchor
