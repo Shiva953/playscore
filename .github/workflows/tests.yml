@@ -82,13 +82,31 @@ jobs:
       SOLANA_VERSION: 3.1.7
       ANCHOR_VERSION: 1.2.2
       RUST_VERSION: 1.98.0 # pinned in anchor/rust-toolchain.toml
+      # No debug info in the test build: a much smaller build cache and faster linking.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
     steps:
       - uses: actions/checkout@v7
 
       - name: Rust toolchain
         run: rustup toolchain install "$RUST_VERSION" --profile minimal
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: anchor
+
+      # The compiled program is cached by a hash of everything it's built from. When none of that
+      # changed, it's reused, and the 1.2 GB Solana toolchain is never downloaded. Any change to
+      # the program's code, its dependencies or the tool versions rebuilds it from scratch.
+      - name: Reuse the compiled program if its code hasn't changed
+        id: so-cache
+        uses: actions/cache@v6
+        with:
+          path: anchor/target/deploy/score.so
+          key: score-so-${{ env.SOLANA_VERSION }}-${{ env.ANCHOR_VERSION }}-${{ env.RUST_VERSION }}-${{ hashFiles('anchor/programs/score/src/**', 'anchor/programs/score/Cargo.toml', 'anchor/Cargo.toml', 'anchor/Cargo.lock', 'anchor/Anchor.toml', 'anchor/rust-toolchain.toml') }}
+
       - name: Cache Solana CLI and build tools
+        if: steps.so-cache.outputs.cache-hit != 'true'
         id: solana-cache
         uses: actions/cache@v6
         with:
@@ -97,26 +115,26 @@ jobs:
             ~/.cache/solana
           key: solana-${{ env.SOLANA_VERSION }}-${{ runner.os }}-${{ runner.arch }}
       - name: Install Solana CLI
-        if: steps.solana-cache.outputs.cache-hit != 'true'
+        if: steps.so-cache.outputs.cache-hit != 'true' && steps.solana-cache.outputs.cache-hit != 'true'
         run: sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
-      - run: echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - if: steps.so-cache.outputs.cache-hit != 'true'
+        run: echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
       - name: Cache Anchor CLI
+        if: steps.so-cache.outputs.cache-hit != 'true'
         id: anchor-cache
         uses: actions/cache@v6
         with:
           path: ~/.anchor-cli
           key: anchor-cli-${{ env.ANCHOR_VERSION }}-${{ runner.os }}-${{ runner.arch }}
       - name: Install Anchor CLI (first run only, ~10 min)
-        if: steps.anchor-cache.outputs.cache-hit != 'true'
+        if: steps.so-cache.outputs.cache-hit != 'true' && steps.anchor-cache.outputs.cache-hit != 'true'
         run: cargo install --git https://github.com/solana-foundation/anchor --tag "v${ANCHOR_VERSION}" anchor-cli --locked --root ~/.anchor-cli
-      - run: echo "$HOME/.anchor-cli/bin" >> "$GITHUB_PATH"
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: anchor
+      - if: steps.so-cache.outputs.cache-hit != 'true'
+        run: echo "$HOME/.anchor-cli/bin" >> "$GITHUB_PATH"
 
       - name: Build the program
+        if: steps.so-cache.outputs.cache-hit != 'true'
         working-directory: anchor
         run: |
           solana --version
