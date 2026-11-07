@@ -47,10 +47,22 @@ jobs:
       # The `ci` profile is release without fat LTO: same optimised code, much faster to compile.
       - name: Engine tests (exact rounding, pool, order book, routing, fuzzing)
         run: cargo test --profile ci
-      - name: 3,000 random trading runs, every rule checked after every action
+      # A correctness test, not a speed test: ~600,000 actions, and after every one the whole state
+      # is re-checked. Its time is mostly those checks. Engine speed is the latency job.
+      - name: 6,000 random trading runs (~600,000 actions), every rule re-checked after each action
         env:
           PROPTEST_CASES: "3000"
-        run: cargo test --profile ci --test properties
+        run: |
+          start=$(date +%s)
+          cargo test --profile ci --test properties
+          secs=$(( $(date +%s) - start ))
+          {
+            echo "### Random trading (correctness)"
+            echo "- 6,000 random runs: 3,000 of mixed trading (buys, sells, limit orders, cancels, liquidity, withdrawals, dividend rounds) and 3,000 from launch through graduation into the pool"
+            echo "- About 600,000 actions in total, over 400,000 of them trades"
+            echo "- After every single action, every rule is re-checked against the whole state: custody equals what's owed to the cent, tokens are conserved, pools cover every LP, the order book is consistent"
+            echo "- Passed in ${secs} s. That time is mostly the re-checks, not trading: engine speed per order is in the latency section"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   latency:
     name: Engine latency (production build)
@@ -64,11 +76,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: engine
-      - name: Latency benchmark
+      - name: Latency benchmark (time per order)
         run: |
           cargo run --release -q --example latency | tee latency.txt
           {
-            echo "### Trading engine latency"
+            echo "### Trading engine speed (per order, production build)"
+            echo "20,000 orders, each routed through the pool and order book. p50 = a typical order, p99 = the slowest 1%. µs = millionths of a second. GitHub's shared machines are about 2x slower than a laptop."
             echo '```'
             cat latency.txt
             echo '```'

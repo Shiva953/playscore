@@ -35,7 +35,8 @@ For how it all works, read `docs/OVERVIEW.md` (plain words) or `docs/BACKEND.md`
 
 Every push runs all the tests on GitHub's machines. Open the repo's **Actions** tab, then the latest **tests** run:
 - **App maths:** the TypeScript maths and property tests.
-- **Trading engine:** every engine test, 3,000 random trading runs, and a latency benchmark.
+- **Trading engine:** every engine test, plus 6,000 random trading runs (~600,000 actions) with every rule re-checked after each action. That's a correctness test, so its time is mostly the checks.
+- **Engine latency:** the time per order on a production build (about 30 µs on a laptop).
 - **Solana contract:** builds the real contract and runs every test against it.
 
 Click a job to read its full log. The run's summary page shows the engine's latency and the contract's compute cost per instruction. To re-run it yourself: **Run workflow** on the same page.
@@ -80,7 +81,7 @@ Checks the curve, pool, fees, hold age, scoring and leaderboard rules against th
 
 ```bash
 bun run engine:test      # every engine test: exact rounding, pool, order book, routing, fuzzing (~2 s)
-bun run engine:fuzz      # 3,000 random trading runs, checking every rule after every action (~30 s)
+bun run engine:fuzz      # 6,000 random runs, ~600,000 actions, every rule re-checked after each (~30 s)
 bun run engine:latency   # how fast an order is processed and saved to disk
 ```
 
