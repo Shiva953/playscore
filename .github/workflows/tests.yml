@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.2.22
@@ -37,7 +37,7 @@ jobs:
       run:
         working-directory: engine
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: engine
@@ -66,14 +66,14 @@ jobs:
       ANCHOR_VERSION: 1.2.2
       RUST_VERSION: 1.98.0 # pinned in anchor/rust-toolchain.toml
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Rust toolchain
         run: rustup toolchain install "$RUST_VERSION" --profile minimal
 
       - name: Cache Solana CLI and build tools
         id: solana-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.local/share/solana
@@ -86,7 +86,7 @@ jobs:
 
       - name: Cache Anchor CLI
         id: anchor-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.anchor-cli
           key: anchor-cli-${{ env.ANCHOR_VERSION }}-${{ runner.os }}-${{ runner.arch }}
