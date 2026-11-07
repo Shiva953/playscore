@@ -1,0 +1,118 @@
+# Runs every test on GitHub's machines, so anyone with repo access can check the code without
+# installing anything: open the Actions tab, pick the latest "tests" run, and read each job's log
+# and the summary at the top.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: App maths (TypeScript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.22
+      - run: bun install --frozen-lockfile
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Tests (curve, pool, fees, hold age, scoring, boards, property tests)
+        run: bun run test
+
+  engine:
+    name: Trading engine (Rust)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine
+      - name: Engine tests (exact rounding, pool, order book, routing, fuzzing)
+        run: cargo test --release
+      - name: 3,000 random trading runs, every rule checked after every action
+        env:
+          PROPTEST_CASES: "3000"
+        run: cargo test --release --test properties
+      - name: Latency benchmark
+        run: |
+          cargo run --release -q --example latency | tee latency.txt
+          {
+            echo "### Trading engine latency"
+            echo '```'
+            cat latency.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  program:
+    name: Solana contract (Anchor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SOLANA_VERSION: 3.1.7
+      ANCHOR_VERSION: 1.2.2
+      RUST_VERSION: 1.98.0 # pinned in anchor/rust-toolchain.toml
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        run: rustup toolchain install "$RUST_VERSION" --profile minimal
+
+      - name: Cache Solana CLI and build tools
+        id: solana-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/solana
+            ~/.cache/solana
+          key: solana-${{ env.SOLANA_VERSION }}-${{ runner.os }}-${{ runner.arch }}
+      - name: Install Solana CLI
+        if: steps.solana-cache.outputs.cache-hit != 'true'
+        run: sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
+      - run: echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Anchor CLI
+        id: anchor-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.anchor-cli
+          key: anchor-cli-${{ env.ANCHOR_VERSION }}-${{ runner.os }}-${{ runner.arch }}
+      - name: Install Anchor CLI (first run only, ~10 min)
+        if: steps.anchor-cache.outputs.cache-hit != 'true'
+        run: cargo install --git https://github.com/solana-foundation/anchor --tag "v${ANCHOR_VERSION}" anchor-cli --locked --root ~/.anchor-cli
+      - run: echo "$HOME/.anchor-cli/bin" >> "$GITHUB_PATH"
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: anchor
+
+      - name: Build the program
+        working-directory: anchor
+        run: |
+          solana --version
+          anchor --version
+          anchor build --ignore-keys --arch v2
+
+      - name: Contract tests (deposits, withdrawals, batches, forced requests, exit mode)
+        working-directory: anchor
+        run: |
+          cargo test -- --nocapture 2>&1 | tee test.txt
+          {
+            echo "### Solana contract compute units"
+            echo '```'
+            grep '^CU:' test.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

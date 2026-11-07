@@ -29,7 +29,20 @@ bun run dev          # http://localhost:3000
 
 ## Test it yourself
 
-Everything below runs on your own machine. Steps 1–4 need no Solana wallet, no SOL and no keys. For how it all works, read `docs/OVERVIEW.md` (plain words) or `docs/BACKEND.md` (full detail).
+For how it all works, read `docs/OVERVIEW.md` (plain words) or `docs/BACKEND.md` (full detail).
+
+### No install: watch the tests run on GitHub
+
+Every push runs all the tests on GitHub's machines. Open the repo's **Actions** tab, then the latest **tests** run:
+- **App maths:** the TypeScript maths and property tests.
+- **Trading engine:** every engine test, 3,000 random trading runs, and a latency benchmark.
+- **Solana contract:** builds the real contract and runs every test against it.
+
+Click a job to read its full log. The run's summary page shows the engine's latency and the contract's compute cost per instruction. To re-run it yourself: **Run workflow** on the same page.
+
+### On your own machine
+
+Steps 1–4 need no Solana wallet, no SOL and no keys.
 
 ### What to install
 
