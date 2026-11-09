@@ -72,3 +72,7 @@ backend/target/
 # local agent tooling
 .claude/
 skills-lock.json
+
+# backend state copied in for a one-time Railway seed
+deploy/seed/*
+!deploy/seed/.keep

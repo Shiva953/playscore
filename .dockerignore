@@ -1,0 +1,13 @@
+node_modules
+**/target
+.next
+.next-*
+.git
+.devnet
+.claude
+.vercel
+docs
+anchor/.anchor
+test-ledger
+*.log
+.env*
