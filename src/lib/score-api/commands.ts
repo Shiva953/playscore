@@ -16,6 +16,7 @@ export type Cmd =
   | { AddLiquidity: { user: Key; nonce: bigint; player: number; lowerPx: bigint; upperPx: bigint; maxUsdc: bigint; maxTokens: bigint; minLiquidity: bigint } }
   | { RemoveLiquidity: { user: Key; nonce: bigint; position: bigint; liquidity: bigint; minUsdc: bigint; minTokens: bigint } }
   | { Claim: { user: Key; nonce: bigint; round: number; player: number; takeTokens: boolean } }
+  | { ClaimAll: { user: Key; nonce: bigint; takeTokens: boolean } }
   | { ListPlayer: { player: number } }
   | { PublishCalendar: { round: number; lockTs: bigint } }
   | { Snapshot: { round: number } }
@@ -36,6 +37,7 @@ const VARIANT: Record<string, number> = {
   PublishCalendar: 14,
   Snapshot: 15,
   RoundResult: 16,
+  ClaimAll: 25,
 };
 
 class W {
@@ -73,6 +75,7 @@ export function encodeCmd(cmd: Cmd): Uint8Array {
     case "AddLiquidity": w.key(v.user); w.u64(v.nonce); w.u32(v.player); w.u64(v.lowerPx); w.u64(v.upperPx); w.u64(v.maxUsdc); w.u64(v.maxTokens); w.u128(v.minLiquidity); break;
     case "RemoveLiquidity": w.key(v.user); w.u64(v.nonce); w.u64(v.position); w.u128(v.liquidity); w.u64(v.minUsdc); w.u64(v.minTokens); break;
     case "Claim": w.key(v.user); w.u64(v.nonce); w.u32(v.round); w.u32(v.player); w.bool(v.takeTokens); break;
+    case "ClaimAll": w.key(v.user); w.u64(v.nonce); w.bool(v.takeTokens); break;
     case "ListPlayer": w.u32(v.player); break;
     case "PublishCalendar": w.u32(v.round); w.i64(v.lockTs); break;
     case "Snapshot": w.u32(v.round); break;

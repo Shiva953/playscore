@@ -14,6 +14,7 @@ fn main() {
         ("AddLiquidity", Cmd::AddLiquidity { user: u, nonce: 8, player: 9, lower_px: 0, upper_px: 0, max_usdc: 10_000_000, max_tokens: 999, min_liquidity: (1u128 << 70) + 5 }),
         ("RemoveLiquidity", Cmd::RemoveLiquidity { user: u, nonce: 9, position: 4, liquidity: 1u128 << 65, min_usdc: 0, min_tokens: 0 }),
         ("Claim", Cmd::Claim { user: u, nonce: 10, round: 2, player: 9, take_tokens: false }),
+        ("ClaimAll", Cmd::ClaimAll { user: u, nonce: 11, take_tokens: true }),
         ("ListPlayer", Cmd::ListPlayer { player: 9 }),
         ("PublishCalendar", Cmd::PublishCalendar { round: 2, lock_ts: 1_800_000_000 }),
         ("Snapshot", Cmd::Snapshot { round: 2 }),

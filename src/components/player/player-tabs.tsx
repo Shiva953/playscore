@@ -10,13 +10,14 @@ import { formatPct, formatPrice, formatScore, formatTokens, formatUsd } from "@/
 import type { PlayerDetail } from "@/lib/protocol/types";
 import { usePortfolio, useSession } from "@/lib/protocol/react/hooks";
 import { LiquidityPanel } from "./liquidity-panel";
-import { ImpactLadder, RecentTrades } from "./market-depth";
+import { ImpactLadder } from "./market-depth";
+import { TradeFeed } from "@/components/live/trade-feed";
 
 export function PlayerTabs({ player }: { player: PlayerDetail }) {
   const trading = player.status === "trading";
   return (
     <Tabs defaultValue="overview" className="flex flex-col gap-3">
-      <div className="overflow-x-auto">
+      <div className="-mx-1 overflow-x-auto px-1 py-1 -my-1">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="form">Form</TabsTrigger>
@@ -152,7 +153,7 @@ function Overview({ player }: { player: PlayerDetail }) {
           <CardTitle>Recent trades</CardTitle>
         </CardHeader>
         <CardContent>
-          <RecentTrades playerId={player.id} limit={10} />
+          <TradeFeed playerId={player.id} limit={10} />
         </CardContent>
       </Card>
     </div>
@@ -171,7 +172,7 @@ function Form({ player }: { player: PlayerDetail }) {
       {rows.length === 0 ? (
         <EmptyState title="No matchdays yet">Scores appear here after each settled round.</EmptyState>
       ) : (
-        <div className="rounded-2xl bg-surface px-5 py-2">
+        <div className="rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-2">
           <Table>
             <TableHeader>
               <TableRow>
@@ -216,7 +217,7 @@ function Dividends({ player }: { player: PlayerDetail }) {
           {player.status === "trading" ? "When this player finishes top 5 on a board, holders at kickoff share the payout." : "Dividends start after the player bonds."}
         </EmptyState>
       ) : (
-        <div className="rounded-2xl bg-surface px-5 py-2">
+        <div className="rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-2">
           <Table>
             <TableHeader>
               <TableRow>
@@ -229,7 +230,7 @@ function Dividends({ player }: { player: PlayerDetail }) {
               {player.dividendHistory.map((d) => (
                 <TableRow key={d.round}>
                   <TableCell>
-                    Round {d.round} · <span className="text-soft">{d.label}</span>
+                    <span className="text-soft">{d.label}</span>
                   </TableCell>
                   <TableCell className="num text-right">{formatUsd(d.playerPayout)}</TableCell>
                   <TableCell className="num text-right">{formatUsd(d.per10kTokens)}</TableCell>
@@ -251,7 +252,7 @@ function Holders({ player }: { player: PlayerDetail }) {
   if (!player.holders.length) return <EmptyState title="No holders yet">Holders appear once the launch opens.</EmptyState>;
   return (
     <div className="flex flex-col gap-2">
-      <div className="rounded-2xl bg-surface px-5 py-2">
+      <div className="rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-2">
         <Table>
           <TableHeader>
             <TableRow>

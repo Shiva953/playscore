@@ -35,7 +35,7 @@ function phaseLine(r: StripRound) {
   if (r.phase === "live") {
     return (
       <>
-        <span className="text-up">Live</span> · last whistle in <Countdown to={r.phaseEndsAt} className="text-ink" />
+        <span className="text-brand">Live</span> · last whistle in <Countdown to={r.phaseEndsAt} className="text-ink" />
       </>
     );
   }
@@ -68,7 +68,7 @@ export function MatchdayStrip({ round: r, showPool = true, className }: { round:
         {/* elapsed: grey before kickoff, lime while live, grey while freezing */}
         <div className="absolute top-4 left-0 h-1 rounded-full bg-soft" style={{ width: `${Math.min(pos, liveStart) * 100}%` }} />
         {pos > liveStart ? (
-          <div className="absolute top-4 h-1 bg-up" style={{ left: `${liveStart * 100}%`, width: `${(Math.min(pos, liveEnd) - liveStart) * 100}%` }} />
+          <div className="absolute top-4 h-1 bg-brand" style={{ left: `${liveStart * 100}%`, width: `${(Math.min(pos, liveEnd) - liveStart) * 100}%` }} />
         ) : null}
         {pos > liveEnd ? (
           <div className="absolute top-4 h-1 rounded-r-full bg-soft" style={{ left: `${liveEnd * 100}%`, width: `${(pos - liveEnd) * 100}%` }} />

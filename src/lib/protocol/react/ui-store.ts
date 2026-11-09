@@ -28,6 +28,12 @@ const safeStorage: StateStorage = {
   },
 };
 
+export type FundsMode = "deposit" | "withdraw";
+export interface FundsIntent {
+  mode: FundsMode;
+  amount?: number;
+}
+
 interface UiState {
   signInOpen: boolean;
   openSignIn: () => void;
@@ -42,9 +48,24 @@ interface UiState {
   demoOpen: boolean;
   setDemoOpen: (v: boolean) => void;
 
-  /** Player hub layout preference (persisted). */
-  proView: boolean;
-  setProView: (v: boolean) => void;
+  /**
+   * The funds window. deposit = your deposit address (QR); withdraw = cash → another address.
+   * `amount` prefills a withdrawal.
+   */
+  funds: FundsIntent | null;
+  openFunds: (mode: FundsIntent["mode"] | null, opts?: Omit<FundsIntent, "mode">) => void;
+
+  /** Your wallet: address, QR, key backup. `welcome` = just created, shown once after sign-in. */
+  wallet: { welcome: boolean } | null;
+  showWallet: (v: { welcome: boolean } | null) => void;
+
+  /** The one-tap buy size on list rows (persisted per viewer). */
+  quickBuyUsd: number;
+  setQuickBuyUsd: (v: number) => void;
+
+  /** Move USDC that lands in the wallet into trading as soon as it arrives (persisted per viewer). */
+  autoAdd: boolean;
+  setAutoAdd: (v: boolean) => void;
 }
 
 export const useUi = create<UiState>()(
@@ -59,13 +80,19 @@ export const useUi = create<UiState>()(
       showFullTime: (fullTime) => set({ fullTime }),
       demoOpen: false,
       setDemoOpen: (demoOpen) => set({ demoOpen }),
-      proView: false,
-      setProView: (proView) => set({ proView }),
+      funds: null,
+      openFunds: (mode, opts) => set({ funds: mode ? { mode, ...opts } : null }),
+      wallet: null,
+      showWallet: (wallet) => set({ wallet }),
+      quickBuyUsd: 25,
+      setQuickBuyUsd: (quickBuyUsd) => set({ quickBuyUsd }),
+      autoAdd: true,
+      setAutoAdd: (autoAdd) => set({ autoAdd }),
     }),
     {
       name: "score:ui:v1",
       storage: createJSONStorage(() => safeStorage),
-      partialize: (s) => ({ proView: s.proView }),
+      partialize: (s) => ({ quickBuyUsd: s.quickBuyUsd, autoAdd: s.autoAdd }),
       skipHydration: true,
     }
   )

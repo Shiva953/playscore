@@ -4,29 +4,23 @@ import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Switch } from "@/components/ui/switch";
-import { Delta, LiveFigure, PositionBadge, Stat, StatStrip, StripCell, StatusBadge, Ticker } from "@/components/common/bits";
+import { PositionBadge, StatusBadge, Ticker } from "@/components/common/bits";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/common/states";
-import { formatDateTime, formatPct, formatPrice, formatScore, formatUsd, formatUsdCompact } from "@/lib/format";
+import { formatDateTime, formatPrice, formatScore, formatUsd } from "@/lib/format";
 import { isProtocolError } from "@/lib/protocol/errors";
-import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { neighbours, usePlayerOrder } from "@/components/trade/player-order";
 import type { PlayerDetail, PriceRange } from "@/lib/protocol/types";
 import { usePlayer } from "@/lib/protocol/react/hooks";
-import { useUi } from "@/lib/protocol/react/ui-store";
 import { BondingCurveChart, PriceChart, RangeControl } from "./charts";
 import { PlayerTabs } from "./player-tabs";
-import { ProView } from "./pro-view";
 import { TradePanel } from "./trade-panel";
+import { MarketFacts, MarketHeadline } from "./market-header";
+import { PlayerAvatar } from "@/components/common/kit";
 
 /** The hub: one page, two states (launching on the curve / trading in the pool). */
 export function PlayerHub({ id }: { id: string }) {
   const q = usePlayer(id);
-  const proView = useUi((s) => s.proView);
-  const setProView = useUi((s) => s.setProView);
 
   if (q.isPending) {
     return (
@@ -60,8 +54,8 @@ export function PlayerHub({ id }: { id: string }) {
   const p = q.data;
   return (
     <div className="flex flex-col gap-6">
-      <TitleRow player={p} proView={proView} onProView={setProView} />
-      {proView ? <ProView player={p} /> : <StandardLayout player={p} />}
+      <TitleRow player={p} />
+      <StandardLayout player={p} />
     </div>
   );
 }
@@ -79,64 +73,36 @@ function finding(p: PlayerDetail): string {
   return `Form ${formatScore(p.avgScore)} · ${p.leagueName}.`;
 }
 
-function TitleRow({ player: p, proView, onProView }: { player: PlayerDetail; proView: boolean; onProView: (v: boolean) => void }) {
-  const trading = p.status === "trading";
-  const moving = p.status !== "scheduled";
-  const dir = !moving || Math.abs(p.change24h) < 1e-9 ? "flat" : p.change24h > 0 ? "up" : "down";
+function TitleRow({ player: p }: { player: PlayerDetail }) {
   return (
     <div className="flex flex-col gap-5" data-testid="player-header">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Ticker ticker={p.ticker} chip />
-            <PositionBadge position={p.position} />
-            <StatusBadge status={p.status} progress={p.bondProgress} />
+        <div className="flex min-w-0 items-center gap-4">
+          <PlayerAvatar id={p.id} size={88} className="max-sm:hidden" />
+          <PlayerAvatar id={p.id} size={64} className="sm:hidden" />
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Ticker ticker={p.ticker} chip />
+              <PositionBadge position={p.position} />
+              <StatusBadge status={p.status} progress={p.bondProgress} />
+            </div>
+            <h1 className="text-[1.75rem] leading-[1.1] font-semibold text-ink sm:text-[2.125rem] sm:leading-[1.06]">{p.name}</h1>
+            <p className="text-sm text-soft">
+              {p.club}, {p.leagueName} · {p.country}, {p.age}
+            </p>
+            <p className="text-sm text-ink">{finding(p)}</p>
           </div>
-          <h1 className="text-2xl leading-8 font-semibold tracking-[-0.02em] text-ink">{p.name}</h1>
-          <p className="text-sm text-soft">
-            {p.club}, {p.leagueName} · {p.country}, {p.age}
-          </p>
         </div>
         <div className="flex items-center gap-3 pt-1">
           <PlayerStepper id={p.id} />
-          <Switch id="pro-view" checked={proView} onCheckedChange={onProView} />
-          <Label htmlFor="pro-view" className="text-sm text-soft">
-            Pro view
-          </Label>
+          {p.status === "trading" ? (
+            <Button asChild variant="secondary" size="sm">
+              <Link href={`/trade/${p.id}`}>Open in terminal</Link>
+            </Button>
+          ) : null}
         </div>
       </div>
 
-      {/* The price is the page's headline: the number face, large, in the colour of its 24h move. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span
-          className={cn("text-[44px] leading-none font-semibold tracking-[-0.03em]", dir === "up" ? "text-up" : dir === "down" ? "text-down" : "text-ink")}
-          aria-label="Price"
-        >
-          {p.status === "scheduled" ? "—" : <LiveFigure value={p.price} format={formatPrice} className="fig-prop" />}
-        </span>
-        {moving ? (
-          <span className={cn("inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[15px] font-semibold", dir === "down" ? "bg-down-tint" : "bg-up-tint")}>
-            <Delta value={p.change24h} />
-            <span className="text-[12px] font-medium text-soft">24h</span>
-          </span>
-        ) : null}
-        <p className="basis-full text-sm text-soft lg:basis-auto">{finding(p)}</p>
-      </div>
-
-      <StatStrip>
-        <StripCell>
-          <Stat size="lg" label="Market cap" value={p.status === "scheduled" ? "—" : formatUsdCompact(p.marketCap)} />
-        </StripCell>
-        <StripCell>
-          <Stat size="lg" label="24h volume" value={p.status === "scheduled" ? "—" : formatUsdCompact(p.volume24h)} />
-        </StripCell>
-        <StripCell>
-          <Stat size="lg" label={trading ? "Pool depth" : "Raised"} value={trading ? formatUsdCompact(p.liquidityUsd) : `${formatUsd(p.raised, { decimals: 0 })}`} />
-        </StripCell>
-        <StripCell>
-          <Stat size="lg" label="Last score" value={formatScore(p.lastScore)} hint={p.lastBoardRank ? `#${p.lastBoardRank} on a board${trading ? ", paid" : ""}` : "Not in a top five"} />
-        </StripCell>
-      </StatStrip>
     </div>
   );
 }
@@ -147,23 +113,16 @@ function StandardLayout({ player: p }: { player: PlayerDetail }) {
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
       <Card className="min-w-0 lg:col-start-1 lg:row-start-1">
         <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-base font-medium text-ink">{p.status === "trading" ? "Price" : p.status === "launching" ? "Launch curve" : "Upcoming launch"}</h2>
+          {/* The market lives on its chart: the scoreboard figures over the line, the facts under it. */}
+          <h2 className="sr-only">{p.status === "trading" ? "Price chart" : p.status === "launching" ? "Launch curve" : "Upcoming launch"}</h2>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <MarketHeadline p={p} />
             {p.status === "trading" ? <RangeControl value={range} onChange={setRange} /> : null}
           </div>
           {p.status === "trading" ? (
-            <PriceChart playerId={p.id} range={range} height={360} />
+            <PriceChart playerId={p.id} range={range} height={340} />
           ) : p.status === "launching" ? (
             <>
-              <div className="flex flex-col gap-2">
-                <div className="num flex items-baseline justify-between text-sm">
-                  <span className="text-soft">
-                    <span className="text-ink">{formatUsd(p.raised, { decimals: 0 })}</span> of $25,000 raised
-                  </span>
-                  <span className="text-ink">{formatPct(p.bondProgress, { decimals: 0 })}</span>
-                </div>
-                <Progress value={p.bondProgress * 100} tone="up" aria-label="Bonding progress" />
-              </div>
               <BondingCurveChart sold={p.curve.sold} myAvgEntry={p.holding && p.holding.tokens > 0 ? p.holding.costBasis / p.holding.tokens : null} />
               <p className="text-sm text-soft">
                 At $25,000 the curve closes: 70% seeds a permanent pool, 20% goes to the dividend vault, 10% to the treasury. The pool opens at{" "}
@@ -175,11 +134,13 @@ function StandardLayout({ player: p }: { player: PlayerDetail }) {
               The curve starts at {formatPrice(p.curve.launchPrice)}. Each account can buy up to 240,000 tokens during the launch.
             </EmptyState>
           )}
+          {p.status !== "scheduled" ? <MarketFacts p={p} /> : null}
         </CardContent>
       </Card>
       <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
         <div className="lg:sticky lg:top-16">
-          <TradePanel player={p} />
+          {/* Keyed per player: the ticket (amount, side, a receipt) never carries over to the next player. */}
+          <TradePanel key={p.id} player={p} />
         </div>
       </div>
       <div className="min-w-0 pt-2 lg:col-start-1 lg:row-start-2">
@@ -196,7 +157,7 @@ function PlayerStepper({ id }: { id: string }) {
   const { prev, next } = neighbours(order, id);
   if (!prev || !next) return null;
   return (
-    <div className="flex items-center rounded-full bg-surface" role="group" aria-label="Switch player">
+    <div className="flex items-center rounded-full bg-surface ring-1 ring-edge ring-inset" role="group" aria-label="Switch player">
       <Button asChild variant="ghost" size="icon-sm" aria-label="Previous player">
         <Link href={`/player/${prev}`} scroll={false}>
           <ChevronUp aria-hidden="true" />

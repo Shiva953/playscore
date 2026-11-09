@@ -24,6 +24,8 @@ export type PlayerId = string;
 export type UserId = string;
 export type Unsubscribe = () => void;
 export type PriceRange = "24H" | "3D" | "6D" | "ALL";
+/** Windows for your portfolio's value and P&L over time. */
+export type ValueRange = "1H" | "24H" | "7D" | "ALL";
 export type SignInMethod = "google" | "email" | "phantom" | "demo";
 export type ClockMode = "demo" | "calendar";
 
@@ -165,7 +167,13 @@ export type ActivityKind =
   | "claim-usdc"
   | "claim-tokens"
   | "faucet"
-  | "dividend";
+  | "dividend"
+  | "deposit"
+  | "withdraw"
+  | "withdraw-returned"
+  | "order"
+  | "order-fill"
+  | "order-cancel";
 
 export interface ActivityItem {
   id: string;
@@ -266,6 +274,13 @@ export interface PlayerDetail extends PlayerSummary {
   dividendHistory: { round: number; label: string; playerPayout: number; per10kTokens: number }[];
   holding: PositionView | null;
   lpPosition: LpPositionView | null;
+}
+
+/** Your portfolio at one moment: total value (cash + players + liquidity) and P&L on positions. */
+export interface ValuePoint {
+  t: number;
+  value: number;
+  pnl: number;
 }
 
 export interface PricePoint {
@@ -479,6 +494,8 @@ export interface TxResult {
   ok: true;
   id: string;
   summary: string;
+  /** Solana signature, for actions that land on chain (deposit, faucet, withdraw). Trades settle in the engine. */
+  signature?: string;
   bonded?: PlayerId;
   tokens?: number;
   usdc?: number;
@@ -518,7 +535,11 @@ export type ProtocolEvent =
   /** Round timing moved without a phase change (lab pin). */
   | { type: "clock" }
   | { type: "session" }
-  | { type: "reset" };
+  | { type: "reset" }
+  /** Devnet funding progress (faucet → wallet → deposit), so the UI can show "arriving". */
+  | { type: "funds"; stage: "pending" | "done" | "failed"; amount: number; message: string; signature?: string; title?: string }
+  /** The live connection to the backend dropped or came back. */
+  | { type: "connection"; online: boolean };
 
 export interface ProtocolClient {
   // reads
@@ -529,12 +550,14 @@ export interface ProtocolClient {
   getRound(): Promise<RoundState>;
   getRoundHistory(limit: number): Promise<RoundResult[]>;
   getPortfolio(user?: UserId): Promise<Portfolio | null>;
+  /** Your value and P&L over a window, oldest first, ending now. Empty when signed out. */
+  getValueHistory(range: ValueRange): Promise<ValuePoint[]>;
   getProtocolStats(): Promise<ProtocolStats>;
   getRecentTrades(id: PlayerId | null, limit: number): Promise<TradeRecord[]>;
-  // quotes (pure, no side effects)
-  quoteBuy(id: PlayerId, usdc: number): Quote;
-  quoteSell(id: PlayerId, input: { usdc: number } | { tokens: number }): Quote;
-  quoteLiquidity(id: PlayerId, usdc: number, mode: "pair" | "zap"): LiquidityQuote;
+  // quotes (no side effects). The mock answers at once; the backend client asks the engine.
+  quoteBuy(id: PlayerId, usdc: number): Quote | Promise<Quote>;
+  quoteSell(id: PlayerId, input: { usdc: number } | { tokens: number }): Quote | Promise<Quote>;
+  quoteLiquidity(id: PlayerId, usdc: number, mode: "pair" | "zap"): LiquidityQuote | Promise<LiquidityQuote>;
   // actions
   buy(id: PlayerId, usdc: number): Promise<TxResult>;
   sell(id: PlayerId, input: { usdc: number } | { tokens: number }): Promise<TxResult>;
@@ -547,6 +570,44 @@ export interface ProtocolClient {
   faucet(amount: number): Promise<TxResult>;
   // live
   subscribe(handler: (e: ProtocolEvent) => void): Unsubscribe;
+  /** Moving USDC between the wallet and the app (backend only; the mock has just the faucet). */
+  funds?: FundsClient;
+}
+
+/**
+ * The two balances a user has on the real backend, named as the UI names them:
+ * - **Wallet**: their own Solana wallet. Deposits arrive here; withdrawals leave from here.
+ * - **Trading**: their balance inside score (on-chain custody, tracked by the engine). Trades use this.
+ */
+export interface FundsView {
+  /** Test USDC in the wallet (confirmed). */
+  wallet: number;
+  /** Trading balance: spendable in score. */
+  app: number;
+  /** Trading balance on its way back to the wallet. */
+  locked: number;
+  /** Trading balance in resting buy orders. */
+  inOrders: number;
+}
+
+export interface FundsClient {
+  getFunds(): Promise<FundsView>;
+  /** Transfer wallet → trading. Resolves once the deposit is final and spendable. */
+  toTrading(amount: number): Promise<TxResult>;
+  /** Transfer trading → wallet. "request" = above the instant cap, paid after the next batch (seconds). */
+  toWallet(amount: number): Promise<TxResult & { mode: "instant" | "request" }>;
+  /** Withdraw: send USDC from the wallet to another Solana address. Resolves once final. */
+  send(to: string, amount: number): Promise<TxResult>;
+  /**
+   * Withdraw from cash (wallet + trading) to another address: the wallet's USDC first, the rest moved
+   * out of trading just before the send. Two Solana transactions when trading is involved.
+   */
+  withdraw(to: string, amount: number): Promise<TxResult>;
+  /**
+   * Move everything in the wallet (at least `min`) into trading. Returns null, without asking for a
+   * signature, when there's nothing to move or another money movement is in flight.
+   */
+  sweep(min?: number): Promise<TxResult | null>;
 }
 
 /** Sign-in (Privy-style embedded wallet or Phantom later). Mocked in Step 0. */

@@ -24,7 +24,7 @@ import { getSetComputeUnitLimitInstruction, getSetComputeUnitPriceInstruction } 
 import { findAssociatedTokenPda, getCreateAssociatedTokenIdempotentInstructionAsync, getMintToInstruction, TOKEN_PROGRAM_ADDRESS } from "@solana-program/token";
 import { fetchState, getDepositInstruction, getEnterExitModeInstruction, getForceRequestInstruction, getRequestWithdrawalInstruction, getSetPauseInstruction, getWithdrawInstruction } from "../src/generated/score";
 import { encodeCmd, orderMessage, type Cmd } from "../src/lib/score-api/commands";
-import { USDC, cliWallet, le64, pda, rpc, send, sleep } from "./lib/devnet";
+import { USDC, cliWallet, has, le64, loadSigner, pda, rpc, send, sleep } from "./lib/devnet";
 
 const N_USERS = Number(process.argv[2] ?? 45);
 const NODE = "http://127.0.0.1:8787";
@@ -263,6 +263,8 @@ async function withdraw(u: KeyPairSigner, amount: bigint, label: string) {
 }
 
 const me = await cliWallet();
+// Test USDC mint authority: the faucet key once `bun run devnet:faucet-setup` has run, else the CLI wallet.
+const minter = has(".devnet/faucet.json") ? await loadSigner(".devnet/faucet.json") : me;
 const ALL = await users(N_USERS + 3);
 const [U, late, whale] = [ALL.slice(0, N_USERS), ALL.slice(N_USERS, N_USERS + 2), ALL[N_USERS + 2]];
 
@@ -294,7 +296,7 @@ for (let i = 0; i < ALL.length; i += 4) {
     const have = await walletBalance(u.address);
     if (have >= need) continue;
     ixs.push(await getCreateAssociatedTokenIdempotentInstructionAsync({ payer: me, owner: u.address, mint: INFO.usdcMint }));
-    ixs.push(getMintToInstruction({ mint: INFO.usdcMint, token: await ata(u.address), mintAuthority: me, amount: need - have }));
+    ixs.push(getMintToInstruction({ mint: INFO.usdcMint, token: await ata(u.address), mintAuthority: minter, amount: need - have }));
   }
   if (ixs.length) await send(me, ixs, 200_000);
 }

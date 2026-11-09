@@ -5,7 +5,7 @@ import type { BookLevel } from "@score/core";
 import type { LimitOrder, PlayerDetail } from "@/lib/protocol/types";
 import { cn } from "@/lib/utils";
 
-const LEVELS = 8;
+const LEVELS = 6;
 
 /**
  * The pool's liquidity as an order book: asks above, bids below, cumulative depth as bars behind each
@@ -15,7 +15,7 @@ const LEVELS = 8;
 export function OrderBook({ player, orders }: { player: PlayerDetail; orders: LimitOrder[] }) {
   if (!player.book) {
     return (
-      <p className="px-1 py-3 text-[13px] leading-[1.5] text-soft">
+      <p className="px-1 py-3 text-[0.8125rem] leading-[1.5] text-soft">
         The book opens when {player.name.split(" ").slice(-1)[0]} bonds. Until then, buys fill on the launch curve.
       </p>
     );
@@ -40,7 +40,7 @@ export function OrderBook({ player, orders }: { player: PlayerDetail; orders: Li
   const bidMarks = markAt(b, "buy");
 
   return (
-    <div className="flex flex-col text-[12px]" aria-label={`Order book for $${player.ticker}`} role="table">
+    <div className="flex flex-col text-[0.75rem]" aria-label={`Order book for $${player.ticker}`} role="table">
       <div role="row" className="grid grid-cols-[1fr_1fr_1fr] px-2 pb-1.5 text-faint">
         <span role="columnheader">Price</span>
         <span role="columnheader" className="text-right">
@@ -54,7 +54,7 @@ export function OrderBook({ player, orders }: { player: PlayerDetail; orders: Li
         <Row key={`a${ri}`} level={l} max={max} side="ask" mine={askMarks.has(a.length - 1 - ri)} />
       ))}
       <div role="row" className="my-1 flex items-baseline justify-between rounded-lg bg-raised px-2 py-1.5">
-        <span role="cell" className="fig text-[14px] font-semibold text-ink">
+        <span role="cell" className="fig text-[0.875rem] font-semibold text-ink">
           {formatPrice(mid)}
         </span>
         <span role="cell" className="text-faint">
@@ -64,7 +64,7 @@ export function OrderBook({ player, orders }: { player: PlayerDetail; orders: Li
       {b.map((l, i) => (
         <Row key={`b${i}`} level={l} max={max} side="bid" mine={bidMarks.has(i)} />
       ))}
-      <p className="px-2 pt-2 text-[11px] leading-[1.45] text-faint">Pool liquidity as levels (x·y=k), before fees. Your limit orders are marked with a dot.</p>
+      <p className="px-2 pt-2 text-[0.75rem] leading-[1.45] text-faint">Pool liquidity as levels (x·y=k), before fees. Your limit orders are marked with a dot.</p>
     </div>
   );
 }

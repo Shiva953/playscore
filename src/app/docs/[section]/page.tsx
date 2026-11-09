@@ -20,12 +20,13 @@ export default async function Page({ params }: { params: Promise<{ section: stri
   const s = DOC_SECTIONS.find((x) => x.slug === section);
   if (!s) notFound();
   return (
-    <div className="grid gap-8 lg:grid-cols-[180px_minmax(0,1fr)]">
-      <aside>
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[180px_minmax(0,1fr)]">
+      {/* min-w-0: the section tabs scroll sideways on a phone instead of widening the page. */}
+      <aside className="min-w-0">
         <DocsNav active={s.slug as DocSlug} />
       </aside>
-      <article className="flex min-w-0 flex-col gap-4">
-        <h1 className="text-2xl leading-8 font-semibold tracking-[-0.02em] text-ink">{s.title}</h1>
+      <article className="flex min-w-0 flex-col gap-4 [&_li]:max-w-[68ch] [&_p]:max-w-[68ch]">
+        <h1 className="text-[2rem] leading-[1.12] font-semibold text-ink">{s.title}</h1>
         <DocSection slug={s.slug as DocSlug} />
       </article>
     </div>

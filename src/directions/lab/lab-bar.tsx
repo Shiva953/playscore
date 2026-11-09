@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { useProtocolClient } from "@/lib/protocol/react/provider";
+import { useMockClient } from "@/lib/protocol/react/provider";
+import type { MockProtocolClient } from "@/lib/protocol/mock/client";
 import { useRound } from "@/lib/protocol/react/hooks";
 import { MOMENTS, pinMoment, releaseMoment, type MomentId } from "./moments";
 
@@ -29,9 +30,12 @@ export function screenHref(direction: string, screen: string, player: string): s
  * world at one moment. Hidden in screenshots (`data-lab-bar`).
  */
 export function LabBar() {
+  // The lab pins the mock's world; on the real backend there's nothing to pin.
+  const client = useMockClient();
+  if (!client) return null;
   return (
     <Suspense fallback={null}>
-      <Bar />
+      <Bar client={client} />
     </Suspense>
   );
 }
@@ -39,16 +43,15 @@ export function LabBar() {
 /** In the C review deploy the bar is a demo control: C's screens and the moments only. */
 const REVIEW_C = process.env.NEXT_PUBLIC_SCORE_DIRECTION === "c";
 
-function Bar() {
+function Bar({ client }: { client: MockProtocolClient }) {
   const path = usePathname();
   const params = useSearchParams();
-  const client = useProtocolClient();
   const phase = useRound((r) => r.phase);
   const [open, setOpen] = useState(true);
   const [pinned, setPinned] = useState(false);
   const [busy, setBusy] = useState<MomentId | null>(null);
   const [, dir, screen] = (path ?? "").split("/").filter(Boolean);
-  const player = params.get("player") ?? "kane";
+  const player = params.get("player") ?? "bellingham";
 
   useEffect(() => {
     const sync = () => setPinned(client.getDemoSettings().pinned);

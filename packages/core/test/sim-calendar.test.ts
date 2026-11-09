@@ -18,28 +18,30 @@ const NOW = Date.UTC(2026, 10, 2, 12, 0);
 describe("seed parity with the prototype", () => {
   const seed = buildSeed(NOW);
 
-  it("30 players: 6 bonded, 4 launching, 20 scheduled; vault $60,000", () => {
+  it("the client's list: 6 bonded, 4 launching, the rest scheduled; vault $60,000", () => {
     const states = Object.values(seed.state);
-    expect(PLAYERS).toHaveLength(30);
+    expect(PLAYERS.length).toBeGreaterThan(200);
+    expect(new Set(PLAYERS.map((p) => p.ticker)).size).toBe(PLAYERS.length);
     expect(states.filter((s) => s.status === "trading")).toHaveLength(6);
     expect(states.filter((s) => s.status === "launching")).toHaveLength(4);
-    expect(states.filter((s) => s.status === "scheduled")).toHaveLength(20);
+    expect(states.filter((s) => s.status === "scheduled")).toHaveLength(PLAYERS.length - 10);
     expect(seed.vault).toBe(60_000);
   });
 
   it("launching curves match the prototype's seeded raises", () => {
-    expect(seed.state.bellingham!.curve.raised).toBe(14_842);
-    expect(seed.state.haaland!.curve.raised).toBe(15_693);
-    expect(seed.state.olise!.curve.raised).toBe(16_545);
-    expect(seed.state.cubarsi!.curve.raised).toBe(17_397);
+    // Launch order is the client's ICO#; the seeded raises keep the prototype's sequence.
+    expect(seed.state.pacho!.curve.raised).toBe(14_842);
+    expect(seed.state.olise!.curve.raised).toBe(15_693);
+    expect(seed.state.vuskovic!.curve.raised).toBe(16_545);
+    expect(seed.state.pedri!.curve.raised).toBe(17_397);
   });
 
   it("bonded pools sit at the prototype's last price", () => {
-    const kane = seed.state.kane!;
-    const last = kane.priceHistory[kane.priceHistory.length - 1]!.p;
+    const jude = seed.state.bellingham!;
+    const last = jude.priceHistory[jude.priceHistory.length - 1]!.p;
     expect(last).toBeCloseTo(0.0102, 4);
-    expect(spotPrice(kane.pool!)).toBeCloseTo(last, 9);
-    expect(kane.pool!.totalShares).toBeGreaterThan(kane.pool!.protocolShares); // third-party LP
+    expect(spotPrice(jude.pool!)).toBeCloseTo(last, 9);
+    expect(jude.pool!.totalShares).toBeGreaterThan(jude.pool!.protocolShares); // third-party LP
   });
 
   it("scheduled players launch on weekday 14:00/20:00 UTC slots", () => {

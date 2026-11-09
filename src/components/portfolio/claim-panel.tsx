@@ -3,6 +3,7 @@
 import { PLAYERS_BY_ID } from "@score/core";
 import { Button } from "@/components/ui/button";
 import { Ticker } from "@/components/common/bits";
+import { PlayerAvatar } from "@/components/common/kit";
 import { EmptyState, ErrorState, LoadingRows, SignedOutState } from "@/components/common/states";
 import { formatTokens, formatUsd } from "@/lib/format";
 import { useClaim, usePortfolio, useSession } from "@/lib/protocol/react/hooks";
@@ -30,7 +31,7 @@ export function ClaimPanel({ onClaimed, compact = false }: { onClaimed?: () => v
   return (
     <div className="flex flex-col gap-4" data-testid="claim-panel">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="num text-2xl font-medium tracking-[-0.02em] text-up">{formatUsd(c.totalUsd)}</span>
+        <span className="num text-2xl font-medium tracking-[-0.02em] text-brand">{formatUsd(c.totalUsd)}</span>
         <span className="text-sm text-soft">
           ready to claim
           {(() => {
@@ -42,14 +43,20 @@ export function ClaimPanel({ onClaimed, compact = false }: { onClaimed?: () => v
       {!compact ? (
         <ul className="flex flex-col divide-y divide-rule">
           {tokens.lines.map((l) => (
-            <li key={l.playerId} className="num flex items-baseline justify-between gap-3 py-2.5 text-sm">
-              <span className="flex min-w-0 items-baseline gap-2">
-                <Ticker ticker={PLAYERS_BY_ID[l.playerId]?.ticker ?? l.playerId} className="text-[13px] text-ink" />
-                <span className="truncate text-soft">{PLAYERS_BY_ID[l.playerId]?.name}</span>
+            <li key={l.playerId} className="num flex items-center justify-between gap-3 py-2.5 text-sm">
+              {/* The kit is centred on the row; ticker and name share one text baseline beside it. */}
+              <span className="flex min-w-0 items-center gap-2.5">
+                <PlayerAvatar id={l.playerId} size={24} mark={false} className="rounded-[7px]" />
+                <span className="flex min-w-0 items-baseline gap-2">
+                  <Ticker ticker={PLAYERS_BY_ID[l.playerId]?.ticker ?? l.playerId} className="shrink-0 text-[0.8125rem] text-ink" />
+                  <span className="truncate text-soft">{PLAYERS_BY_ID[l.playerId]?.name}</span>
+                </span>
               </span>
-              <span className="text-right text-soft">
-                <span className="text-ink">{formatUsd(l.usd)}</span> or {formatTokens(l.tokens)} tokens
-                {l.usdc > 0.005 ? ` + ${formatUsd(l.usdc)}` : ""}
+              <span className="shrink-0 text-right text-soft">
+                <span className="block whitespace-nowrap">
+                  <span className="text-ink">{formatUsd(l.usd)}</span> or {formatTokens(l.tokens)} tokens
+                </span>
+                {l.usdc > 0.005 ? <span className="block whitespace-nowrap">+ {formatUsd(l.usdc)}</span> : null}
               </span>
             </li>
           ))}
@@ -57,10 +64,10 @@ export function ClaimPanel({ onClaimed, compact = false }: { onClaimed?: () => v
       ) : null}
       <div className="grid gap-2 sm:grid-cols-2">
         <Button size="lg" onClick={() => claim.mutate("usdc", { onSuccess: onClaimed })} disabled={claim.isPending} data-testid="claim-usdc">
-          Take {formatUsd(c.usdc.usdcOut)} USDC
+          {claim.isPending ? "Claiming…" : `Take ${formatUsd(c.usdc.usdcOut)} USDC`}
         </Button>
         <Button size="lg" variant="secondary" onClick={() => claim.mutate("tokens", { onSuccess: onClaimed })} disabled={claim.isPending} data-testid="claim-tokens">
-          Take {formatTokens(tokenCount)} tokens · +10%
+          {claim.isPending ? "Claiming…" : `Take ${formatTokens(tokenCount)} tokens · +10%`}
         </Button>
       </div>
       <p className="text-xs text-faint">

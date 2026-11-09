@@ -200,6 +200,10 @@ impl Engine {
     pub fn holdings(&self) -> impl Iterator<Item = (&(UserId, PlayerId), &Holding)> {
         self.holdings.iter()
     }
+    /// One user's holdings, by player.
+    pub fn holdings_of(&self, user: &UserId) -> impl Iterator<Item = (PlayerId, &Holding)> {
+        self.holdings.range((*user, 0)..=(*user, PlayerId::MAX)).map(|((_, p), h)| (*p, h))
+    }
     pub fn markets(&self) -> impl Iterator<Item = (&PlayerId, &Market)> {
         self.markets.iter()
     }
@@ -214,6 +218,69 @@ impl Engine {
     }
     pub fn claim_amount(&self, user: &UserId, round: u32, p: PlayerId) -> u64 {
         self.claims.get(&(*user, round, p)).copied().unwrap_or(0)
+    }
+    /// The price a round's token elections use for `p` (set when the round's result is applied).
+    pub fn election_px(&self, round: u32, p: PlayerId) -> Option<u64> {
+        self.election_px.get(&(round, p)).copied()
+    }
+    /// The published lock (kickoff) time of a round.
+    pub fn calendar(&self, round: u32) -> Option<i64> {
+        self.calendar.get(&round).copied()
+    }
+
+    /// A throwaway copy of one market for quotes: the market, its pool, book and resting orders,
+    /// its liquidity positions, and the accounts and holdings of `user` and every maker on the
+    /// book. `apply` on the copy runs the real code path, so a quote is exactly what the command
+    /// would do now. `user`'s free USDC and tokens are topped up to at least `min_usdc` /
+    /// `min_tokens`, so a quote doesn't depend on (or reveal) the balance; hold age is kept.
+    /// Never part of consensus: the result is discarded.
+    pub fn sandbox(&self, player: PlayerId, user: &UserId, min_usdc: u64, min_tokens: u64) -> Engine {
+        let mut e = Engine {
+            params: self.params.clone(),
+            paused: self.paused,
+            custody: self.custody,
+            vault: self.vault,
+            treasury: self.treasury,
+            claimable: self.claimable,
+            applied: self.applied,
+            next_order: self.next_order,
+            next_lp: self.next_lp,
+            ..Default::default()
+        };
+        let mut users: Vec<UserId> = vec![*user];
+        if let Some(m) = self.markets.get(&player) {
+            e.markets.insert(player, m.clone());
+        }
+        if let Some(p) = self.pools.get(&player) {
+            e.pools.insert(player, p.clone());
+        }
+        if let Some(b) = self.books.get(&player) {
+            for id in b.bids.values().chain(b.asks.values()).flatten() {
+                if let Some(o) = self.orders.get(id) {
+                    users.push(o.user);
+                    e.orders.insert(*id, o.clone());
+                }
+            }
+            e.books.insert(player, b.clone());
+        }
+        for (id, lp) in self.lps.iter().filter(|(_, l)| l.player == player) {
+            e.lps.insert(*id, lp.clone());
+        }
+        for u in users {
+            if let Some(a) = self.accounts.get(&u) {
+                e.accounts.insert(u, a.clone());
+            }
+            if let Some(h) = self.holdings.get(&(u, player)) {
+                e.holdings.insert((u, player), h.clone());
+            }
+        }
+        let a = e.accounts.entry(*user).or_default();
+        a.free = a.free.max(min_usdc);
+        if min_tokens > 0 {
+            let h = e.holdings.entry((*user, player)).or_default();
+            h.amount = h.amount.max(min_tokens);
+        }
+        e
     }
 
     pub(crate) fn begin(&self) -> Tx {
@@ -346,6 +413,7 @@ impl Engine {
                 self.remove_liquidity(user, *nonce, *position, *liquidity, *min_usdc, *min_tokens)
             }
             Cmd::Claim { user, nonce, round, player, take_tokens } => self.claim(ts, user, *nonce, *round, *player, *take_tokens),
+            Cmd::ClaimAll { user, nonce, take_tokens } => self.claim_all(ts, user, *nonce, *take_tokens),
             Cmd::ReleaseLock { id, payouts_through } => self.release_lock(ts, *id, *payouts_through),
             Cmd::ListPlayer { player } => self.list_player(*player),
             Cmd::PublishCalendar { round, lock_ts } => self.publish_calendar(ts, *round, *lock_ts),

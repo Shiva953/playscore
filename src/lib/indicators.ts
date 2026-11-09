@@ -1,4 +1,4 @@
-/** Chart indicators for the Pro view. Pure functions over a price series; `null` where undefined. */
+/** Chart indicators for the trade terminal. Pure functions over a price series; `null` where undefined. */
 
 export function sma(values: readonly number[], n: number): (number | null)[] {
   let sum = 0;

@@ -5,33 +5,56 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * score: true-black-flat. Dark only.
- * Elevation by lightness alone: ground #000 → surface #111 → raised #2a2a2a.
- * The accent (lime) is data-only: gains, earnings, live state, bonding fill, the mark.
- * It never touches buttons, tabs or nav.
+ * score: stadium at night. Dark only (8 Nov palette, built in OKLCH with better-colors and measured).
+ * Neutrals: one true-neutral ramp (chroma 0, 8 Nov: the blue tint read as corporate). Elevation by lightness:
+ * ground → surface → tile → raised.
+ * Colour has one meaning each (better-colors; colorize: 90% neutral):
+ *   green / red  price moves, gains and losses, Buy and Sell, bids and asks
+ *   trophy gold  the one accent: the mark, earnings and payouts, bonding progress, live, "you hold"
+ * Every text pair below was measured for WCAG AA on the surface it renders on (see DESIGN.md §3).
  */
 :root,
 .dark {
   color-scheme: dark;
 
-  /* score roles */
-  --ground: #000000;
-  --surface: #111111;
-  --raised: #2a2a2a;
-  --overlay: #161616;
-  --rule: #1c1c1c;
-  --control: #3a3a3a;
-  --ink: #ffffff;
-  --soft: #b4b4b4;
-  --faint: #949494;
-  --up: #c6ff3d;
-  --down: #ff6b81;
-  --up-tint: #1f2a0b;
-  --down-tint: #2c1419;
-  --grid: #262626;
+  /* neutrals: true grey, oklch(L 0 0) */
+  --ground: #0a0a0a; /* oklch(0.145 0 0) page, top bar, bottom bar */
+  --surface: #0a0a0a; /* cards sit on the ground (8 Nov): no fill, a hairline edge instead */
+  --edge: rgba(243, 243, 243, 0.08); /* ink at 8%: card and control hairlines (unslop 6–10%) */
+  --surface-hover: #101010; /* a card under the pointer: one small step up */
+  --raised: #2a2a2a; /* oklch(0.285 0 0) nested panels, active segment, chips */
+  --raised-hover: #313131;
+  --overlay: #191919; /* oklch(0.215 0 0) menus, dialogs, toasts */
+  --rule: #1e1e1e; /* oklch(0.235 0 0) table rules only */
+  --control: #3e3e3e; /* oklch(0.365 0 0) input and outline edges */
+  --ink: #f3f3f3; /* oklch(0.965 0 0) primary text, 17.9:1 on ground */
+  --ink-hover: #e1e1e1;
+  --soft: #b7b7b7; /* oklch(0.78 0 0) secondary text, 9.9:1 on ground */
+  --faint: #929292; /* oklch(0.66 0 0) meta and ticks, 4.6:1 on raised */
+  --grid: #232323; /* oklch(0.255 0 0) chart grid */
 
-  /* position identity (badges only, never in charts) */
-  --pos-fwd: oklch(0.83 0.09 75);
+  /* data: green and red, price moves only */
+  --up: #46ec86; /* oklch(0.835 0.195 152) 12.8:1 on ground */
+  --up-hover: #74f79e;
+  --down: #ff6362; /* oklch(0.70 0.19 24) 6.8:1 on ground */
+  --down-hover: #ff8781;
+  --up-tint: #073b1c; /* oklch(0.31 0.075 152) up text 8.3:1 on it */
+  --up-tint-hover: #0a4723;
+  --down-tint: #4d1213; /* oklch(0.285 0.088 24) down text 5.1:1 on it */
+
+  /* the one accent: trophy gold */
+  --brand: #ffcc5f; /* oklch(0.87 0.138 84) 13.3:1 on ground */
+  --brand-hover: #ffdd98;
+  --brand-tint: #412e01; /* oklch(0.315 0.064 84) gold text 8.7:1 on it */
+  --on-brand: #0a0a0a; /* text on a gold fill, 12:1 */
+
+  /* identity: the tile behind a player's kit, and the cut-out ring around a club roundel */
+  --kit-tile: #1e1e1e; /* oklch(0.235 0 0) */
+
+  --kit-ring: var(--surface);
+
+  /* position identity (badges only, never in charts). Each hue sits at least 15° from up, down and gold. */
+  --pos-fwd: oklch(0.82 0.09 55);
   --pos-mid: oklch(0.82 0.07 190);
   --pos-def: oklch(0.78 0.08 245);
   --pos-gk: oklch(0.8 0.07 350);
@@ -50,7 +73,7 @@
   --popover: var(--overlay);
   --popover-foreground: var(--ink);
   --primary: var(--ink);
-  --primary-foreground: #000000;
+  --primary-foreground: var(--ground);
   --secondary: var(--raised);
   --secondary-foreground: var(--ink);
   --muted: var(--raised);
@@ -79,9 +102,12 @@
   --sidebar-border: var(--rule);
   --sidebar-ring: var(--ink);
 
-  --font-sans: var(--font-instrument), system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  --font-figures: var(--font-num), var(--font-instrument), system-ui, sans-serif;
+  --font-sans: var(--font-text), system-ui, sans-serif;
+  /* Literal code only (taste: no monospace elsewhere). Addresses use the text face with tabular figures. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-figures: var(--font-text), system-ui, sans-serif;
+  /* Display width: headlines, the big figures, tickers, Buy/Sell, shirt numbers. */
+  --font-display-face: var(--font-display), var(--font-text), system-ui, sans-serif;
 }
 
 @theme inline {
@@ -97,7 +123,19 @@
   --color-up: var(--up);
   --color-down: var(--down);
   --color-up-tint: var(--up-tint);
+  --color-up-hover: var(--up-hover);
+  --color-up-tint-hover: var(--up-tint-hover);
+  --color-down-hover: var(--down-hover);
+  --color-surface-hover: var(--surface-hover);
+  --color-edge: var(--edge);
+  --color-raised-hover: var(--raised-hover);
+  --color-ink-hover: var(--ink-hover);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-tint: var(--brand-tint);
+  --color-on-brand: var(--on-brand);
   --color-down-tint: var(--down-tint);
+  --color-kit-tile: var(--kit-tile);
   --color-pos-fwd: var(--pos-fwd);
   --color-pos-mid: var(--pos-mid);
   --color-pos-def: var(--pos-def);
@@ -166,9 +204,17 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
-    font-size: 14px;
-    line-height: 20px;
+    /* 15px: Barlow's x-height is smaller than the old face's, so 14px read small (taste inspect: tiny-text). */
+    font-size: 0.9375rem;
+    line-height: 1.5;
     -webkit-tap-highlight-color: transparent;
+  }
+  /* Page and section titles take the display width: the matchday-programme voice. */
+  h1,
+  h2 {
+    font-family: var(--font-display-face);
+    font-weight: 600;
+    letter-spacing: 0;
   }
   h1,
   h2,
@@ -188,8 +234,8 @@
     outline-offset: 2px;
   }
   ::selection {
-    background: var(--ink);
-    color: #000;
+    background: var(--brand);
+    color: var(--on-brand);
   }
   /* 44px touch targets on coarse pointers. */
   @media (pointer: coarse) {
@@ -227,12 +273,20 @@
   }
   /* Large standalone figures (headline, stat tiles) use proportional digits (dataviz: "121" looks loose
      in tabular). Tabular stays on columns and aligned rows. */
+  /* Big figures in the display width. Condensed digits need no negative tracking (it beats any
+     tracking utility on the element, which was set for the old wide face). */
   .fig.fig-prop {
-    font-variant-numeric: proportional-nums;
-  }
-  .mono-id {
-    font-family: var(--font-mono);
+    font-family: var(--font-display-face);
     font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.005em;
+  }
+
+  /* Wallet addresses and transaction IDs: the text face, tabular, a touch of tracking so 0/O and l/1 sit apart. */
+  .mono-id {
+    font-family: var(--font-text), system-ui, sans-serif;
+    font-variant-numeric: tabular-nums slashed-zero;
+    letter-spacing: 0.02em;
   }
 }
 
@@ -304,5 +358,123 @@
   from {
     opacity: 0;
     transform: translateY(0.18em);
+  }
+}
+
+/*
+ * Live layer. Every move here has a cause: a trade landed, a price changed, your order filled.
+ * Transform and opacity only; under reduced motion the travel goes and the colour stays.
+ */
+
+/* A row or chip tints toward its side for a beat when a trade lands on it (colour only). */
+@keyframes tint-up {
+  from {
+    background-color: var(--up-tint);
+  }
+}
+@keyframes tint-down {
+  from {
+    background-color: var(--down-tint);
+  }
+}
+.tint-up {
+  animation: tint-up 1200ms var(--ease-out);
+}
+.tint-down {
+  animation: tint-down 1200ms var(--ease-out);
+}
+
+/* The live tape: the newest trade slides in from the left and the rest make room. */
+@media (prefers-reduced-motion: no-preference) {
+  .tape-enter {
+    animation: tape-enter 420ms var(--ease-out) both;
+  }
+  /* A receipt lands: rises 12px with a fade (the same move as the bonded and full-time dialogs). */
+  .receipt-enter {
+    animation: receipt-enter 300ms var(--ease-out) both;
+  }
+  .receipt-enter > * {
+    animation: receipt-enter 300ms var(--ease-out) both;
+  }
+  .receipt-enter > :nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .receipt-enter > :nth-child(3) {
+    animation-delay: 120ms;
+  }
+  .receipt-enter > :nth-child(4) {
+    animation-delay: 180ms;
+  }
+  /* A shirt lifts a little under the pointer. */
+  @media (hover: hover) {
+    .kit-shirt {
+      transition: transform 200ms var(--ease-out);
+    }
+    a:hover .kit-shirt,
+    button:hover .kit-shirt {
+      transform: translateY(-1.5px);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tape-enter,
+  .receipt-enter {
+    animation: feed-fade 300ms var(--ease-out) both;
+  }
+}
+@keyframes tape-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+@keyframes receipt-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+/* The live dot: the one thing that may pulse, because it is live. */
+@media (prefers-reduced-motion: no-preference) {
+  .live-dot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: currentColor;
+    animation: live-ping 1600ms var(--ease-out) infinite;
+  }
+}
+@keyframes live-ping {
+  from {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+/* An arrival that both moves and tints runs both animations (one `animation` would cancel the other). */
+@media (prefers-reduced-motion: no-preference) {
+  .feed-enter.tint-up {
+    animation: feed-enter 300ms var(--ease-out) both, tint-up 1200ms var(--ease-out);
+  }
+  .feed-enter.tint-down {
+    animation: feed-enter 300ms var(--ease-out) both, tint-down 1200ms var(--ease-out);
+  }
+  .tape-enter > .tint-up,
+  .tape-enter > .tint-down {
+    animation-delay: 120ms;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed-enter.tint-up {
+    animation: feed-fade 300ms var(--ease-out) both, tint-up 1200ms var(--ease-out);
+  }
+  .feed-enter.tint-down {
+    animation: feed-fade 300ms var(--ease-out) both, tint-down 1200ms var(--ease-out);
   }
 }

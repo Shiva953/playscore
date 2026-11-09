@@ -13,13 +13,16 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Switch } from "@/components/ui/switch";
 import type { ClockMode, DemoSettings } from "@/lib/protocol/types";
 import { usePlayers } from "@/lib/protocol/react/hooks";
-import { useProtocolClient } from "@/lib/protocol/react/provider";
+import { useMockClient } from "@/lib/protocol/react/provider";
+import type { MockProtocolClient } from "@/lib/protocol/mock/client";
 import { useUi } from "@/lib/protocol/react/ui-store";
 
 /** Demo-only controls (never in production): clock, simulation, time travel, reset. */
 export function DemoPanel() {
   const open = useUi((s) => s.demoOpen);
   const setOpen = useUi((s) => s.setDemoOpen);
+  const client = useMockClient();
+  if (!client) return null;
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-md">
@@ -27,14 +30,13 @@ export function DemoPanel() {
           <SheetTitle>Demo settings</SheetTitle>
           <SheetDescription>Devnet demo controls. These don&apos;t exist in the real product.</SheetDescription>
         </SheetHeader>
-        {open ? <DemoPanelBody /> : null}
+        {open ? <DemoPanelBody client={client} /> : null}
       </SheetContent>
     </Sheet>
   );
 }
 
-function DemoPanelBody() {
-  const client = useProtocolClient();
+function DemoPanelBody({ client }: { client: MockProtocolClient }) {
   const qc = useQueryClient();
   const [settings, setSettings] = useState<DemoSettings>(() => client.getDemoSettings());
   const launching = usePlayers({ status: "launching" });

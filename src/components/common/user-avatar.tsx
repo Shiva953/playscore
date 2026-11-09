@@ -4,7 +4,11 @@ import Avatar from "boring-avatars";
 import { cn } from "@/lib/utils";
 
 /** Bright colours from D's palette and around it (lime, pink, blue, amber, lilac), so faces stand out on black. */
-const PALETTE = ["#c6ff3d", "#ff6b81", "#6ea8ff", "#ffb547", "#b9a3ff"];
+/**
+ * Faces are identity, not data: sky, aqua, coral, sand and stone (OKLCH-built, 8 Nov). Green, red and gold
+ * stay out of faces so those colours only ever mean a price move or money.
+ */
+const PALETTE = ["#5eaceb", "#6ac9ce", "#ed835e", "#e4c4aa", "#c9b8a6"];
 
 /**
  * A generated avatar for a wallet: the same address always gets the same face (boring-avatars "beam").

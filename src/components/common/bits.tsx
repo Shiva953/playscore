@@ -32,16 +32,16 @@ export function PositionBadge({ position, className }: { position: PositionCode;
 export function Ticker({ ticker, className, chip = false }: { ticker: string; className?: string; chip?: boolean }) {
   if (chip) {
     // The ticker as the player's handle: a white chip, the most legible mark in the header.
-    return <span className={cn("fig inline-flex h-7 items-center rounded-full bg-ink px-2.5 text-[14px] font-semibold text-black", className)}>${ticker}</span>;
+    return <span className={cn("inline-flex h-7 items-center rounded-full bg-ink px-2.5 text-[0.9375rem] font-semibold text-ground", className)}>${ticker}</span>;
   }
   return <span className={cn("font-semibold tracking-normal", className)}>${ticker}</span>;
 }
 
-/** Typographic player identity: ticker + name + position (no photos, crests or logos). */
+/** Compact player identity in running text: ticker + name + position. Lists and cards add the kit (<PlayerAvatar>). */
 export function PlayerTag({ id, ticker, name, position, showName = true, className }: { id: string; ticker: string; name?: string; position?: PositionCode; showName?: boolean; className?: string }) {
   return (
     <Link href={`/player/${id}`} className={cn("inline-flex min-w-0 items-center gap-2 rounded-md hover:text-ink", className)}>
-      <Ticker ticker={ticker} className="text-[13px]" />
+      <Ticker ticker={ticker} className="text-[0.8125rem]" />
       {showName && name ? <span className="truncate text-soft">{name}</span> : null}
       {position ? <PositionBadge position={position} /> : null}
     </Link>
@@ -74,9 +74,9 @@ export function Sparkline({ values, className, width = 80, height = 24 }: { valu
 export function Stat({ label, value, hint, className, size = "md" }: { label: ReactNode; value: ReactNode; hint?: ReactNode; className?: string; size?: "md" | "lg" | "xl" }) {
   return (
     <div className={cn("flex min-w-0 flex-col gap-1", className)}>
-      <span className="text-[12px] text-soft">{label}</span>
-      <span className={cn("fig fig-prop truncate font-semibold text-ink", size === "xl" ? "text-[34px] leading-10" : size === "lg" ? "text-[24px] leading-8" : "text-[20px] leading-7")}>{value}</span>
-      {hint ? <span className="text-[12px] text-faint">{hint}</span> : null}
+      <span className="text-[0.75rem] text-soft">{label}</span>
+      <span className={cn("fig fig-prop truncate font-semibold text-ink", size === "xl" ? "text-[2.125rem] leading-[1.18]" : size === "lg" ? "text-[1.5rem] leading-[1.33]" : "text-[1.25rem] leading-[1.4]")}>{value}</span>
+      {hint ? <span className="text-[0.75rem] text-faint">{hint}</span> : null}
     </div>
   );
 }
@@ -108,9 +108,9 @@ export function Countdown({ to, className }: { to: number; className?: string })
 export function Section({ title, action, children, className, id, description }: { title: ReactNode; action?: ReactNode; children: ReactNode; className?: string; id?: string; description?: ReactNode }) {
   return (
     <section className={cn("flex flex-col gap-4", className)} id={id} aria-labelledby={id ? `${id}-title` : undefined}>
-      <div className="flex items-end justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h2 id={id ? `${id}-title` : undefined} className="text-base leading-6 font-medium text-ink">
+          <h2 id={id ? `${id}-title` : undefined} className="text-[1.5rem] leading-[1.17] font-semibold text-ink">
             {title}
           </h2>
           {description ? <p className="text-sm text-soft">{description}</p> : null}

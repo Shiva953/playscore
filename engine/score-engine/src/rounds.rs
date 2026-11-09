@@ -205,4 +205,57 @@ impl Engine {
         }
         Ok(Outcome::Claimed { usdc: amt, tokens: 0 })
     }
+
+    /// Every credited dividend of `user` in one atomic step. A token election that can't be filled
+    /// (market not bonded, reserve short, rounds to zero) pays that row in USDC instead.
+    pub(crate) fn claim_all(&mut self, ts: i64, user: &UserId, nonce: u64, take_tokens: bool) -> Res<Outcome> {
+        self.check_nonce(user, nonce)?;
+        let keys: Vec<(UserId, u32, PlayerId)> = self.claims.range((*user, 0, 0)..=(*user, u32::MAX, PlayerId::MAX)).map(|(k, _)| *k).collect();
+        if keys.is_empty() {
+            return Err(Error::NothingToClaim);
+        }
+        let mut tx = self.begin();
+        // Per-player (minted, reserve_left) as this command changes them.
+        let mut mint: BTreeMap<PlayerId, (u64, u64)> = BTreeMap::new();
+        let mut rows = Vec::with_capacity(keys.len());
+        for key in &keys {
+            let (_, round, player) = *key;
+            let amt = self.claims[key];
+            tx.claimable = tx.claimable.checked_sub(amt).ok_or(Error::Math)?;
+            let mut tokens = 0;
+            if take_tokens {
+                if let (Ok(mk), Some(px)) = (self.market_in(player, MarketState::Bonded), self.election_px.get(&(round, player))) {
+                    let (minted, left) = *mint.entry(player).or_insert((mk.minted, mk.reserve_left));
+                    let t_ = to64(m::emit_tokens(u(amt), u(*px))?)?;
+                    if t_ > 0 && t_ <= left {
+                        tokens = t_;
+                        mint.insert(player, (add64(minted, t_)?, left - t_));
+                    }
+                }
+            }
+            if tokens > 0 {
+                tx.vault = add64(tx.vault, amt)?;
+                let h = self.hold(&mut tx, user, player);
+                h.entry_ts = m::new_entry_ts(t(h.entry_ts), u(h.amount) + u(h.locked), u(tokens), t(ts))? as i64;
+                h.amount = add64(h.amount, tokens)?;
+                rows.push((round, player, 0, tokens));
+            } else {
+                let a = self.acct(&mut tx, user);
+                a.free = add64(a.free, amt)?;
+                rows.push((round, player, amt, 0));
+            }
+        }
+        self.acct(&mut tx, user).nonce = nonce;
+
+        self.commit(tx);
+        for key in &keys {
+            self.claims.remove(key);
+        }
+        for (p, (minted, left)) in mint {
+            let mk = self.markets.get_mut(&p).expect("checked above");
+            mk.minted = minted;
+            mk.reserve_left = left;
+        }
+        Ok(Outcome::ClaimedAll { rows })
+    }
 }

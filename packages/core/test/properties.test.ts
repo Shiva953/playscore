@@ -105,7 +105,7 @@ describe("vault never negative", () => {
 const entryArb = fc.record({
   playerId: fc.string({ minLength: 1, maxLength: 4 }),
   position: fc.constantFrom("FWD", "MID", "DEF", "GK" as const),
-  league: fc.constantFrom("PL", "LAL", "BUN", "SA", "L1", "MLS", "SPL" as const),
+  league: fc.constantFrom("PL", "LAL", "BUN", "SA", "L1", "ERE", "BPL", "LPO" as const),
   points: fc.double({ min: -10, max: 40, noNaN: true }),
   goals: fc.integer({ min: 0, max: 3 }),
   assists: fc.integer({ min: 0, max: 3 }),

@@ -67,3 +67,8 @@ backend/target/
 !/docs/BACKEND_APPROACHES.md
 !/docs/OVERVIEW.md
 .taste-skill/
+/.next-*/
+
+# local agent tooling
+.claude/
+skills-lock.json

@@ -274,6 +274,19 @@ fn rounds_snapshot_result_and_claims() {
     let expect = m::emit_tokens(cb as u128, snapshot_px(&h)).unwrap();
     assert_eq!(tokens as u128, expect);
     h.check();
+    // ClaimAll: every row of the user in one signed command, same rules as Claim.
+    let reserve1 = h.e().market(P).unwrap().reserve_left;
+    let n = h.nonce(&lp);
+    let Outcome::ClaimedAll { rows } = h.run(204, Cmd::ClaimAll { user: lp, nonce: n, take_tokens: true }).unwrap() else { panic!() };
+    assert_eq!(rows.len(), 1);
+    let (r, p, usdc, t_) = rows[0];
+    assert_eq!((r, p, usdc), (1, P, 0));
+    assert_eq!(t_ as u128, m::emit_tokens(cl as u128, snapshot_px(&h)).unwrap());
+    assert_eq!(h.e().market(P).unwrap().reserve_left, reserve1 - t_);
+    assert_eq!(h.e().claim_amount(&lp, 1, P), 0);
+    let n = h.nonce(&lp);
+    assert_eq!(h.run(205, Cmd::ClaimAll { user: lp, nonce: n, take_tokens: false }).unwrap_err(), Error::NothingToClaim);
+    h.check();
 }
 
 /// The pool price at the round-1 snapshot (the election price), found by replaying the log.
@@ -436,4 +449,37 @@ fn seed_fees_are_collectable_and_withdrawable() {
     // Parameter changes are logged, so replay reproduces them.
     let r = Sequencer::replay(&h.recs).unwrap();
     assert_eq!(state_root(&r.engine), state_root(h.e()));
+}
+
+/// A quote on the sandbox copy gives exactly what the real command then does, including fills
+/// against resting orders and the seller's hold-age tax, and leaves the real engine untouched.
+#[test]
+fn sandbox_quotes_match_execution() {
+    let (mut h, next) = setup();
+    let (maker, taker) = (holder(&mut h), h.user(next + 1));
+    h.deposit(11, taker, 5_000 * USDC).unwrap();
+    let px = h.px(P);
+    h.order(20, maker, P, Side::Ask, px * 101 / 100, 20_000 * TOKEN, true).unwrap();
+    h.order(21, maker, P, Side::Bid, px * 99 / 100, 30 * USDC, true).unwrap();
+    let root = state_root(h.e());
+
+    let quote = |h: &H, cmd: &Cmd, user: &UserId| {
+        let mut s = h.e().sandbox(P, user, 0, 0);
+        s.apply(100, cmd).unwrap()
+    };
+    let buy = Cmd::Buy { user: taker, nonce: 1, player: P, usdc_in: 900 * USDC, min_tokens: 0, limit_px: 0 };
+    let q = quote(&h, &buy, &taker);
+    assert_eq!(state_root(h.e()), root, "quoting changed the engine");
+    assert_eq!(h.run(100, buy).unwrap(), q);
+
+    let held = h.e().holding(&taker, P).amount;
+    let sell = Cmd::Sell { user: taker, nonce: 2, player: P, tokens_in: held, min_usdc: 0, limit_px: 0 };
+    let q = quote(&h, &sell, &taker);
+    assert_eq!(h.run(5_000, sell).unwrap(), q);
+
+    // Signed out: a fresh key with a topped-up balance still gets the real routing.
+    let nobody = [9u8; 32];
+    let mut s = h.e().sandbox(P, &nobody, 1_000 * USDC, 0);
+    assert!(matches!(s.apply(6_000, &Cmd::Buy { user: nobody, nonce: 1, player: P, usdc_in: 100 * USDC, min_tokens: 0, limit_px: 0 }), Ok(Outcome::Traded { .. })));
+    h.check();
 }

@@ -5,6 +5,8 @@ import { memo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LiveFigure, PositionBadge, Section, Stat, StatStrip, StripCell, Ticker } from "@/components/common/bits";
+import { PlayerAvatar } from "@/components/common/kit";
+import { useArrivals } from "@/components/live/use-arrivals";
 import { EmptyState, ErrorState, LoadingBlock, LoadingRows, QueryState, SignedOutState } from "@/components/common/states";
 import { MatchdayStrip } from "@/components/common/matchday-strip";
 import { ClaimPanel } from "@/components/portfolio/claim-panel";
@@ -12,6 +14,7 @@ import { formatPct, formatPoints, formatScore, formatTokens, formatUsd } from "@
 import type { BoardView, MatchEventView, RoundState } from "@/lib/protocol/types";
 import { usePortfolio, useRound, useRoundHistory } from "@/lib/protocol/react/hooks";
 import { cn } from "@/lib/utils";
+import { useProtocolClient } from "@/lib/protocol/react/provider";
 
 /** Matchday live centre. Its question: are my players earning right now? */
 export function MatchdayPage() {
@@ -53,17 +56,19 @@ export function MatchdayPage() {
 }
 
 function TitleRow({ r }: { r: RoundState }) {
+  const devnet = useProtocolClient().mode === "devnet";
   const status = r.phase === "open" ? "Before kickoff" : r.phase === "live" ? "Live" : "Full time";
   return (
     <div className="flex flex-wrap items-end justify-between gap-3" data-testid="round-header">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl leading-8 font-semibold tracking-[-0.02em] text-ink">Matchday {r.round}</h1>
+        <h1 className="text-[2rem] leading-[1.12] font-semibold text-ink">Matchday {r.round}</h1>
         <p className="text-sm text-soft">
-          {r.window.title} · {r.window.fromLabel} → {r.window.toLabel}
-          {r.clockMode === "demo" ? " · demo clock" : ""}
+          {devnet
+            ? `${r.window.title} · ${r.window.fromLabel} · simulated matches on a fast clock (devnet)`
+            : `${r.window.title} · ${r.window.fromLabel} → ${r.window.toLabel}${r.clockMode === "demo" ? " · demo clock" : ""}`}
         </p>
       </div>
-      <p className={cn("text-sm font-medium", r.phase === "live" ? "text-up" : "text-soft")}>{status}</p>
+      <p className={cn("text-sm font-medium", r.phase === "live" ? "text-brand" : "text-soft")}>{status}</p>
     </div>
   );
 }
@@ -102,8 +107,8 @@ function YourPlayers({ r }: { r: RoundState }) {
       ) : (
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <span className={cn("text-[32px] leading-9 font-medium tracking-[-0.02em]", my.provisionalUsd > 0.005 ? "text-up" : "text-ink")}>
-              <LiveFigure value={my.provisionalUsd} format={(n) => formatUsd(n)} tick />
+            <span className={cn("text-[2rem] leading-[1.12]", my.provisionalUsd > 0.005 ? "text-brand" : "text-ink")}>
+              <LiveFigure value={my.provisionalUsd} format={(n) => formatUsd(n)} tick className="fig-prop" />
             </span>
             <span className="text-sm text-soft">
               {label} · {formatTokens(my.totalTokens)} tokens counted
@@ -120,10 +125,11 @@ function YourPlayers({ r }: { r: RoundState }) {
             {my.players.map((p) => {
               const live = r.scores.find((s) => s.playerId === p.playerId);
               return (
-                <li key={p.playerId} className="flex items-start justify-between gap-3 bg-surface px-5 py-4">
-                  <div className="flex min-w-0 flex-col gap-1">
+                <li key={p.playerId} className="flex items-start gap-3 bg-surface px-5 py-4">
+                  <PlayerAvatar id={p.playerId} size={44} />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <Link href={`/player/${p.playerId}`} className="flex items-center gap-2 hover:text-ink">
-                      <Ticker ticker={p.ticker} className="text-[13px] text-ink" />
+                      <Ticker ticker={p.ticker} className="text-[0.8125rem] text-ink" />
                       <span className="truncate text-sm text-soft">{p.name}</span>
                     </Link>
                     <span className="num text-xs text-faint">
@@ -139,8 +145,8 @@ function YourPlayers({ r }: { r: RoundState }) {
                             : "Plays this window"}
                     </span>
                   </div>
-                  <span className={cn("num text-base font-medium", p.provisionalUsd > 0.005 ? "text-up" : "text-faint")}>
-                    <LiveFigure value={p.provisionalUsd} format={(n) => formatUsd(n)} tick />
+                  <span className={cn("num text-base font-medium", p.provisionalUsd > 0.005 ? "text-brand" : "text-faint")}>
+                    <LiveFigure value={p.provisionalUsd} format={(n) => formatUsd(n)} tick className="text-[1rem]" />
                   </span>
                 </li>
               );
@@ -157,19 +163,25 @@ function YourPlayers({ r }: { r: RoundState }) {
   );
 }
 
-const EventRow = memo(function EventRow({ e }: { e: MatchEventView }) {
+/** Events that change a board: they get the player's kit and their own weight in the feed. */
+const BIG_EVENTS = new Set<MatchEventView["code"]>(["goal", "assist", "penaltySaved", "penaltyMissed", "ownGoal"]);
+
+const EventRow = memo(function EventRow({ e, isNew }: { e: MatchEventView; isNew: boolean }) {
+  const big = BIG_EVENTS.has(e.code) && !!e.playerId;
   return (
-    <li className="feed-enter flex items-baseline gap-3 py-2.5 text-sm">
-      <span className="num w-[76px] shrink-0 text-xs text-faint">
+    <li className={cn("flex items-center gap-3 text-sm", big ? "rounded-xl px-2 py-2.5" : "py-2.5", isNew && "feed-enter", isNew && big && (e.points >= 0 ? "tint-up" : "tint-down"))}>
+      <span className="num w-[104px] shrink-0 whitespace-nowrap text-xs text-faint">
         {e.slot} · {e.minute}′
       </span>
+      {big ? <PlayerAvatar id={e.playerId!} size={28} mark={false} className="rounded-[8px]" /> : null}
       <span className="min-w-0 flex-1 text-soft">
         {e.playerId ? (
           <>
+            {big ? <span className="font-semibold text-ink">{e.label} </span> : null}
             <Link href={`/player/${e.playerId}`} className="text-ink underline decoration-control underline-offset-4 hover:decoration-ink">
               {e.name}
             </Link>{" "}
-            {e.label.toLowerCase()}
+            {big ? null : e.label.toLowerCase()}
             {!e.ranked ? <span className="text-faint"> · not ranked</span> : null}
           </>
         ) : (
@@ -178,20 +190,22 @@ const EventRow = memo(function EventRow({ e }: { e: MatchEventView }) {
           </>
         )}
       </span>
-      {e.playerId ? <span className={cn("num shrink-0 text-xs", e.points > 0 ? "text-up" : e.points < 0 ? "text-down" : "text-faint")}>{formatPoints(e.points)}</span> : null}
+      {e.playerId ? <span className={cn("num shrink-0", big ? "text-sm font-semibold" : "text-xs", e.points > 0 ? "text-up" : e.points < 0 ? "text-down" : "text-faint")}>{formatPoints(e.points)}</span> : null}
     </li>
   );
 });
 
 function EventFeed({ events, phase }: { events: MatchEventView[]; phase: RoundState["phase"] }) {
+  const shown = events.slice(0, 40);
+  const arrived = useArrivals(shown.map((e) => e.id));
   return (
     <Section title="Live feed" id="feed">
       {events.length === 0 ? (
-        <p className="rounded-2xl bg-surface px-5 py-4 text-sm text-soft">{phase === "open" ? "Events appear here from the first kickoff." : "Waiting for the next event."}</p>
+        <p className="rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-4 text-sm text-soft">{phase === "open" ? "Events appear here from the first kickoff." : "Waiting for the next event."}</p>
       ) : (
-        <ul className="max-h-[420px] divide-y divide-rule overflow-y-auto overscroll-contain rounded-2xl bg-surface px-5" aria-live="polite" aria-relevant="additions" data-testid="event-feed">
-          {events.slice(0, 40).map((e) => (
-            <EventRow key={e.id} e={e} />
+        <ul className="max-h-[420px] divide-y divide-rule overflow-y-auto overscroll-contain rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5" aria-live="polite" aria-relevant="additions" data-testid="event-feed">
+          {shown.map((e) => (
+            <EventRow key={e.id} e={e} isNew={arrived(e.id)} />
           ))}
         </ul>
       )}
@@ -204,9 +218,9 @@ function BoardCard({ b, projection }: { b: BoardView; projection: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const rows = expanded ? b.rows : b.rows.slice(0, 3);
   return (
-    <div className="flex flex-col rounded-2xl bg-surface px-5 py-4" data-testid="board">
+    <div className="flex flex-col rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-4" data-testid="board">
       <div className="flex items-baseline justify-between gap-2">
-        <h3 className="text-sm font-medium text-ink">{b.label}</h3>
+        <h3 className="text-base font-medium text-ink">{b.label}</h3>
         <span className="num text-xs text-faint">
           ×{b.multiplier.toFixed(2)} · {formatUsd(b.poolUsd, { decimals: 0 })}
         </span>
@@ -215,10 +229,11 @@ function BoardCard({ b, projection }: { b: BoardView; projection: boolean }) {
         {rows.map((row) => (
           <li key={row.playerId} className="num flex items-center gap-3 py-2 text-sm">
             <span className="w-4 text-xs text-faint">{row.rank}</span>
-            <Link href={`/player/${row.playerId}`} className={cn("min-w-0 flex-1 truncate hover:underline", row.mine ? "text-ink" : "text-soft")}>
-              {row.name}
+            <Link href={`/player/${row.playerId}`} className={cn("flex min-w-0 flex-1 items-center gap-2.5 hover:underline", row.mine ? "text-ink" : "text-soft")}>
+              <PlayerAvatar id={row.playerId} size={26} mark={false} className="rounded-[8px]" />
+              <span className="truncate">{row.name}</span>
             </Link>
-            {row.mine ? <span className="size-1.5 shrink-0 rounded-full bg-up" role="img" aria-label="You hold this player" /> : null}
+            {row.mine ? <span className="size-1.5 shrink-0 rounded-full bg-brand" role="img" aria-label="You hold this player" /> : null}
             <span className="w-8 text-right text-faint">{projection ? formatScore(row.points) : formatScore(row.display)}</span>
             <span className="w-12 text-right text-ink">{formatUsd(row.usd, { decimals: 0 })}</span>
           </li>
@@ -286,11 +301,12 @@ function TopPerformers({ r }: { r: RoundState }) {
       {top.length === 0 ? (
         <p className="text-sm text-soft">{r.phase === "open" ? "Scores appear from the first kickoff." : "No minutes played yet."}</p>
       ) : (
-        <ol className="flex flex-col rounded-2xl bg-surface px-5 py-2">
+        <ol className="flex flex-col rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-2">
           {top.map((s) => (
             <li key={s.playerId} className="num flex items-center gap-3 py-2 text-sm">
-              <Link href={`/player/${s.playerId}`} className="min-w-0 flex-1 truncate text-ink hover:underline">
-                {s.name}
+              <Link href={`/player/${s.playerId}`} className="flex min-w-0 flex-1 items-center gap-2.5 text-ink hover:underline">
+                <PlayerAvatar id={s.playerId} size={26} mark={false} className="rounded-[8px]" />
+                <span className="truncate">{s.name}</span>
               </Link>
               <PositionBadge position={s.position} />
               <span className="w-10 text-right text-xs text-faint">{s.matchMinute >= 90 ? "FT" : s.matchMinute >= 0 ? `${s.matchMinute}′` : ""}</span>
@@ -316,13 +332,13 @@ function ResultsHistory() {
         {(results) => (
           <div className="flex flex-col gap-3" data-testid="results">
             {results.map((x) => (
-              <div key={`${x.round}-${x.settledAt}`} className="rounded-2xl bg-surface px-5 py-4">
+              <div key={`${x.round}-${x.settledAt}`} className="rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="text-sm font-medium text-ink">
+                  <h3 className="text-base font-medium text-ink">
                     Matchday {x.round} <span className="font-normal text-soft">· {x.windowLabel}</span>
                   </h3>
                   <span className="num text-sm text-soft">
-                    Paid {formatUsd(x.pool, { decimals: 0 })} · you <span className={x.myDividends > 0.005 ? "text-up" : "text-ink"}>{formatUsd(x.myDividends)}</span>
+                    Paid {formatUsd(x.pool, { decimals: 0 })} · you <span className={x.myDividends > 0.005 ? "text-brand" : "text-ink"}>{formatUsd(x.myDividends)}</span>
                   </span>
                 </div>
                 <div className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">

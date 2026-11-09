@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import type * as React from "react";
 import { PROTOCOL_CONFIG } from "@score/core";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Countdown, KeyValue } from "@/components/common/bits";
+import { Countdown, KeyValue, LiveFigure, TickUp } from "@/components/common/bits";
+import { PlayerAvatar } from "@/components/common/kit";
 import { UsdcIcon } from "@/components/common/usdc";
 import {
   formatDateTime,
@@ -21,30 +24,45 @@ import {
   useBuy,
   useBuyQuote,
   useFaucet,
+  useFunds,
   usePortfolio,
   useRound,
   useSellQuote,
   useSell,
   useSession,
   usePlaceLimit,
+  useToTrading,
 } from "@/lib/protocol/react/hooks";
-import { useProtocolClient } from "@/lib/protocol/react/provider";
+import { useMockClient } from "@/lib/protocol/react/provider";
 import { useUi } from "@/lib/protocol/react/ui-store";
 import { cn } from "@/lib/utils";
 
 type Side = "buy" | "sell";
 type SellInput = { usdc: number } | { tokens: number };
 
+/**
+ * The ticket's lifecycle, explicit: you edit an order, send it, and see what it did. Only `edit`
+ * accepts input; `sending` locks the button; `done` shows the receipt until you go again.
+ * (A failed send goes back to `edit` with the amount kept; the error is a toast.)
+ */
+type Ticket =
+  | { step: "edit" }
+  | { step: "sending" }
+  | { step: "done"; side: Side; tokens: number; usdc: number };
+
 /** Same place, same shape in both states: launching (curve) and trading (pool). */
 export function TradePanel({
   player,
   compact = false,
   allowLimit = false,
+  shortcuts = false,
 }: {
   player: PlayerDetail;
   compact?: boolean;
   /** Offer limit orders (the trade terminal); pool only. */
   allowLimit?: boolean;
+  /** Keyboard: b buy, s sell, 1–4 the preset amounts (the terminal, where hands stay on the keys). */
+  shortcuts?: boolean;
 }) {
   const [side, setSide] = useState<Side>("buy");
   const [orderType, setOrderType] = useState<"market" | "limit">("market");
@@ -52,19 +70,21 @@ export function TradePanel({
     allowLimit && player.status === "trading" && orderType === "limit";
   const [amount, setAmount] = useState("");
   const [sellTokens, setSellTokens] = useState<number | null>(null);
+  const [ticket, setTicket] = useState<Ticket>({ step: "edit" });
   const session = useSession();
   const openSignIn = useUi((s) => s.openSignIn);
-  const buy = useBuy();
-  const sell = useSell();
+  const buy = useBuy({ silent: true });
+  const sell = useSell({ silent: true });
   const faucet = useFaucet();
   const pf = usePortfolio();
   const usdc = parseAmount(amount);
+  // Sells are set in the player's tokens (what you hold); the USDC they fetch shows beside them.
   const sellInput: SellInput | null =
     side === "sell"
       ? sellTokens !== null
         ? { tokens: sellTokens }
         : usdc > 0
-          ? { usdc }
+          ? { tokens: usdc }
           : null
       : null;
   const buyQuote = useBuyQuote(
@@ -77,14 +97,58 @@ export function TradePanel({
   );
   const sellQuote = useSellQuote(player.id, sellInput);
   const quote = side === "buy" ? buyQuote : sellQuote;
+  // The USDC a sell fetches: the quote once it's in, the spot value meanwhile.
+  const sellTokensNow = sellInput && "tokens" in sellInput ? sellInput.tokens : 0;
+  const sellValue = sellQuote?.ok ? sellQuote.receive : sellTokensNow * player.price;
   const holding = player.holding;
   const launching = player.status === "launching";
-  const pending = buy.isPending || sell.isPending;
+  const pending = ticket.step === "sending";
 
   const reset = () => {
     setAmount("");
     setSellTokens(null);
   };
+
+  // Latest values for the key handler without re-binding it on every keystroke.
+  const keys = useRef({ side, holding: player.holding });
+  useEffect(() => {
+    keys.current = { side, holding: player.holding };
+  });
+  useEffect(() => {
+    if (!shortcuts) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.metaKey || e.ctrlKey || e.altKey || (t && t.closest("input, textarea, select, [contenteditable=true], [role=combobox], [role=menu], [role=dialog], [role=listbox]"))) return;
+      const k = e.key.toLowerCase();
+      const focusAmount = () => requestAnimationFrame(() => document.getElementById(`amt-${player.id}`)?.focus());
+      if (k === "b" || k === "s") {
+        e.preventDefault();
+        setSide(k === "b" ? "buy" : "sell");
+        setAmount("");
+        setSellTokens(null);
+        setTicket({ step: "edit" });
+        focusAmount();
+      } else if (k >= "1" && k <= "4") {
+        e.preventDefault();
+        const i = Number(k) - 1;
+        setTicket({ step: "edit" });
+        if (keys.current.side === "buy") {
+          setSellTokens(null);
+          setAmount(String([25, 50, 100, 250][i]));
+        } else {
+          const h = keys.current.holding;
+          if (!h) return;
+          const pct = [0.25, 0.5, 0.75, 1][i]!;
+          const tokens = pct >= 1 ? h.tokens : h.tokens * pct;
+          setSellTokens(tokens);
+          setAmount(String(Math.floor(tokens)));
+        }
+        focusAmount();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [shortcuts, player.id]);
 
   if (player.status === "scheduled") {
     return (
@@ -110,17 +174,25 @@ export function TradePanel({
       openSignIn();
       return;
     }
-    if (side === "buy")
-      buy.mutate({ id: player.id, usdc }, { onSuccess: reset });
-    else if (sellInput)
-      sell.mutate({ id: player.id, input: sellInput }, { onSuccess: reset });
+    const done = (r: { tokens?: number; usdc?: number }) => {
+      reset();
+      setTicket({ step: "done", side, tokens: r.tokens ?? quote?.tokens ?? 0, usdc: r.usdc ?? 0 });
+    };
+    const failed = () => setTicket({ step: "edit" });
+    if (side === "buy") {
+      setTicket({ step: "sending" });
+      buy.mutate({ id: player.id, usdc }, { onSuccess: done, onError: failed });
+    } else if (sellInput) {
+      setTicket({ step: "sending" });
+      sell.mutate({ id: player.id, input: sellInput }, { onSuccess: done, onError: failed });
+    }
   };
 
   const setPct = (pct: number) => {
     if (!holding) return;
     const tokens = pct >= 1 ? holding.tokens : holding.tokens * pct;
     setSellTokens(tokens);
-    setAmount((tokens * holding.price).toFixed(2));
+    setAmount(String(Math.floor(tokens)));
   };
 
   const cta = !session.data
@@ -132,7 +204,7 @@ export function TradePanel({
       : `Sell $${player.ticker}`;
 
   const chip =
-    "h-8 rounded-full bg-raised px-3 text-[13px] text-ink transition-colors duration-150 hover:bg-[#333] disabled:opacity-40";
+    "fig h-9 min-w-0 flex-1 rounded-full bg-raised px-2 text-[0.875rem] font-medium text-ink transition-[background-color,transform] duration-150 hover:bg-raised-hover motion-safe:active:scale-[0.96] disabled:opacity-40";
   const maxUsdc = capProbe?.cap
     ? Math.floor(capProbe.cap.maxUsdcNow * 100) / 100
     : null;
@@ -146,17 +218,22 @@ export function TradePanel({
           onValueChange={(v) => {
             setSide(v as Side);
             reset();
+            setTicket({ step: "edit" });
           }}
         >
-          <TabsList variant="segmented" className="w-full">
-            <TabsTrigger value="buy">Buy</TabsTrigger>
-            <TabsTrigger value="sell">Sell</TabsTrigger>
+          <TabsList variant="segmented" className="h-11 w-full">
+            <TabsTrigger value="buy" className="text-[1rem] font-semibold data-active:!bg-up-tint data-active:text-up">
+              Buy
+            </TabsTrigger>
+            <TabsTrigger value="sell" className="text-[1rem] font-semibold data-active:!bg-down-tint data-active:text-down">
+              Sell
+            </TabsTrigger>
           </TabsList>
           {allowLimit && player.status === "trading" ? (
             <div
               role="radiogroup"
               aria-label="Order type"
-              className="flex gap-4 text-[13px]"
+              className="flex gap-4 text-[0.8125rem]"
             >
               {(["market", "limit"] as const).map((t) => (
                 <button
@@ -180,23 +257,25 @@ export function TradePanel({
           <TabsContent value={side} className="flex flex-col gap-4">
             {limit ? (
               <LimitForm player={player} side={side} />
+            ) : ticket.step === "done" ? (
+              <Receipt player={player} result={ticket} onAgain={() => setTicket({ step: "edit" })} />
             ) : (
               <>
                 <div className="flex flex-col gap-2">
                   <div className="flex items-baseline justify-between text-xs">
                     <label htmlFor={`amt-${player.id}`} className="text-soft">
-                      {side === "buy" ? "You pay" : "You sell (USDC value)"}
+                      {side === "buy" ? "You pay" : `You sell $${player.ticker}`}
                     </label>
                     {session.data ? (
                       <span className="num text-faint">
                         {side === "buy"
-                          ? `Balance ${formatUsd(pf.data?.usdc)}`
+                          ? `Cash ${formatUsd(pf.data?.usdc)}`
                           : `Holding ${formatTokens(holding?.tokens ?? 0)} $${player.ticker}`}
                       </span>
                     ) : null}
                   </div>
                   <div className="flex h-14 items-center gap-2 rounded-2xl bg-ground px-4 ring-1 ring-control transition-[box-shadow] duration-150 focus-within:ring-ink">
-                    <span className="text-2xl text-faint">$</span>
+                    {side === "buy" ? <span className="text-2xl text-faint">$</span> : null}
                     <input
                       id={`amt-${player.id}`}
                       inputMode="decimal"
@@ -206,14 +285,26 @@ export function TradePanel({
                         setAmount(e.target.value);
                         setSellTokens(null);
                       }}
-                      className="num w-full min-w-0 bg-transparent text-2xl font-medium text-ink outline-none placeholder:text-faint"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && session.data && quote?.ok && !pending) submit();
+                      }}
+                      className="fig fig-prop w-full min-w-0 bg-transparent text-[2rem] text-ink outline-none placeholder:text-faint"
                       autoComplete="off"
                     />
-                    <UsdcIcon className="size-5" label="USDC" />
+                    {side === "buy" ? (
+                      <UsdcIcon className="size-5" label="USDC" />
+                    ) : (
+                      <span className="flex shrink-0 flex-col items-end leading-none" aria-live="polite">
+                        <span className="text-[0.75rem] font-semibold text-soft">${player.ticker}</span>
+                        <span className="fig mt-1 text-[0.9375rem] font-semibold text-ink" title="What these tokens fetch, after the sell tax and price impact">
+                          ≈ {formatUsd(sellValue)}
+                        </span>
+                      </span>
+                    )}
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex gap-1.5">
                     {side === "buy"
-                      ? [10, 50, 100].map((v) => (
+                      ? [25, 50, 100, 250].map((v) => (
                           <button
                             key={v}
                             type="button"
@@ -223,7 +314,7 @@ export function TradePanel({
                             ${v}
                           </button>
                         ))
-                      : [0.25, 0.5, 1].map((v) => (
+                      : [0.25, 0.5, 0.75, 1].map((v) => (
                           <button
                             key={v}
                             type="button"
@@ -240,8 +331,9 @@ export function TradePanel({
                         className={chip}
                         onClick={() => setAmount(String(maxUsdc))}
                         disabled={maxUsdc <= 0}
+                        title={`Your launch allowance left: ${formatUsd(maxUsdc)}`}
                       >
-                        Max {formatUsd(maxUsdc)}
+                        Max
                       </button>
                     ) : null}
                   </div>
@@ -270,7 +362,8 @@ export function TradePanel({
                 <div className="flex flex-col gap-2">
                   <Button
                     size="lg"
-                    className="w-full"
+                    variant={side === "buy" ? "buy" : "sell"}
+                    className="h-12 w-full text-[1rem]"
                     onClick={submit}
                     disabled={
                       !!session.data && (!quote || !quote.ok || pending)
@@ -279,20 +372,18 @@ export function TradePanel({
                   >
                     {pending ? "Confirming…" : cta}
                   </Button>
+                  {shortcuts ? (
+                    <p className="hidden text-center text-[0.75rem] text-faint lg:block">
+                      <kbd className="font-sans text-soft">b</kbd> buy · <kbd className="font-sans text-soft">s</kbd> sell · <kbd className="font-sans text-soft">1</kbd>–<kbd className="font-sans text-soft">4</kbd> amounts · <kbd className="font-sans text-soft">enter</kbd> to send
+                    </p>
+                  ) : null}
                   {quote?.error?.code === "INSUFFICIENT_USDC" ? (
-                    <Button
-                      variant="secondary"
-                      className="w-full"
-                      onClick={() => faucet.mutate(1_000)}
-                      disabled={faucet.isPending}
-                    >
-                      Top up
-                    </Button>
+                    <ShortOfFunds need={quote.usdc} have={pf.data?.usdc ?? 0} onTopUp={() => faucet.mutate(1_000)} topUpBusy={faucet.isPending} />
                   ) : null}
                 </div>
               </>
             )}
-            <KickoffNote launching={launching} />
+            {ticket.step === "done" && !limit ? null : <KickoffNote launching={launching} />}
             {launching ? (
               <CapMeter player={player} />
             ) : (
@@ -302,6 +393,58 @@ export function TradePanel({
         </Tabs>
       </CardContent>
     </Card>
+  );
+}
+
+/** What the order did, where it was placed: the moment after you press the button. */
+function Receipt({ player, result, onAgain }: { player: PlayerDetail; result: Extract<Ticket, { step: "done" }>; onAgain: () => void }) {
+  const r = useRound((x) => ({ phase: x.phase, endsAt: x.phaseEndsAt }));
+  const held = player.holding?.tokens ?? 0;
+  const bought = result.side === "buy";
+  return (
+    <div className="receipt-enter flex flex-col gap-4 rounded-2xl bg-ground p-4" role="status" data-testid="trade-receipt">
+      <div className="flex items-center gap-3">
+        <PlayerAvatar id={player.id} size={52} className="[--kit-ring:var(--ground)]" />
+        <div className="flex min-w-0 flex-col">
+          <span className="text-sm text-soft">{bought ? "You bought" : "You sold"}</span>
+          <span className={cn("text-[2.125rem] leading-[1.06]", bought ? "text-up" : "text-ink")}>
+            <TickUp value={result.tokens} format={(n) => formatTokens(n)} className="fig-prop" />
+          </span>
+          <span className="text-sm text-soft">
+            ${player.ticker} {bought ? "for" : "and received"} <span className="fig text-ink">{formatUsd(result.usdc)}</span>
+          </span>
+        </div>
+      </div>
+      <KeyValue
+        rows={[
+          ["You now hold", held > 0 ? <LiveFigure key="held" value={held} format={(n) => `${formatTokens(n)} $${player.ticker}`} /> : "None"],
+          ...(held > 0 && player.status === "trading"
+            ? ([["Worth now", <LiveFigure key="worth" value={held * player.price} format={(n) => formatUsd(n)} />]] as [string, React.ReactNode][])
+            : []),
+        ]}
+      />
+      {bought ? (
+        <p className="text-sm text-soft">
+          {player.status === "launching" ? (
+            <>Counts for dividends once ${player.ticker} bonds before a kickoff.</>
+          ) : r.data?.phase === "open" ? (
+            <>
+              Counts at kickoff in <Countdown to={r.data.endsAt} className="text-ink" />. Hold until then to earn this round.
+            </>
+          ) : (
+            <>Counts from the next kickoff.</>
+          )}
+        </p>
+      ) : null}
+      <div className="flex gap-2">
+        <Button variant="secondary" className="flex-1" onClick={onAgain}>
+          {bought ? "Buy more" : "Sell more"}
+        </Button>
+        <Button variant="ghost" asChild>
+          <Link href="/portfolio">Portfolio</Link>
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -345,7 +488,7 @@ function QuoteBreakdown({
         </span>
         <span
           className={cn(
-            "num text-xl font-medium tracking-[-0.01em]",
+            "num text-xl font-medium",
             quote.ok ? "text-ink" : "text-faint"
           )}
         >
@@ -391,8 +534,42 @@ function CapMeter({ player }: { player: PlayerDetail }) {
   );
 }
 
+/**
+ * A buy needs more than the cash that's ready to trade. On devnet: when a deposit is still in the wallet
+ * (normally added on its own within seconds), add it in one tap; otherwise deposit. On the mock: the
+ * test top-up.
+ */
+function ShortOfFunds({ need, have, onTopUp, topUpBusy }: { need: number; have: number; onTopUp: () => void; topUpBusy: boolean }) {
+  const devnet = !useMockClient();
+  const funds = useFunds();
+  const toTrading = useToTrading();
+  const openFunds = useUi((s) => s.openFunds);
+  if (!devnet) {
+    return (
+      <Button variant="secondary" className="w-full" onClick={onTopUp} disabled={topUpBusy}>
+        Top up
+      </Button>
+    );
+  }
+  const short = need - have;
+  // Whole cents of what's waiting in the wallet: move all of it, so nothing is left behind.
+  const wallet = Math.floor((funds.data?.wallet ?? 0) * 100) / 100;
+  if (short > 0 && wallet + 1e-9 >= short) {
+    return (
+      <Button variant="secondary" className="w-full" onClick={() => toTrading.mutate(wallet)} disabled={toTrading.isPending}>
+        {toTrading.isPending ? "Adding…" : `Add your ${formatUsd(wallet)} deposit`}
+      </Button>
+    );
+  }
+  return (
+    <Button variant="secondary" className="w-full" onClick={() => openFunds("deposit")}>
+      Deposit
+    </Button>
+  );
+}
+
 function HoldAgeMeter({ player }: { player: PlayerDetail }) {
-  const client = useProtocolClient();
+  const client = useMockClient();
   const h = player.holding;
   const days = h?.holdAgeDays ?? 0;
   return (
@@ -401,7 +578,7 @@ function HoldAgeMeter({ player }: { player: PlayerDetail }) {
         <span className="text-soft">
           Held{" "}
           <span className="text-ink">
-            {h ? `${days.toFixed(0)} days` : "—"}
+            {h ? `${days === 1 ? "1 day" : `${days.toFixed(0)} days`}` : "—"}
           </span>
         </span>
         <span className="text-soft">
@@ -420,7 +597,7 @@ function HoldAgeMeter({ player }: { player: PlayerDetail }) {
         <p className="text-xs text-faint">
           5% on day one, falling to 0.5% at 90 days. 90% of it goes to holders.
         </p>
-        {h ? (
+        {h && client ? (
           <button
             type="button"
             className="shrink-0 text-xs text-soft underline decoration-control underline-offset-4 hover:text-ink"
@@ -461,7 +638,7 @@ function KickoffNote({ launching }: { launching: boolean }) {
       </>
     );
   return (
-    <p className="rounded-xl bg-ground px-3 py-2.5 text-sm text-soft">{body}</p>
+    <p className="rounded-xl bg-raised/50 px-3 py-2.5 text-sm text-soft">{body}</p>
   );
 }
 
@@ -540,7 +717,7 @@ function LimitForm({ player, side }: { player: PlayerDetail; side: Side }) {
           {session.data ? (
             <span className="fig text-faint">
               {side === "buy"
-                ? `Balance ${formatUsd(pf.data?.usdc)}`
+                ? `Cash ${formatUsd(pf.data?.usdc)}`
                 : `Holding ${formatTokens(holding?.tokens ?? 0)}`}
             </span>
           ) : null}
@@ -582,7 +759,8 @@ function LimitForm({ player, side }: { player: PlayerDetail; side: Side }) {
       ) : null}
       <Button
         size="lg"
-        className="w-full"
+        variant={side === "buy" ? "buy" : "sell"}
+        className="h-12 w-full text-[1rem]"
         onClick={submit}
         disabled={!!session.data && !ok}
         data-testid="limit-submit"

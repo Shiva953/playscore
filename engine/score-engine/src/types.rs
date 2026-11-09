@@ -105,6 +105,11 @@ pub enum Cmd {
     Forced { index: u64, user: UserId, kind: u8, data: [u8; 32] },
     /// Forced request `index` was answered on-chain without payment: its hold goes back to free.
     ForcedUnpaid { index: u64 },
+    // Appended, not inserted: borsh tags are positional, and the log and signed bytes depend on them.
+    /// Every dividend the user has credited, in one command: one signature instead of one per round
+    /// and player. Same rules as `Claim`, applied row by row in a single engine transaction; a row
+    /// whose token election can't be filled falls back to USDC so one short reserve can't block the rest.
+    ClaimAll { user: UserId, nonce: u64, take_tokens: bool },
 }
 
 impl Cmd {
@@ -120,7 +125,8 @@ impl Cmd {
             | Cmd::CancelOrder { user, .. }
             | Cmd::AddLiquidity { user, .. }
             | Cmd::RemoveLiquidity { user, .. }
-            | Cmd::Claim { user, .. } => Some(user),
+            | Cmd::Claim { user, .. }
+            | Cmd::ClaimAll { user, .. } => Some(user),
             Cmd::Deposit { .. }
             | Cmd::WithdrawPaid { .. }
             | Cmd::ReleaseLock { .. }
@@ -155,6 +161,8 @@ pub enum Outcome {
     Locked { id: u64, amount: u64 },
     Claimed { usdc: u64, tokens: u64 },
     SeedFees { usdc: u64, tokens_burned: u64 },
+    /// `ClaimAll`: one row per (round, player) paid, as (round, player, usdc, tokens).
+    ClaimedAll { rows: Vec<(u32, PlayerId, u64, u64)> },
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, BorshSerialize, BorshDeserialize)]

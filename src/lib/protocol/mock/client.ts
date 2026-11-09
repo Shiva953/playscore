@@ -3,6 +3,8 @@ import { DemoClock, type ClockPhase } from "../demo-clock";
 import { ProtocolError } from "../errors";
 import { STORAGE_KEY, loadJson, removeKey, saveJson } from "../storage";
 import type {
+  ValuePoint,
+  ValueRange,
   AuthClient,
   ClaimMode,
   DemoControls,
@@ -78,7 +80,12 @@ export interface MockClientOptions {
  * In-memory protocol driven by `packages/core`, persisted to localStorage, ticked by a `DemoClock`.
  * Implements the production seam (`ProtocolClient`) plus mock sign-in and demo-only controls.
  */
+const VALUE_SAMPLE_MS = 3_000;
+const VALUE_LOG_MAX = 4_000;
+const VALUE_SPAN: Record<ValueRange, number | null> = { "1H": 3_600_000, "24H": DAY_MS, "7D": 7 * DAY_MS, ALL: null };
+
 export class MockProtocolClient implements ProtocolClient, AuthClient, DemoControls {
+  readonly mode = "mock" as const;
   private s: MockState;
   private clock: DemoClock;
   private listeners = new Set<(e: ProtocolEvent) => void>();
@@ -142,6 +149,7 @@ export class MockProtocolClient implements ProtocolClient, AuthClient, DemoContr
     if (this.s.settings.clockMode === "calendar") launchDue(ctx);
     ambientTick(ctx);
     fillLimitOrders(ctx);
+    this.sampleValue(now);
     this.dirty = true;
     this.save(false);
   }
@@ -174,6 +182,23 @@ export class MockProtocolClient implements ProtocolClient, AuthClient, DemoContr
       if (next.phase !== "open") kickoff(ctx);
     }
     this.emit({ type: "phase", round: next.round, phase: next.phase });
+  }
+
+  /** Every few seconds, note what the signed-in account is worth, for the portfolio chart. */
+  private sampleValue(now: number, force = false): void {
+    const u = this.s.user;
+    if (!u) return;
+    const log = (u.valueLog ??= []);
+    const last = log[log.length - 1];
+    if (!force && last && now - last.t < VALUE_SAMPLE_MS) return;
+    const pf = portfolioOf(this.s, now);
+    if (!pf) return;
+    log.push({ t: now, value: pf.totalValue, pnl: pf.pnl });
+    // Keep the log bounded: thin the older half to every other point.
+    if (log.length > VALUE_LOG_MAX) {
+      const half = Math.floor(log.length / 2);
+      u.valueLog = log.slice(0, half).filter((_, i) => i % 2 === 0).concat(log.slice(half));
+    }
   }
 
   private ctx(now: number): EngineCtx {
@@ -215,6 +240,7 @@ export class MockProtocolClient implements ProtocolClient, AuthClient, DemoContr
       throw new ProtocolError("NETWORK", "Transaction failed to send (simulated). Nothing was charged.");
     }
     const out = fn(this.ctx(this.clockNow()));
+    this.sampleValue(this.clockNow(), true);
     this.dirty = true;
     this.save(true);
     return out;
@@ -249,6 +275,19 @@ export class MockProtocolClient implements ProtocolClient, AuthClient, DemoContr
 
   getPortfolio(): Promise<Portfolio | null> {
     return this.read(() => portfolioOf(this.s, this.clockNow()));
+  }
+
+  getValueHistory(range: ValueRange): Promise<ValuePoint[]> {
+    return this.read(() => {
+      const now = this.clockNow();
+      const pf = portfolioOf(this.s, now);
+      if (!pf) return [];
+      const span = VALUE_SPAN[range];
+      const from = span ? now - span : -Infinity;
+      const pts = (this.s.user?.valueLog ?? []).filter((p) => p.t >= from && p.t < now);
+      // The line always ends on the value the page shows right now.
+      return [...pts, { t: now, value: pf.totalValue, pnl: pf.pnl }];
+    });
   }
 
   getProtocolStats(): Promise<ProtocolStats> {

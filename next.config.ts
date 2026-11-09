@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
 const baseConfig: NextConfig = {
+  // A second dev server (e.g. the browser e2e) can run beside yours with its own build folder.
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
   serverExternalPackages: ["ws"],
   transpilePackages: ["@score/core"],
   devIndicators: false,

@@ -49,6 +49,13 @@ async function shot(page, name) {
   log("screenshot", name);
 }
 
+/** Buys and sells answer in the ticket itself: wait for the receipt, then go back to the form. */
+async function receipt(page, re) {
+  const r = page.getByTestId("trade-receipt").filter({ hasText: re });
+  await r.waitFor();
+  await r.getByRole("button", { name: /^(Buy|Sell) more$/ }).click();
+}
+
 /** Wait for a toast (not any page text) matching `re`. */
 async function toast(page, re) {
   await page.locator("[data-sonner-toast]").filter({ hasText: re }).first().waitFor();
@@ -143,7 +150,7 @@ async function main() {
   await page.getByRole("heading", { name: "Launch curve" }).waitFor();
   await page.locator("#amt-haaland").fill("400");
   await page.getByTestId("trade-submit").click();
-  await toast(page, /Bought .* HAALAND/);
+  await receipt(page, /You bought[\s\S]*HAALAND/);
   await shot(page, "player-launching-desktop");
   log("bought on the launch curve");
 
@@ -168,22 +175,21 @@ async function main() {
   await page.getByText(/Sell tax \(0-day hold\)/).waitFor();
   await shot(page, "player-trading-sell-desktop");
   await page.getByTestId("trade-submit").click();
-  await toast(page, /Sold .* HAALAND/);
+  await receipt(page, /You sold[\s\S]*HAALAND/);
   log("sold with 5% sell tax");
 
   // Buy a seeded bonded player before kickoff
   await page.goto(`${BASE}/player/kane`, { waitUntil: "networkidle" });
   await page.locator("#amt-kane").fill("300");
   await page.getByTestId("trade-submit").click();
-  await toast(page, /Bought .* KANE/);
+  await receipt(page, /You bought[\s\S]*KANE/);
   log("bought KANE in the pool");
 
-  // Pro view
-  await page.getByLabel("Pro view").click();
-  await page.getByText("Watchlist").waitFor();
+  // The player page hands off to the one trade terminal (the old Pro view copy is gone)
+  await page.getByRole("link", { name: "Open in terminal" }).click();
+  await page.waitForURL(/\/trade\/kane/);
   await page.getByRole("button", { name: "RSI 14" }).click();
-  await shot(page, "player-pro-desktop");
-  await page.getByLabel("Pro view").click();
+  await shot(page, "terminal-from-player-desktop");
 
   // Matchday: kickoff → live
   await page.goto(`${BASE}/matchday`, { waitUntil: "networkidle" });
@@ -302,7 +308,7 @@ async function main() {
         ])
       );
       // WCAG 2 A/AA with axe-core (incl. colour contrast).
-      const axe = await new AxeBuilder({ page: p }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+      const axe = await new AxeBuilder({ page: p }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
       for (const v of axe.violations.filter((x) => x.impact === "serious" || x.impact === "critical")) {
         a11y.push(`${label} ${path}: [${v.id}] ${v.help} (${v.nodes.length}×) e.g. ${v.nodes[0]?.target?.join(" ")}`);
       }

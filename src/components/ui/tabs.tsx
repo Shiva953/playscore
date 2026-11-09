@@ -8,7 +8,7 @@ import { Tabs as TabsPrimitive } from "radix-ui"
 /**
  * Two kinds:
  * - `line` (default): text tabs; inactive soft grey, active ink. No accent, no pill.
- * - `segmented`: a #111 track with the active segment one lightness step up (Buy/Sell, ranges).
+ * - `segmented`: a surface-toned track with the active segment one lightness step up (Buy/Sell, ranges).
  */
 function Tabs({ className, orientation = "horizontal", ...props }: React.ComponentProps<typeof TabsPrimitive.Root>) {
   return (
@@ -25,7 +25,7 @@ const tabsListVariants = cva("group/tabs-list inline-flex w-fit items-center", {
   variants: {
     variant: {
       line: "h-9 gap-5",
-      segmented: "h-10 gap-0 rounded-full bg-surface p-1",
+      segmented: "h-10 gap-0 rounded-full bg-surface p-1 ring-1 ring-edge ring-inset",
     },
   },
   defaultVariants: { variant: "line" },

@@ -19,7 +19,7 @@ export function EmptyState({ title, children, action, className }: { title: stri
 
 export function ErrorState({ error, onRetry, className }: { error: unknown; onRetry?: () => void; className?: string }) {
   return (
-    <div role="alert" className={cn("flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-2xl bg-surface px-5 py-4 text-sm", className)} data-state="error">
+    <div role="alert" className={cn("flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-4 text-sm", className)} data-state="error">
       <span className="size-2 translate-y-[-1px] self-center rounded-full bg-down" aria-hidden="true" />
       <p className="text-ink">Couldn&apos;t load this.</p>
       <p className="text-soft">{errorMessage(error)}</p>

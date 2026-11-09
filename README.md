@@ -4,7 +4,29 @@ Own the players. Earn when they perform.
 Real footballers launch as tokens on a bonding curve, graduate into a permanent trading pool at $25k raised, and every matchday the holders of players who finish top 5 on a position leaderboard (top 3 for goalkeepers) share USDC dividends from a funded vault.
 This repo holds the app (Next.js, currently on a mock protocol that runs the real economics in TypeScript) and the backend: the Solana program, the trading engine and the server, running end to end on devnet.
 
-> **Status: devnet.** The app still uses the mock; the backend is tested end to end on devnet (`bun run e2e:backend`). Not ready for mainnet: see `docs/BACKEND.md`.
+> **Status: devnet.** The app runs on the real backend (engine, Solana program, oracle) when the backend URLs are set, and on the in-browser mock when they aren't. Not ready for mainnet: see `docs/BACKEND.md`.
+
+## Run the connected app (devnet)
+
+Needs the one-time devnet setup (`bun run devnet:setup`, then `bun run devnet:faucet-setup`) and `.env.local` with
+`NEXT_PUBLIC_SOLANA_RPC_DEVNET`, `NEXT_PUBLIC_SCORE_NODE=http://127.0.0.1:8787`, `NEXT_PUBLIC_SCORE_ORACLE=http://127.0.0.1:8788`,
+and optionally `NEXT_PUBLIC_PRIVY_APP_ID` + `PRIVY_APP_SECRET`.
+
+```bash
+bun run stack      # score-node + oracle + simulated traders (Ctrl+C stops all)
+bun run dev        # the app, http://localhost:3000
+bun run e2e:app    # browser test of every flow on the real backend (starts its own app on :3400)
+```
+
+| Piece | What it does |
+|---|---|
+| `backend/score-node` | Engine, log, relayer, chain watcher, batch committer, plus the app's read model (`views.rs`: markets, trades, price history, portfolios, exact quotes on a throwaway copy of the market) and a live event stream |
+| `services/oracle` | Lists the client's 288 players on the launch schedule (ICO# order, weekday 14:00/20:00 UTC), runs matchday rounds (kickoff snapshot → live match data → freeze → result), serves the matchday view and the test-USDC faucet |
+| `scripts/sim-traders.ts` | 40 devnet wallets that deposit test USDC and trade through the real API (curve buys, pool trades, limit orders, liquidity, claims), reacting to live match events |
+| `src/lib/protocol/api/client.ts` | The app's `ProtocolClient` on the real backend. Orders are signed by the user's wallet (Privy embedded wallet, no popup) |
+
+Rounds are simulated on a fast clock for devnet (8 min open, 5 min live, 40 s freeze; `ORACLE_OPEN_S` etc.). A real stats feed replaces the simulator in the oracle before mainnet.
+The player list comes from `docs/Scorefun Player ICO.xlsx` via `bun run import:players` (writes `packages/core/src/sim/registry.ts`).
 
 ## Run it
 
@@ -67,7 +89,7 @@ bun install
 bun run dev        # open http://localhost:3000
 ```
 
-The app runs on simulated funds in your browser (see [Demo mode](#demo-mode) below for a 2-minute walkthrough). It isn't connected to the backend yet; that's the integration step.
+With no backend URLs set, the app runs on simulated funds in your browser (see [Demo mode](#demo-mode) below for a 2-minute walkthrough). To run it on the real backend, see [Run the connected app](#run-the-connected-app-devnet).
 
 ### Step 2: the app's maths tests (seconds)
 
@@ -149,4 +171,4 @@ The UI only talks to `ProtocolClient` (`src/lib/protocol/types.ts`). The mock im
 
 ## Not built yet
 
-The app isn't connected to the backend, and there's no match-data oracle or production key management yet. Dividends are a product mechanic, not a promise: see `/docs` and `/terms` (draft for legal review).
+The oracle's match data is simulated (no live stats feed yet), and there's no production key management yet. Dividends are a product mechanic, not a promise: see `/docs` and `/terms` (draft for legal review).

@@ -30,7 +30,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       style={
         {
-          // A toast floats above everything, so it sits a step above the cards (#2a2a2a over #111) with a real shadow.
+          // A toast floats above everything, so it sits a step above the cards (--raised over --surface) with a real shadow.
           "--normal-bg": "var(--raised)",
           "--normal-text": "var(--ink)",
           "--normal-border": "rgba(255,255,255,0.08)",

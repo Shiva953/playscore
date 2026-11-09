@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -24,7 +24,7 @@ use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
 use tokio::sync::{Mutex, Notify};
 
-use crate::chain::Rpc;
+use crate::chain::{Rpc, FINALIZED};
 use crate::committer::{hex, BatchStatus};
 use crate::core::Core;
 use crate::program::Addrs;
@@ -99,6 +99,10 @@ pub struct App {
     pub batches: Arc<Mutex<BatchStatus>>,
     pub db: Arc<Mutex<DbStatus>>,
     pub relay: Arc<Mutex<RelayStatus>>,
+    pub views: crate::views::Shared,
+    /// When each user last had the relayer fund a recipient's token account (wallet sends).
+    pub ata_creates: Arc<Mutex<std::collections::HashMap<Pubkey, Vec<i64>>>>,
+    pub view_events: tokio::sync::broadcast::Sender<Value>,
 }
 
 type S = State<Arc<App>>;
@@ -116,12 +120,30 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/v1/relay", post(relay))
         .route("/v1/admin/cmd", post(admin))
         .route("/v1/stream", get(stream))
+        .route("/v1/view/head", get(view_head))
+        .route("/v1/view/markets", get(view_markets))
+        .route("/v1/view/markets/{player}", get(view_market))
+        .route("/v1/view/markets/{player}/history", get(view_history))
+        .route("/v1/view/trades", get(view_trades))
+        .route("/v1/view/users/{pk}", get(view_user))
+        .route("/v1/view/users/{pk}/value", get(view_value))
+        .route("/v1/view/stats", get(view_stats))
+        .route("/v1/view/rounds/{round}/snapshot", get(view_snapshot))
+        .route("/v1/view/results", get(view_results))
+        .route("/v1/view/stream", get(view_stream))
+        .route("/v1/quote", post(view_quote))
+        .route("/v1/blockhash", get(blockhash))
+        .route("/v1/wallet/{pk}", get(wallet))
+        .route("/v1/tx/{sig}", get(tx_status))
+        .layer(tower_http::cors::CorsLayer::new().allow_origin(tower_http::cors::Any).allow_methods(tower_http::cors::Any).allow_headers(tower_http::cors::Any))
         .with_state(app)
 }
 
 fn err(code: StatusCode, msg: impl ToString) -> Response {
     (code, Json(json!({"error": msg.to_string()}))).into_response()
 }
+
+const MAX_ATA_CREATES_PER_DAY: usize = 5;
 
 const EXIT_MSG: &str = "exit mode is on: the protocol is closed; withdraw on-chain with exit_withdraw";
 
@@ -343,7 +365,7 @@ async fn relay(State(a): S, Json(r): Json<Relay>) -> Response {
     if a.exit.load(Ordering::Relaxed) {
         return err(StatusCode::CONFLICT, EXIT_MSG);
     }
-    let (tx, kind) = match relayer::cosign(&bytes, &a.relayer) {
+    let (tx, kind) = match relayer::cosign(&bytes, &a.relayer, &a.addrs.usdc_mint) {
         Ok(x) => x,
         Err(e) => {
             eprintln!("relayer: REFUSED a transaction: {e}");
@@ -358,9 +380,26 @@ async fn relay(State(a): S, Json(r): Json<Relay>) -> Response {
     let blocked = match kind {
         relayer::Kind::Deposit => paused & program::PAUSE_DEPOSITS_ != 0,
         relayer::Kind::Withdraw | relayer::Kind::Request => paused & program::PAUSE_WITHDRAWALS_ != 0,
+        relayer::Kind::Send { .. } | relayer::Kind::WithdrawTo { .. } => false, // a pause doesn't apply to the address it pays
     };
     if blocked {
         return err(StatusCode::SERVICE_UNAVAILABLE, "paused on-chain; try again later");
+    }
+    // Each new recipient account costs the relayer ~0.002 SOL of rent: a few per user per day.
+    if let Some((user, true)) = match kind {
+        relayer::Kind::Send { user, creates } => Some((user, creates)),
+        // The user's own signature is key #1 in both shapes.
+        relayer::Kind::WithdrawTo { creates } => Some((tx.message.static_account_keys()[1], creates)),
+        _ => None,
+    } {
+        let t = now();
+        let mut m = a.ata_creates.lock().await;
+        let mine = m.entry(user).or_default();
+        mine.retain(|x| t - *x < 86_400);
+        if mine.len() >= MAX_ATA_CREATES_PER_DAY {
+            return err(StatusCode::TOO_MANY_REQUESTS, format!("you can send to {MAX_ATA_CREATES_PER_DAY} new addresses a day; try again tomorrow"));
+        }
+        mine.push(t);
     }
     let sig = tx.signatures[0];
     if let Err(e) = a.rpc.send_raw(&tx).await {
@@ -431,6 +470,209 @@ async fn pump(mut socket: WebSocket, mut rx: tokio::sync::broadcast::Receiver<Ar
         let msg = json!({"seq": r.seq, "ts": r.ts, "kind": kind, "user": user, "cmd": r.cmd});
         if socket.send(Message::Text(msg.to_string().into())).await.is_err() {
             return;
+        }
+    }
+}
+
+// ------------------------------------------------------------------ app read model (views.rs)
+
+#[derive(Deserialize, Default)]
+struct ViewQ {
+    user: Option<String>,
+    after: Option<u64>,
+    range: Option<String>,
+    player: Option<u32>,
+    limit: Option<usize>,
+}
+
+fn pk_of(s: &Option<String>) -> Option<UserId> {
+    s.as_deref().and_then(|x| x.parse::<Pubkey>().ok()).map(|p| p.to_bytes())
+}
+
+fn window(range: Option<&str>) -> i64 {
+    match range.unwrap_or("24H") {
+        "1H" => 3_600,
+        "24H" => 86_400,
+        "3D" => 3 * 86_400,
+        "6D" => 6 * 86_400,
+        "7D" => 7 * 86_400,
+        _ => 0,
+    }
+}
+
+/// Wait until the read model has applied `after` (read-your-writes after a command), up to 2 s.
+async fn caught_up(a: &App, after: Option<u64>) {
+    let Some(after) = after else { return };
+    for _ in 0..400 {
+        if a.views.read().unwrap().seq >= after {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+}
+
+async fn view_head(State(a): S) -> Json<Value> {
+    let v = a.views.read().unwrap();
+    Json(json!({"seq": v.seq, "ready": v.ready, "ts": now()}))
+}
+
+async fn view_markets(State(a): S, Query(q): Query<ViewQ>) -> Json<Value> {
+    caught_up(&a, q.after).await;
+    let v = a.views.read().unwrap();
+    let t = now();
+    let list: Vec<Value> = v.engine.markets().filter_map(|(p, _)| crate::views::market_json(&v, *p, t)).collect();
+    Json(json!({"seq": v.seq, "markets": list}))
+}
+
+async fn view_market(State(a): S, Path(p): Path<u32>, Query(q): Query<ViewQ>) -> Response {
+    caught_up(&a, q.after).await;
+    let me = pk_of(&q.user);
+    let v = a.views.read().unwrap();
+    match crate::views::detail_json(&v, p, me.as_ref(), now()) {
+        Some(x) => Json(x).into_response(),
+        None => err(StatusCode::NOT_FOUND, "unknown player"),
+    }
+}
+
+async fn view_history(State(a): S, Path(p): Path<u32>, Query(q): Query<ViewQ>) -> Json<Value> {
+    let v = a.views.read().unwrap();
+    Json(crate::views::history_json(&v, p, window(q.range.as_deref()), now(), q.limit.unwrap_or(240).clamp(10, 1_000)))
+}
+
+async fn view_trades(State(a): S, Query(q): Query<ViewQ>) -> Json<Value> {
+    let me = pk_of(&q.user);
+    let v = a.views.read().unwrap();
+    let n = q.limit.unwrap_or(30).min(300);
+    let list: Vec<Value> = match q.player {
+        Some(p) => v.markets.get(&p).map(|m| m.trades.iter().take(n).map(|t| crate::views::trade_json(t, me.as_ref())).collect()).unwrap_or_default(),
+        None => v.tape.iter().take(n).map(|t| crate::views::trade_json(t, me.as_ref())).collect(),
+    };
+    Json(json!(list))
+}
+
+async fn view_user(State(a): S, Path(pk): Path<String>, Query(q): Query<ViewQ>) -> Response {
+    let Ok(pk) = pk.parse::<Pubkey>() else { return err(StatusCode::BAD_REQUEST, "bad pubkey") };
+    caught_up(&a, q.after).await;
+    let v = a.views.read().unwrap();
+    Json(crate::views::user_json(&v, &pk.to_bytes())).into_response()
+}
+
+async fn view_value(State(a): S, Path(pk): Path<String>, Query(q): Query<ViewQ>) -> Response {
+    let Ok(pk) = pk.parse::<Pubkey>() else { return err(StatusCode::BAD_REQUEST, "bad pubkey") };
+    let v = a.views.read().unwrap();
+    Json(crate::views::value_json(&v, &pk.to_bytes(), window(q.range.as_deref()), now())).into_response()
+}
+
+async fn view_stats(State(a): S) -> Json<Value> {
+    let v = a.views.read().unwrap();
+    Json(crate::views::stats_json(&v, now()))
+}
+
+async fn view_snapshot(State(a): S, Path(round): Path<u32>, Query(q): Query<ViewQ>) -> Json<Value> {
+    let me = pk_of(&q.user);
+    let v = a.views.read().unwrap();
+    Json(crate::views::snapshot_json(&v, round, me.as_ref()))
+}
+
+async fn view_results(State(a): S, Query(q): Query<ViewQ>) -> Json<Value> {
+    let me = pk_of(&q.user);
+    let v = a.views.read().unwrap();
+    Json(crate::views::results_json(&v, q.limit.unwrap_or(10).min(60), me.as_ref()))
+}
+
+#[derive(Deserialize)]
+struct QuoteBody {
+    kind: String,
+    user: Option<String>,
+    player: u32,
+    #[serde(default)]
+    usdc: u64,
+    #[serde(default)]
+    tokens: u64,
+    #[serde(default)]
+    position: u64,
+    #[serde(default)]
+    fraction: f64,
+}
+
+async fn view_quote(State(a): S, Json(b): Json<QuoteBody>) -> Json<Value> {
+    // Signed out: a stand-in key (never the protocol's all-zero one).
+    let user = pk_of(&b.user).unwrap_or([1u8; 32]);
+    let q = crate::views::QuoteIn { kind: b.kind, user, player: b.player, usdc: b.usdc, tokens: b.tokens, position: b.position, fraction: if b.fraction == 0.0 { 1.0 } else { b.fraction } };
+    let v = a.views.read().unwrap();
+    let mut out = crate::views::quote(&v, &q, now().max(v.last_ts));
+    out["seq"] = json!(v.seq);
+    Json(out)
+}
+
+/// A recent blockhash for user transactions (the browser needs no RPC key).
+async fn blockhash(State(a): S) -> Response {
+    match a.rpc.call("getLatestBlockhash", json!([{"commitment": "confirmed"}])).await {
+        Ok(v) => Json(json!({"blockhash": v["value"]["blockhash"], "lastValidBlockHeight": v["value"]["lastValidBlockHeight"]})).into_response(),
+        Err(e) => err(StatusCode::BAD_GATEWAY, e),
+    }
+}
+
+/// A wallet's test USDC (its associated token account) at finalized and confirmed, plus whether
+/// the account exists. Base units.
+async fn wallet(State(a): S, Path(pk): Path<String>) -> Response {
+    let Ok(owner) = pk.parse::<Pubkey>() else { return err(StatusCode::BAD_REQUEST, "bad pubkey") };
+    let token_program: Pubkey = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA".parse().unwrap();
+    let ata_program: Pubkey = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL".parse().unwrap();
+    let (ata, _) = Pubkey::find_program_address(&[owner.as_ref(), token_program.as_ref(), a.addrs.usdc_mint.as_ref()], &ata_program);
+    let read = |c: &'static str| {
+        let rpc = a.rpc.clone();
+        async move { rpc.account(&ata, c).await.map(|(d, _)| d.map(|d| u64::from_le_bytes(d[64..72].try_into().unwrap_or_default()))) }
+    };
+    let (fin, conf) = tokio::join!(read(FINALIZED), read("confirmed"));
+    match (fin, conf) {
+        (Ok(f), Ok(c)) => Json(json!({"ata": ata.to_string(), "exists": c.is_some() || f.is_some(), "finalized": f.unwrap_or(0), "confirmed": c.unwrap_or(0)})).into_response(),
+        (Err(e), _) | (_, Err(e)) => err(StatusCode::BAD_GATEWAY, e),
+    }
+}
+
+/// Status of a relayed transaction: "processed" | "confirmed" | "finalized" | "failed" | "unknown".
+async fn tx_status(State(a): S, Path(sig): Path<String>) -> Response {
+    let Ok(sig) = sig.parse::<solana_sdk::signature::Signature>() else { return err(StatusCode::BAD_REQUEST, "bad signature") };
+    match a.rpc.status(&sig).await {
+        Ok(None) => Json(json!({"status": "unknown"})).into_response(),
+        Ok(Some((level, e))) => Json(json!({"status": if e.is_some() { "failed".to_string() } else { level }, "error": e})).into_response(),
+        Err(e) => err(StatusCode::BAD_GATEWAY, e),
+    }
+}
+
+async fn view_stream(State(a): S, ws: WebSocketUpgrade) -> Response {
+    let rx = a.view_events.subscribe();
+    let seq = a.views.read().unwrap().seq;
+    ws.on_upgrade(move |socket| view_pump(socket, rx, seq))
+}
+
+async fn view_pump(mut socket: WebSocket, mut rx: tokio::sync::broadcast::Receiver<Value>, seq: u64) {
+    if socket.send(Message::Text(json!({"type": "hello", "seq": seq}).to_string().into())).await.is_err() {
+        return;
+    }
+    let mut ping = tokio::time::interval(std::time::Duration::from_secs(20));
+    loop {
+        tokio::select! {
+            r = rx.recv() => match r {
+                Ok(v) => {
+                    if socket.send(Message::Text(v.to_string().into())).await.is_err() {
+                        return;
+                    }
+                }
+                // Too slow: tell the client to refetch everything.
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                    if socket.send(Message::Text(json!({"type": "resync"}).to_string().into())).await.is_err() {
+                        return;
+                    }
+                }
+                Err(_) => return,
+            },
+            _ = ping.tick() => {
+                if socket.send(Message::Ping(Vec::new().into())).await.is_err() {
+                    return;
+                }
+            }
         }
     }
 }

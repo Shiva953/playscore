@@ -11,14 +11,17 @@ import { Toggle } from "@/components/ui/toggle";
 import { Delta, LiveFigure, PositionBadge, StatusBadge, Ticker } from "@/components/common/bits";
 import { EmptyState, LoadingBlock, SignedOutState } from "@/components/common/states";
 import { BondingCurveChart, PriceChart, RangeControl, type Indicators } from "@/components/player/charts";
-import { RecentTrades } from "@/components/player/market-depth";
-import { PositionsMini } from "@/components/player/pro-view";
+import { TradeFeed } from "@/components/live/trade-feed";
+import { QuickBuy, QuickBuyAmount } from "@/components/live/quick-buy";
+import { PlayerAvatar } from "@/components/common/kit";
+import { PositionsMini } from "@/components/player/positions-mini";
 import { TradePanel } from "@/components/player/trade-panel";
-import { formatPct, formatPrice, formatScore, formatUsd, formatUsdCompact } from "@/lib/format";
+import { formatPct, formatPrice, formatUsd } from "@/lib/format";
 import type { LimitOrder, PlayerDetail, PlayerSummary, PriceRange } from "@/lib/protocol/types";
-import { useCancelOrder, usePlayer, usePlayers, usePortfolio, useSession } from "@/lib/protocol/react/hooks";
+import { useCancelOrder, usePlayer, usePlayers, usePortfolio, useRecentTrades, useSession } from "@/lib/protocol/react/hooks";
 import { cn } from "@/lib/utils";
 import { OrderBook } from "./order-book";
+import { MarketFacts, MarketHeadline } from "@/components/player/market-header";
 import { LEAGUES, LEAGUE_NAMES } from "@score/core";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SORT_LABEL, filterPlayers, neighbours, orderPlayers, sortPlayers, type LeagueFilter, type PlayerSort, type PositionFilter } from "./player-order";
@@ -71,20 +74,28 @@ export function TradeTerminal({ id }: { id: string }) {
   if (!p) {
     return (
       <div data-fullbleed className="mx-auto grid w-full max-w-[1680px] gap-3 px-3 py-3 md:px-4 lg:grid-cols-[260px_minmax(0,1fr)_320px]" aria-busy="true">
-        <LoadingBlock className="h-[70vh]" />
-        <LoadingBlock className="h-[70vh]" />
-        <LoadingBlock className="h-[70vh]" />
+        <LoadingBlock className="h-[640px]" />
+        <LoadingBlock className="h-[640px]" />
+        <LoadingBlock className="h-[640px]" />
       </div>
     );
   }
 
   return (
-    <div data-fullbleed className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-3 pt-3 pb-24 md:px-4 md:pb-6">
-      <Strip p={p} onPrev={() => go(nav.prev)} onNext={() => go(nav.next)} />
-      {/* Phones: chart, ticket and book, the tabs, then the list. Desktop: list | chart + tabs | ticket + book. */}
-      <div className="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)_320px] lg:grid-rows-[auto_1fr]">
-        <Card size="sm" className="order-4 min-h-0 lg:order-none lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-[calc(100svh-178px)] lg:self-start">
-          <CardContent className="flex min-h-0 flex-1 flex-col gap-2.5">
+    <div
+      data-fullbleed
+      // While the next player loads, the last one stays on screen (no empty flash) but reads as stale.
+      aria-busy={q.isPlaceholderData || undefined}
+      className={cn("mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-3 pt-3 pb-24 transition-opacity duration-150 md:px-4 md:pb-6", q.isPlaceholderData && "opacity-60")}
+    >
+      {/*
+        Phones: chart, ticket and book, the tabs, then the list. Desktop: list | chart + tabs | ticket + book,
+        and all three columns end on the same line: the list fills the row and scrolls inside it, and the
+        last card in the middle and right columns stretches to meet it.
+      */}
+      <div className="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
+        <Card size="sm" className="order-4 min-h-0 max-lg:max-h-[560px] lg:relative lg:order-none lg:min-h-[640px] lg:py-0">
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-2.5 lg:absolute lg:inset-0 lg:py-4">
             <Watchlist
               list={list}
               selected={p.id}
@@ -102,16 +113,16 @@ export function TradeTerminal({ id }: { id: string }) {
           </CardContent>
         </Card>
 
-        <div className="order-1 min-w-0 lg:order-none lg:col-start-2 lg:row-start-1">
-          <ChartCard p={p} />
-        </div>
-        <div className="order-3 min-w-0 lg:order-none lg:col-start-2 lg:row-start-2 lg:self-start">
-          <BottomTabs p={p} orders={pf.data?.orders ?? []} />
+        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-3">
+          <div className="order-1 min-w-0 lg:order-none">
+            <ChartCard p={p} onPrev={() => go(nav.prev)} onNext={() => go(nav.next)} />
+          </div>
+          <BottomTabs p={p} orders={pf.data?.orders ?? []} className="order-3 min-w-0 lg:order-none lg:flex-1" />
         </div>
 
-        <div className="order-2 flex flex-col gap-3 lg:order-none lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:self-start">
-          <TradePanel key={p.id} player={p} compact allowLimit />
-          <Card size="sm">
+        <div className="order-2 flex flex-col gap-3 lg:order-none">
+          <TradePanel key={p.id} player={p} compact allowLimit shortcuts />
+          <Card size="sm" className="lg:flex-1">
             <CardContent>
               <OrderBook player={p} orders={pf.data?.orders ?? []} />
             </CardContent>
@@ -122,58 +133,32 @@ export function TradeTerminal({ id }: { id: string }) {
   );
 }
 
-// ---------------------------------------------------------------- the strip
+// ---------------------------------------------------------------- who (top of the chart card)
 
-function Strip({ p, onPrev, onNext }: { p: PlayerDetail; onPrev: () => void; onNext: () => void }) {
-  const trading = p.status === "trading";
-  const dir = Math.abs(p.change24h) < 1e-9 ? "flat" : p.change24h > 0 ? "up" : "down";
+function Identity({ p, onPrev, onNext }: { p: PlayerDetail; onPrev: () => void; onNext: () => void }) {
   return (
-    <section aria-label={`${p.name} market`} className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl bg-surface px-4 py-3">
-      <div className="flex items-center gap-2">
-        <div className="flex flex-col">
-          <Button variant="ghost" size="icon-xs" onClick={onPrev} aria-label="Previous player" title="Previous player (↑)">
-            <ChevronUp aria-hidden="true" />
-          </Button>
-          <Button variant="ghost" size="icon-xs" onClick={onNext} aria-label="Next player" title="Next player (↓)">
-            <ChevronDown aria-hidden="true" />
-          </Button>
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <Ticker ticker={p.ticker} chip />
-            <PositionBadge position={p.position} />
-            <StatusBadge status={p.status} progress={p.bondProgress} />
-          </div>
-          <h1 className="text-[14px] font-medium">
-            <Link href={`/player/${p.id}`} className="text-ink hover:underline">
-              {p.name} <span className="font-normal text-soft">{p.club}</span>
-            </Link>
-          </h1>
-        </div>
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="flex flex-col max-lg:hidden">
+        <Button variant="ghost" size="icon-xs" onClick={onPrev} aria-label="Previous player" title="Previous player (↑)">
+          <ChevronUp aria-hidden="true" />
+        </Button>
+        <Button variant="ghost" size="icon-xs" onClick={onNext} aria-label="Next player" title="Next player (↓)">
+          <ChevronDown aria-hidden="true" />
+        </Button>
       </div>
-      <div className="flex items-baseline gap-2.5">
-        <span className={cn("text-[30px] leading-none font-semibold tracking-[-0.02em]", dir === "up" ? "text-up" : dir === "down" ? "text-down" : "text-ink")} aria-label="Price">
-          <LiveFigure value={p.price} format={formatPrice} className="fig-prop" />
-        </span>
-        <Delta value={p.change24h} className="text-[14px] font-semibold" />
+      <PlayerAvatar id={p.id} size={48} />
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <Ticker ticker={p.ticker} chip />
+          <PositionBadge position={p.position} />
+          <StatusBadge status={p.status} progress={p.bondProgress} />
+        </div>
+        <h1 className="truncate font-sans text-[0.875rem] font-medium tracking-normal">
+          <Link href={`/player/${p.id}`} className="text-ink hover:underline">
+            {p.name} <span className="font-normal text-soft">{p.club}</span>
+          </Link>
+        </h1>
       </div>
-      <dl className="flex flex-wrap gap-x-6 gap-y-2 text-[12px]">
-        <Fact label="24h volume" value={formatUsdCompact(p.volume24h)} />
-        <Fact label="Market cap" value={formatUsdCompact(p.marketCap)} />
-        <Fact label={trading ? "Pool depth" : "Raised"} value={trading ? formatUsdCompact(p.liquidityUsd) : `${formatUsd(p.raised, { decimals: 0 })} of $25k`} />
-        <Fact label="Form" value={formatScore(p.avgScore)} />
-        <Fact label="Last score" value={formatScore(p.lastScore)} />
-      </dl>
-      <span className="ml-auto hidden text-[12px] text-faint xl:inline">↑ ↓ to switch players</span>
-    </section>
-  );
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col">
-      <dt className="text-soft">{label}</dt>
-      <dd className="fig fig-prop text-[15px] font-semibold text-ink">{value}</dd>
     </div>
   );
 }
@@ -208,16 +193,22 @@ function Watchlist({
   loading: boolean;
 }) {
   const box = useRef<HTMLUListElement>(null);
-  // Keep the selected row in view as ↑/↓ move through the list.
+  // Keep the selected row in view as ↑/↓ move through the list. Scroll the list only, never the page:
+  // scrollIntoView also scrolled the window, which on a phone (list at the bottom) jumped the page on load.
   useEffect(() => {
-    box.current?.querySelector<HTMLElement>(`[data-id="${selected}"]`)?.scrollIntoView({ block: "nearest" });
+    const ul = box.current;
+    const row = ul?.querySelector<HTMLElement>(`[data-id="${selected}"]`);
+    if (!ul || !row) return;
+    const top = row.offsetTop - ul.offsetTop;
+    if (top < ul.scrollTop) ul.scrollTop = top;
+    else if (top + row.offsetHeight > ul.scrollTop + ul.clientHeight) ul.scrollTop = top + row.offsetHeight - ul.clientHeight;
   }, [selected]);
   return (
     <>
       <label className="flex h-9 items-center gap-2 rounded-full bg-ground px-3 ring-1 ring-control focus-within:ring-ink">
         <Search className="size-4 shrink-0 text-faint" aria-hidden="true" />
         <span className="sr-only">Search players</span>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search players" className="w-full min-w-0 bg-transparent text-[13px] text-ink outline-none placeholder:text-faint" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search players" className="w-full min-w-0 bg-transparent text-base text-ink outline-none placeholder:text-faint sm:text-[0.8125rem]" />
         {query ? (
           <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="text-faint hover:text-ink">
             <X className="size-3.5" />
@@ -232,7 +223,7 @@ function Watchlist({
             role="radio"
             aria-checked={position === x}
             onClick={() => setPosition(x)}
-            className={cn("h-7 flex-1 rounded-full text-[11px] font-semibold transition-colors duration-150", position === x ? "bg-raised text-ink" : "text-soft hover:text-ink")}
+            className={cn("h-7 flex-1 rounded-full text-[0.75rem] font-semibold transition-colors duration-150", position === x ? "bg-raised text-ink" : "text-soft hover:text-ink")}
           >
             {x === "ALL" ? "All" : x}
           </button>
@@ -240,7 +231,7 @@ function Watchlist({
       </div>
       <div className="grid grid-cols-2 gap-1.5">
         <Select value={league} onValueChange={(v) => setLeague(v as LeagueFilter)}>
-          <SelectTrigger aria-label="League" className="w-full pl-3 text-[12px]">
+          <SelectTrigger aria-label="League" className="w-full pl-3 text-[0.75rem]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -253,7 +244,7 @@ function Watchlist({
           </SelectContent>
         </Select>
         <Select value={sort} onValueChange={(v) => setSort(v as PlayerSort)}>
-          <SelectTrigger aria-label="Sort by" className="w-full pl-3 text-[12px]">
+          <SelectTrigger aria-label="Sort by" className="w-full pl-3 text-[0.75rem]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -265,30 +256,40 @@ function Watchlist({
           </SelectContent>
         </Select>
       </div>
+      <QuickBuyAmount className="self-start" />
       <ul ref={box} className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 max-lg:max-h-[420px]" aria-label="Players">
-        {loading ? <li className="px-2 py-3 text-[13px] text-soft">Loading players…</li> : null}
-        {!loading && list.length === 0 ? <li className="px-2 py-3 text-[13px] text-soft">No players match.</li> : null}
+        {loading ? <li className="px-2 py-3 text-[0.8125rem] text-soft">Loading players…</li> : null}
+        {!loading && list.length === 0 ? <li className="px-2 py-3 text-[0.8125rem] text-soft">No players match.</li> : null}
         {list.map((p) => (
-          <li key={p.id} data-id={p.id}>
+          <li key={p.id} data-id={p.id} className="group/row relative">
             <button
               type="button"
               onClick={() => onPick(p.id)}
               aria-current={p.id === selected ? "true" : undefined}
-              className={cn("flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left transition-colors duration-150 hover:bg-raised/60", p.id === selected && "bg-raised")}
+              className={cn("flex w-full items-center justify-between gap-2 rounded-xl px-2 py-1.5 text-left transition-colors duration-150 hover:bg-raised/60", p.id === selected && "bg-raised [--kit-ring:var(--raised)]")}
             >
-              <span className="flex min-w-0 flex-col">
-                <span className="text-[13px] font-semibold text-ink">${p.ticker}</span>
-                <span className="truncate text-[11px] text-faint">{p.name}</span>
+              <span className="flex min-w-0 items-center gap-2.5">
+                <PlayerAvatar id={p.id} size={32} />
+                <span className="flex min-w-0 flex-col">
+                  <span className="text-[0.8125rem] font-semibold text-ink">${p.ticker}</span>
+                  <span className="truncate text-[0.75rem] text-faint">{p.name}</span>
+                </span>
               </span>
-              <span className="flex shrink-0 flex-col items-end">
-                <span className="fig text-[12px] text-ink">{formatPrice(p.price)}</span>
+              <span className="flex shrink-0 flex-col items-end transition-opacity duration-150 [@media(hover:hover)]:group-focus-within/row:opacity-0 [@media(hover:hover)]:group-hover/row:opacity-0">
+                <LiveFigure value={p.price} format={formatPrice} className="text-[0.75rem] text-ink" />
                 {p.status === "trading" ? (
-                  <Delta value={p.change24h} decimals={1} className="text-[11px]" />
+                  <Delta value={p.change24h} decimals={1} className="text-[0.75rem]" />
                 ) : (
-                  <span className="text-[11px] text-soft">{formatPct(p.bondProgress, { decimals: 0 })} bonded</span>
+                  <span className="text-[0.75rem] text-soft">{formatPct(p.bondProgress, { decimals: 0 })} bonded</span>
                 )}
               </span>
             </button>
+            {/* One-tap buy takes the price's place while the pointer is on the row (pointer devices only). */}
+            <QuickBuy
+              playerId={p.id}
+              ticker={p.ticker}
+              className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 opacity-0 [@media(hover:hover)]:group-focus-within/row:pointer-events-auto [@media(hover:hover)]:group-focus-within/row:opacity-100 [@media(hover:hover)]:group-hover/row:pointer-events-auto [@media(hover:hover)]:group-hover/row:opacity-100"
+            />
           </li>
         ))}
       </ul>
@@ -298,47 +299,49 @@ function Watchlist({
 
 // ---------------------------------------------------------------- the chart
 
-function ChartCard({ p }: { p: PlayerDetail }) {
+/**
+ * The chart card is the page's centre: who, the market cap and price as a scoreboard over the line, the
+ * line itself, and the other facts in one row under it. Everything about the market lives on the chart.
+ */
+function ChartCard({ p, onPrev, onNext }: { p: PlayerDetail; onPrev: () => void; onNext: () => void }) {
   const [range, setRange] = useState<PriceRange>("6D");
   const [ind, setInd] = useState<Indicators>({ ma: true, ema: false, bb: false, rsi: false, vol: true });
   return (
-    <Card size="sm">
-      <CardContent className="flex flex-col gap-2">
+    <Card size="sm" aria-label={`${p.name} market`}>
+      <CardContent className="flex flex-col gap-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Identity p={p} onPrev={onPrev} onNext={onNext} />
+          {p.status === "trading" ? <RangeControl value={range} onChange={setRange} /> : null}
+        </div>
+        <h2 className="sr-only">{p.status === "trading" ? "Price chart" : p.status === "launching" ? "Launch curve" : "Upcoming launch"}</h2>
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+          <MarketHeadline p={p} />
+          {p.status === "trading" ? (
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Indicators">
+              {(
+                [
+                  ["ma", "MA 7"],
+                  ["ema", "EMA 14"],
+                  ["bb", "Bollinger 20"],
+                  ["rsi", "RSI 14"],
+                  ["vol", "Volume"],
+                ] as const
+              ).map(([k, label]) => (
+                <Toggle key={k} size="sm" pressed={!!ind[k]} onPressedChange={() => setInd((s) => ({ ...s, [k]: !s[k] }))} className="h-7 px-3 text-xs">
+                  {label}
+                </Toggle>
+              ))}
+            </div>
+          ) : null}
+        </div>
         {p.status === "trading" ? (
-          <>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap gap-1" role="group" aria-label="Indicators">
-                {(
-                  [
-                    ["ma", "MA 7"],
-                    ["ema", "EMA 14"],
-                    ["bb", "Bollinger 20"],
-                    ["rsi", "RSI 14"],
-                    ["vol", "Volume"],
-                  ] as const
-                ).map(([k, label]) => (
-                  <Toggle key={k} size="sm" pressed={!!ind[k]} onPressedChange={() => setInd((s) => ({ ...s, [k]: !s[k] }))} className="h-7 px-3 text-xs">
-                    {label}
-                  </Toggle>
-                ))}
-              </div>
-              <RangeControl value={range} onChange={setRange} />
-            </div>
-            <PriceChart key={p.id} playerId={p.id} range={range} indicators={ind} height={ind.rsi ? 460 : 400} />
-          </>
+          <PriceChart key={p.id} playerId={p.id} range={range} indicators={ind} height={ind.rsi ? 440 : 380} />
         ) : p.status === "launching" ? (
-          <>
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-sm font-medium text-ink">Launch curve</h2>
-              <span className="fig text-[13px] text-soft">
-                {formatUsd(p.raised, { decimals: 0 })} of $25,000 · {formatPct(p.bondProgress, { decimals: 0 })}
-              </span>
-            </div>
-            <BondingCurveChart sold={p.curve.sold} myAvgEntry={p.holding && p.holding.tokens > 0 ? p.holding.costBasis / p.holding.tokens : null} />
-          </>
+          <BondingCurveChart sold={p.curve.sold} myAvgEntry={p.holding && p.holding.tokens > 0 ? p.holding.costBasis / p.holding.tokens : null} />
         ) : (
           <EmptyState title="Not launched yet">Charts appear when the launch opens.</EmptyState>
         )}
+        {p.status !== "scheduled" ? <MarketFacts p={p} /> : null}
       </CardContent>
     </Card>
   );
@@ -346,30 +349,52 @@ function ChartCard({ p }: { p: PlayerDetail }) {
 
 // ---------------------------------------------------------------- under the chart
 
-function BottomTabs({ p, orders }: { p: PlayerDetail; orders: LimitOrder[] }) {
+function BottomTabs({ p, orders, className }: { p: PlayerDetail; orders: LimitOrder[]; className?: string }) {
   return (
-    <Card size="sm">
+    <Card size="sm" className={className}>
       <CardContent>
-        <Tabs defaultValue="positions" className="gap-3">
+        <Tabs defaultValue="trades" className="gap-3">
           <TabsList>
+            <TabsTrigger value="trades">
+              <span className="live-dot relative mr-1.5 inline-block size-1.5 rounded-full bg-brand text-brand" aria-hidden="true" />
+              Trades
+            </TabsTrigger>
             <TabsTrigger value="positions">Positions</TabsTrigger>
             <TabsTrigger value="orders">
               Open orders{orders.length ? <span className="fig ml-1.5 text-soft">{orders.length}</span> : null}
             </TabsTrigger>
-            <TabsTrigger value="trades">Trades</TabsTrigger>
           </TabsList>
+          <TabsContent value="trades">
+            <TerminalTrades p={p} />
+          </TabsContent>
           <TabsContent value="positions">
             <PositionsMini />
           </TabsContent>
           <TabsContent value="orders">
             <OpenOrders orders={orders} current={p.id} />
           </TabsContent>
-          <TabsContent value="trades">
-            <RecentTrades playerId={p.id} limit={12} />
-          </TabsContent>
         </Tabs>
       </CardContent>
     </Card>
+  );
+}
+
+/** This player's trades; while they're few, the rest of the market fills in under them. */
+function TerminalTrades({ p }: { p: PlayerDetail }) {
+  const own = useRecentTrades(p.id, 10);
+  const n = own.data?.length ?? 0;
+  return (
+    <div className="flex flex-col gap-3">
+      <TradeFeed playerId={p.id} limit={10} />
+      {own.data && n < 6 ? (
+        <section aria-labelledby="market-trades" className="flex flex-col gap-1">
+          <h3 id="market-trades" className="px-2 text-[0.8125rem] font-medium text-soft">
+            Across the market
+          </h3>
+          <TradeFeed playerId={null} limit={8 - n} />
+        </section>
+      ) : null}
+    </div>
   );
 }
 
@@ -380,7 +405,7 @@ function OpenOrders({ orders, current }: { orders: LimitOrder[]; current: string
   if (!orders.length) return <p className="py-3 text-sm text-soft">No open orders. Switch the ticket to Limit to rest one on the pool.</p>;
   const sorted = [...orders].sort((a, b) => Number(b.playerId === current) - Number(a.playerId === current) || b.createdAt - a.createdAt);
   return (
-    <ul className="flex flex-col divide-y divide-rule text-[13px]">
+    <ul className="flex flex-col divide-y divide-rule text-[0.8125rem]">
       {sorted.map((o) => (
         <li key={o.id} className="flex items-center justify-between gap-3 py-2.5">
           <span className="flex items-center gap-2">

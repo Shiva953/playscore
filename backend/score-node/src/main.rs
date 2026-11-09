@@ -12,6 +12,7 @@ mod program;
 mod projector;
 mod relayer;
 mod snapshot;
+mod views;
 mod watcher;
 
 use std::path::PathBuf;
@@ -81,6 +82,7 @@ async fn main() -> Result<()> {
     watcher::spawn(core.clone(), rpc.clone(), addrs, trigger.clone(), exit.clone(), watch.clone());
     committer::spawn(core.clone(), rpc.clone(), addrs, operator.clone(), trigger.clone(), exit.clone(), batches.clone());
     engine_log::spawn(wal.clone(), core.records.subscribe(), std::env::var("SCORE_ENGINE_LOG").is_ok_and(|v| v == "1"));
+    let (views, view_events) = views::spawn(wal.clone(), core.records.subscribe());
     projector::spawn(std::env::var("DATABASE_URL").ok().filter(|s| !s.is_empty()), wal.clone(), core.records.subscribe(), db.clone());
 
     // Finalized chain view for withdrawals. Instant permits stay counted until the view's payout
@@ -180,9 +182,13 @@ async fn main() -> Result<()> {
         batches,
         db,
         relay: Arc::new(Mutex::new(Default::default())),
+        views,
+        view_events,
+        ata_creates: Arc::new(Mutex::new(Default::default())),
     });
     let port: u16 = std::env::var("SCORE_PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(8787);
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", port)).await?;
+    let host = std::env::var("SCORE_HOST").unwrap_or_else(|_| "127.0.0.1".into());
+    let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
     eprintln!("score-node listening on http://127.0.0.1:{port}");
     axum::serve(listener, api::router(app)).await?;
     Ok(())

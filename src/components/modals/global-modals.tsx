@@ -9,6 +9,9 @@ import { ClaimPanel } from "@/components/portfolio/claim-panel";
 import { DemoPanel } from "@/components/shell/demo-panel";
 import { formatUsd } from "@/lib/format";
 import { useUi } from "@/lib/protocol/react/ui-store";
+import { AutoAddDeposits } from "./auto-add";
+import { FundsDialog } from "./funds-dialog";
+import { WalletDialog } from "./wallet-dialog";
 import { SignInDialog } from "./sign-in-dialog";
 
 function BondedDialog() {
@@ -27,7 +30,7 @@ function BondedDialog() {
               </DialogDescription>
             </DialogHeader>
             <div className="flex items-baseline gap-3">
-              <TickUp value={bonded.split.pool} format={(n) => formatUsd(n, { decimals: 0 })} className="text-[40px] leading-none font-medium tracking-[-0.02em] text-ink" />
+              <TickUp value={bonded.split.pool} format={(n) => formatUsd(n, { decimals: 0 })} className="text-[2.5rem] leading-none font-medium tracking-[-0.02em] text-ink" />
               <span className="text-sm text-soft">locked in the pool</span>
             </div>
             <KeyValue
@@ -65,7 +68,7 @@ function FullTimeDialog() {
               <DialogDescription>Your players finished on the boards. The data is final.</DialogDescription>
             </DialogHeader>
             <div className="flex items-baseline gap-3">
-              <TickUp value={ft.amount} format={(n) => formatUsd(n)} className="text-[40px] leading-none font-medium tracking-[-0.02em] text-up" />
+              <TickUp value={ft.amount} format={(n) => formatUsd(n)} className="text-[2.5rem] leading-none font-medium tracking-[-0.02em] text-brand" />
               <span className="text-sm text-soft">earned this round</span>
             </div>
             <ClaimPanel compact onClaimed={() => close(null)} />
@@ -88,6 +91,9 @@ export function GlobalModals() {
       <BondedDialog />
       <FullTimeDialog />
       <DemoPanel />
+      <FundsDialog />
+      <WalletDialog />
+      <AutoAddDeposits />
     </>
   );
 }

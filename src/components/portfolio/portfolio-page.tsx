@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Copy } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Copy } from "lucide-react";
 import { toast } from "sonner";
-import { PLAYERS_BY_ID, type PositionCode } from "@score/core";
+import { PLAYERS_BY_ID } from "@score/core";
+import { PlayerAvatar } from "@/components/common/kit";
+import { orbAddressUrl } from "@/lib/solana/explorer";
 import { Button } from "@/components/ui/button";
 import { Delta, LiveFigure, Section, Sparkline, Ticker } from "@/components/common/bits";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/common/states";
@@ -12,11 +14,13 @@ import { UsdcIcon } from "@/components/common/usdc";
 import { UserAvatar } from "@/components/common/user-avatar";
 import { formatCountdown, formatDate, formatPct, formatRelative, formatTokens, formatUsd, shortAddress } from "@/lib/format";
 import type { ActivityItem, Portfolio, PositionView } from "@/lib/protocol/types";
-import { useFaucet, useNow, usePlayers, usePortfolio, useRound, useRoundHistory, useSession, useSignIn } from "@/lib/protocol/react/hooks";
+import { useCash, useFaucet, useNow, usePlayers, usePortfolio, useRound, useRoundHistory, useSession, useSignIn } from "@/lib/protocol/react/hooks";
 import { useUi } from "@/lib/protocol/react/ui-store";
 import { ClaimPanel } from "./claim-panel";
+import { PortfolioHero } from "./value-chart";
 import { cn } from "@/lib/utils";
-import { METHOD_LABEL } from "@/lib/protocol/labels";
+import { methodLabel } from "@/lib/protocol/labels";
+import { useProtocolClient } from "@/lib/protocol/react/provider";
 
 /**
  * Portfolio as a consumer home (after Phantom's home, Robinhood's portfolio and the .fun profile pages):
@@ -61,9 +65,9 @@ export function PortfolioPage() {
 // ---------------------------------------------------------------- who you are
 
 function Profile({ d }: { d: Portfolio }) {
-  const faucet = useFaucet();
+  const mode = useProtocolClient().mode;
   const s = d.user;
-  const method = METHOD_LABEL[s.method];
+  const method = methodLabel(s.method, mode);
   const copy = () => void navigator.clipboard?.writeText(s.address).then(() => toast.success("Address copied"));
   return (
     <header className="flex flex-wrap items-center justify-between gap-4">
@@ -71,70 +75,76 @@ function Profile({ d }: { d: Portfolio }) {
         <UserAvatar seed={s.address} size={56} />
         <div className="flex min-w-0 flex-col gap-1.5">
           <div className="flex items-center gap-1">
-            <h1 className="mono-id truncate text-[18px] text-ink">
+            <h1 className="mono-id truncate text-[1.125rem] font-normal text-ink">
               <span className="sr-only">Portfolio of </span>
-              {shortAddress(s.address, 6)}
+              {/* The address opens the wallet on Orb; underlined on hover and focus, like any link. */}
+              <a
+                href={orbAddressUrl(s.address)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="View this wallet on Orb"
+                className="rounded-sm decoration-soft underline-offset-4 transition-colors duration-150 hover:underline focus-visible:underline"
+              >
+                {shortAddress(s.address, 6)}
+                <span className="sr-only"> (view on Orb, opens in a new tab)</span>
+              </a>
             </h1>
             <Button variant="ghost" size="icon-sm" onClick={copy} aria-label="Copy address">
               <Copy aria-hidden="true" />
             </Button>
           </div>
-          <div className="flex flex-wrap gap-1.5 text-[12px] font-medium">
-            <span className="rounded-full bg-up-tint px-2 py-0.5 text-up">Devnet</span>
+          <div className="flex flex-wrap gap-1.5 text-[0.75rem] font-medium">
+            <span className="rounded-full bg-raised px-2 py-0.5 text-soft">Devnet</span>
             <span className="rounded-full bg-raised px-2 py-0.5 text-soft">{method}</span>
             <span className="rounded-full bg-raised px-2 py-0.5 text-soft">Since {formatDate(s.createdAt)}</span>
           </div>
         </div>
       </div>
-      <div className="flex gap-2">
-        <Button variant="secondary" onClick={() => faucet.mutate(1_000)} disabled={faucet.isPending}>
-          Top up
+      {d.claimable.totalUsd > 0.005 ? (
+        <Button asChild>
+          <a href="#claim">Claim {formatUsd(d.claimable.totalUsd)}</a>
         </Button>
-        {d.claimable.totalUsd > 0.005 ? (
-          <Button asChild>
-            <a href="#claim">Claim {formatUsd(d.claimable.totalUsd)}</a>
-          </Button>
-        ) : null}
-      </div>
+      ) : null}
     </header>
   );
 }
 
 // ---------------------------------------------------------------- the headline figure and its split
 
-/** Dark-mode slots 1–3 of the dataviz reference palette, validated on #111 (all checks pass). */
+/** Dark-mode slots 1–3 of the dataviz reference palette, checked on the surface token (night ink). */
 const SPLIT = [
-  { key: "cash", label: "Cash", color: "#3987e5" },
-  { key: "players", label: "Players", color: "#d95926" },
-  { key: "lp", label: "Liquidity", color: "#199e70" },
+  // Neutral steps, not hues (colorize, unslop: one accent, the rest neutral). Players, what you own, are the
+  // lightest; cash a mid grey; liquidity the darkest. Dark labels measure 7.4:1 or more on each.
+  { key: "cash", label: "Cash", color: "#9e9e9e" },
+  { key: "players", label: "Players", color: "#e4e4e4" },
+  { key: "lp", label: "Liquidity", color: "#8a8a8a" },
 ] as const;
 
-function Hero({ d }: { d: Portfolio }) {
-  const cents = formatUsd(d.totalValue).split(".")[1] ?? "00";
-  const values = { cash: d.usdc, players: d.positionsValue, lp: d.lpValue };
+function Hero({ d, example = false }: { d: Portfolio; example?: boolean }) {
+  const faucet = useFaucet();
+  const devnet = useProtocolClient().mode === "devnet";
+  const openFunds = useUi((x) => x.openFunds);
+  const cash = useCash();
+  const actions = devnet ? (
+    <>
+      <Button onClick={() => openFunds("deposit")}>
+        <ArrowDownToLine aria-hidden="true" />
+        Deposit
+      </Button>
+      <Button variant="secondary" onClick={() => openFunds("withdraw")}>
+        <ArrowUpFromLine aria-hidden="true" />
+        Withdraw
+      </Button>
+    </>
+  ) : (
+    <Button variant="secondary" onClick={() => faucet.mutate(1_000)} disabled={faucet.isPending}>
+      Top up
+    </Button>
+  );
   return (
-    <section aria-label="Portfolio value" data-testid="portfolio-summary" className="grid gap-6 rounded-2xl bg-surface p-5 md:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] lg:items-end">
-      <div className="flex flex-col gap-3">
-        <span className="text-[13px] text-soft">Portfolio value</span>
-        <span className="fig fig-prop flex items-baseline leading-none" aria-label={formatUsd(d.totalValue)}>
-          <LiveFigure value={d.totalValue} format={(n) => formatUsd(n).split(".")[0]!} tick className="fig-prop text-[52px] font-semibold tracking-[-0.03em] text-ink" />
-          <span className="text-[28px] font-medium text-soft">.{cents}</span>
-        </span>
-        <div className="flex flex-wrap items-center gap-2 text-[14px]">
-          <span className={cn("inline-flex h-8 items-center gap-1.5 rounded-full px-3 font-semibold", d.pnl < 0 ? "bg-down-tint" : "bg-up-tint")}>
-            <Delta value={d.pnl}>{formatUsd(d.pnl, { signed: true })}</Delta>
-            <span className="text-[12px] font-medium text-soft">all time</span>
-          </span>
-          {d.dividendsEarned > 0.005 ? (
-            <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-raised px-3">
-              <span className="fig font-semibold text-up">{formatUsd(d.dividendsEarned)}</span>
-              <span className="text-[12px] text-soft">earned from boards</span>
-            </span>
-          ) : null}
-        </div>
-      </div>
-      <Split values={values} total={Math.max(d.totalValue, 0.01)} />
-    </section>
+    <PortfolioHero d={d} arriving={example ? 0 : cash.arriving} actions={example ? null : actions}>
+      <Split values={{ cash: d.usdc, players: d.positionsValue, lp: d.lpValue }} total={Math.max(d.totalValue, 0.01)} />
+    </PortfolioHero>
   );
 }
 
@@ -149,14 +159,14 @@ function Split({ values, total }: { values: Record<(typeof SPLIT)[number]["key"]
           <span
             key={p.key}
             title={`${p.label}: ${formatUsd(p.value)} (${formatPct(p.share, { decimals: 1 })})`}
-            className="flex min-w-1 items-center overflow-hidden rounded-[4px] px-2 text-[12px] font-semibold text-black"
+            className="flex min-w-1 items-center overflow-hidden rounded-[4px] px-2 text-[0.75rem] font-semibold text-ground"
             style={{ flexGrow: p.share, flexBasis: 0, background: p.color }}
           >
             {p.share >= 0.12 ? formatPct(p.share, { decimals: 0 }) : null}
           </span>
         ))}
       </div>
-      <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-[13px]">
+      <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-[0.8125rem]">
         {parts.map((p) => (
           <li key={p.key} className="flex items-center gap-2">
             <span aria-hidden="true" className="size-2.5 rounded-[2px]" style={{ background: p.color }} />
@@ -173,7 +183,7 @@ function Split({ values, total }: { values: Record<(typeof SPLIT)[number]["key"]
 
 function ClaimCard() {
   return (
-    <section id="claim" aria-label="Claimable dividends" className="rounded-2xl bg-surface p-5 ring-1 ring-up/25 md:p-6">
+    <section id="claim" aria-label="Claimable dividends" className="rounded-2xl bg-surface p-5 ring-1 ring-brand/30 md:p-6">
       <ClaimPanel />
     </section>
   );
@@ -193,12 +203,12 @@ function NextChance({ d }: { d: Portfolio }) {
         ? `Matchday ${r.data.round} is live. ${r.data.counted ? `You'd take ${formatUsd(r.data.provisional)} if it ended now.` : "None of your players were held at kickoff."}`
         : `Full time. Payouts land here when the data freezes in ${left}.`;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface px-5 py-4">
-      <p className="text-[14px] text-soft">
-        <span className={cn("mr-2 inline-block size-2 rounded-full align-middle", r.data.phase === "live" ? "bg-up" : "bg-soft")} aria-hidden="true" />
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-4">
+      <p className="text-[0.875rem] text-soft">
+        <span className={cn("mr-2 inline-block size-2 rounded-full align-middle", r.data.phase === "live" ? "bg-brand" : "bg-soft")} aria-hidden="true" />
         {line}
       </p>
-      <Link href="/matchday" className="text-[13px] text-ink underline decoration-control underline-offset-4 hover:decoration-ink">
+      <Link href="/matchday" className="text-[0.8125rem] text-ink underline decoration-control underline-offset-4 hover:decoration-ink">
         Open matchday
       </Link>
     </div>
@@ -206,17 +216,6 @@ function NextChance({ d }: { d: Portfolio }) {
 }
 
 // ---------------------------------------------------------------- your players
-
-const POS_TINT: Record<PositionCode, string> = { FWD: "bg-pos-fwd/15 text-pos-fwd", MID: "bg-pos-mid/15 text-pos-mid", DEF: "bg-pos-def/15 text-pos-def", GK: "bg-pos-gk/15 text-pos-gk" };
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 function Squad({ d }: { d: Portfolio }) {
   const players = usePlayers();
@@ -252,31 +251,34 @@ function PlayerTile({ p, spark }: { p: PositionView; spark: number[] }) {
   return (
     <Link
       href={`/player/${p.playerId}`}
-      className="group flex h-full flex-col gap-4 rounded-2xl bg-surface p-4 transition-colors duration-150 hover:bg-[#161616] focus-visible:outline-2 focus-visible:outline-ink"
+      className="group flex h-full flex-col gap-4 rounded-2xl bg-surface ring-1 ring-edge ring-inset p-4 transition-colors duration-150 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-ink"
     >
       <div className="flex items-center gap-3">
-        <span aria-hidden="true" className={cn("flex size-10 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold", POS_TINT[p.position])}>
-          {initials(p.name)}
-        </span>
+        <PlayerAvatar id={p.playerId} size={48} />
         <span className="flex min-w-0 flex-col">
-          <span className="truncate text-[15px] font-medium text-ink">{p.name}</span>
-          <Ticker ticker={p.ticker} className="text-[12px] text-soft" />
+          <span className="truncate text-[0.9375rem] font-medium text-ink">{p.name}</span>
+          <Ticker ticker={p.ticker} className="text-[0.75rem] text-soft" />
         </span>
         <Sparkline values={spark} width={64} height={24} className="ml-auto shrink-0" />
       </div>
       <div className="flex items-end justify-between gap-3">
         <span className="flex flex-col gap-0.5">
-          <span className="fig fig-prop text-[22px] leading-7 font-semibold text-ink">{formatUsd(p.value)}</span>
-          <span className="fig text-[12px] text-soft">{formatTokens(p.tokens)} tokens</span>
+          <LiveFigure value={p.value} format={(n) => formatUsd(n)} className="fig-prop text-[1.5rem] leading-[1.17] text-ink" />
+          <span className="fig text-[0.75rem] text-soft">{formatTokens(p.tokens)} tokens</span>
         </span>
-        <span className={cn("rounded-full px-2.5 py-1 text-[13px] font-semibold", p.pnl < 0 ? "bg-down-tint" : "bg-up-tint")}>
-          <Delta value={p.pnlPct} />
+        <span className="flex flex-col items-end gap-1">
+          <Delta value={p.pnl} className="text-[0.9375rem] font-semibold">
+            {formatUsd(p.pnl, { signed: true })}
+          </Delta>
+          <span className={cn("rounded-full px-2 py-0.5 text-[0.75rem] font-semibold", p.pnl < 0 ? "bg-down-tint" : "bg-up-tint")}>
+            <Delta value={p.pnlPct} />
+          </span>
         </span>
       </div>
-      <div className="flex items-center justify-between gap-2 border-t border-rule pt-3 text-[12px]">
+      <div className="flex items-center justify-between gap-2 border-t border-rule pt-3 text-[0.75rem]">
         {p.countsNextKickoff ? (
           <span className="flex items-center gap-1.5 text-ink">
-            <span aria-hidden="true" className="size-1.5 rounded-full bg-up" />
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-brand" />
             Counts at kickoff
           </span>
         ) : (
@@ -293,16 +295,16 @@ function PlayerTile({ p, spark }: { p: PositionView; spark: number[] }) {
 function Liquidity({ d }: { d: Portfolio }) {
   return (
     <Section title="Liquidity" description={`Earning 0.25% of every swap in ${d.lp.length} pool${d.lp.length > 1 ? "s" : ""}`} id="lp">
-      <ul className="flex flex-col divide-y divide-rule rounded-2xl bg-surface px-5">
+      <ul className="flex flex-col divide-y divide-rule rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5">
         {d.lp.map((l) => (
-          <li key={l.playerId} className="flex flex-wrap items-center justify-between gap-3 py-3.5 text-[14px]">
+          <li key={l.playerId} className="flex flex-wrap items-center justify-between gap-3 py-3.5 text-[0.875rem]">
             <Link href={`/player/${l.playerId}`} className="flex items-center gap-2 hover:underline">
               <Ticker ticker={l.ticker} className="text-ink" />
               <span className="text-soft">pool, {formatPct(l.poolShare, { decimals: 3 })} share</span>
             </Link>
             <span className="flex items-center gap-4">
               <span className="text-soft">
-                Fees <span className="fig text-up">{formatUsd(l.feesEarnedUsd)}</span>
+                Fees <span className="fig text-brand">{formatUsd(l.feesEarnedUsd)}</span>
               </span>
               <span className="fig font-medium text-ink">{formatUsd(l.valueUsd)}</span>
             </span>
@@ -320,21 +322,33 @@ function sentence(a: ActivityItem): { text: string; amount: string; tone: "up" |
   const tok = a.tokens ? formatTokens(a.tokens) : "";
   switch (a.kind) {
     case "buy":
-      return { text: `Bought ${tok} ${t}`, amount: `−${formatUsd(a.usdc)}`, tone: "ink" };
+      return { text: `Bought ${[tok, t].filter(Boolean).join(" ")}`, amount: `−${formatUsd(a.usdc)}`, tone: "ink" };
     case "sell":
-      return { text: `Sold ${tok} ${t}`, amount: `+${formatUsd(a.usdc)}`, tone: "ink" };
+      return { text: `Sold ${[tok, t].filter(Boolean).join(" ")}`, amount: `+${formatUsd(a.usdc)}`, tone: "ink" };
     case "dividend":
       return { text: t ? `${t} finished top five` : "Your players finished top five", amount: `+${formatUsd(a.usdc)}`, tone: "up" };
     case "claim-usdc":
       return { text: "Claimed dividends in USDC", amount: `+${formatUsd(a.usdc)}`, tone: "up" };
     case "claim-tokens":
-      return { text: `Claimed ${tok ? `${tok} tokens` : "dividends in tokens"}`, amount: formatUsd(a.usdc), tone: "up" };
+      return { text: `Claimed ${tok ? `${tok} tokens` : "dividends in tokens"}`, amount: a.usdc > 0 ? formatUsd(a.usdc) : "", tone: "up" };
     case "lp-add":
-      return { text: `Added liquidity to ${t}`, amount: `−${formatUsd(a.usdc)}`, tone: "ink" };
+      return { text: `Added liquidity${t ? ` to ${t}` : ""}`, amount: `−${formatUsd(a.usdc)}`, tone: "ink" };
     case "lp-remove":
-      return { text: `Removed liquidity from ${t}`, amount: `+${formatUsd(a.usdc)}`, tone: "ink" };
+      return { text: `Removed liquidity${t ? ` from ${t}` : ""}`, amount: `+${formatUsd(a.usdc)}`, tone: "ink" };
     case "faucet":
       return { text: "Topped up test USDC", amount: `+${formatUsd(a.usdc)}`, tone: "soft" };
+    case "deposit":
+      return { text: "Deposit added to your cash", amount: `+${formatUsd(a.usdc)}`, tone: "soft" };
+    case "withdraw":
+      return { text: "Withdrew from your cash", amount: `−${formatUsd(a.usdc)}`, tone: "ink" };
+    case "withdraw-returned":
+      return { text: "Unused withdrawal returned", amount: `+${formatUsd(a.usdc)}`, tone: "soft" };
+    case "order":
+      return { text: a.detail.replace(/^Limit/, `Limit order on ${t}:`), amount: "", tone: "soft" };
+    case "order-fill":
+      return { text: `${/sell/.test(a.detail) ? "Limit sell" : "Limit buy"} filled · ${tok} ${t}`, amount: `${/sell/.test(a.detail) ? "+" : "−"}${formatUsd(a.usdc)}`, tone: "ink" };
+    case "order-cancel":
+      return { text: `Cancelled a limit order${t ? ` on ${t}` : ""}`, amount: "", tone: "soft" };
   }
 }
 
@@ -347,28 +361,24 @@ function Activity({ items }: { items: ActivityItem[] }) {
       {items.length === 0 ? (
         <EmptyState title="Nothing yet">Your buys, sells, payouts and claims show up here.</EmptyState>
       ) : (
-        <ul className="flex flex-col divide-y divide-rule rounded-2xl bg-surface px-5" data-testid="history">
+        <ul className="flex flex-col divide-y divide-rule rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5" data-testid="history">
           {shown.map((a) => {
             const s = sentence(a);
             return (
               <li key={a.id} className="flex items-center gap-3 py-3">
                 {a.playerId && PLAYERS_BY_ID[a.playerId] ? (
-                  <span
-                    aria-hidden="true"
-                    className={cn("flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold", POS_TINT[PLAYERS_BY_ID[a.playerId]!.position])}
-                  >
-                    {initials(PLAYERS_BY_ID[a.playerId]!.name)}
-                  </span>
+                  <PlayerAvatar id={a.playerId} size={32} mark={false} className="rounded-[9px]" />
                 ) : (
                   <UsdcIcon className="size-8" />
                 )}
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-[14px] text-ink">{s.text}</span>
-                  <span className="truncate text-[12px] text-faint">{a.detail}</span>
+                  <span className="truncate text-[0.875rem] text-ink">{s.text}</span>
+                  {/* The read model words money moves in wallet terms; the sentence already says it all. */}
+                  {a.kind === "deposit" || a.kind === "withdraw" ? null : <span className="truncate text-[0.75rem] text-faint">{a.detail}</span>}
                 </span>
                 <span className="flex shrink-0 flex-col items-end">
-                  <span className={cn("fig text-[14px] font-medium", s.tone === "up" ? "text-up" : s.tone === "soft" ? "text-soft" : "text-ink")}>{s.amount}</span>
-                  <span className="text-[12px] text-faint">{now ? formatRelative(a.at, now) : ""}</span>
+                  <span className={cn("fig text-[0.875rem] font-medium", s.tone === "up" ? "text-brand" : s.tone === "soft" ? "text-soft" : "text-ink")}>{s.amount}</span>
+                  <span className="text-[0.75rem] text-faint">{now ? formatRelative(a.at, now) : ""}</span>
                 </span>
               </li>
             );
@@ -389,14 +399,14 @@ function Earnings() {
   const shown = hi !== null ? rows[hi] : rows[rows.length - 1];
   return (
     <Section title="Earnings by matchday">
-      <div className="flex flex-col gap-3 rounded-2xl bg-surface p-5">
+      <div className="flex flex-col gap-3 rounded-2xl bg-surface ring-1 ring-edge ring-inset p-5">
         {rows.length === 0 ? (
-          <p className="text-[14px] text-soft">No matchday has settled yet. Payouts appear here after each data freeze.</p>
+          <p className="text-[0.875rem] text-soft">No matchday has settled yet. Payouts appear here after each data freeze.</p>
         ) : (
           <>
             <div className="flex items-baseline justify-between gap-3">
-              <span className="fig fig-prop text-[22px] font-semibold text-ink">{formatUsd(total)}</span>
-              <span className="text-[12px] text-soft">
+              <span className="fig fig-prop text-[1.5rem] text-ink">{formatUsd(total)}</span>
+              <span className="text-[0.75rem] text-soft">
                 {shown ? (
                   <>
                     Matchday {shown.round}: <span className="fig text-ink">{formatUsd(shown.myDividends)}</span>
@@ -414,7 +424,7 @@ function Earnings() {
                   aria-label={`Matchday ${r.round}: ${formatUsd(r.myDividends)}`}
                 >
                   <span
-                    className="block w-full max-w-6 rounded-t-[4px] bg-up transition-opacity duration-150"
+                    className="block w-full max-w-6 rounded-t-[4px] bg-brand transition-opacity duration-150"
                     style={{ height: `${Math.max(r.myDividends > 0 ? 4 : 0, (r.myDividends / max) * 100)}%`, opacity: hi === null || hi === i ? 1 : 0.5 }}
                   />
                 </li>
@@ -439,9 +449,9 @@ function Points({ d }: { d: Portfolio }) {
   ];
   return (
     <Section title="Activity points">
-      <div className="flex flex-col gap-3 rounded-2xl bg-surface p-5">
-        <span className="fig fig-prop text-[22px] font-semibold text-ink">{formatTokens(p.total)}</span>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
+      <div className="flex flex-col gap-3 rounded-2xl bg-surface ring-1 ring-edge ring-inset p-5">
+        <span className="fig fig-prop text-[1.5rem] text-ink">{formatTokens(p.total)}</span>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[0.8125rem]">
           {rows.map(([k, v]) => (
             <div key={k} className="flex items-baseline justify-between gap-2">
               <dt className="text-soft">{k}</dt>
@@ -449,7 +459,7 @@ function Points({ d }: { d: Portfolio }) {
             </div>
           ))}
         </dl>
-        <p className="text-[12px] text-faint">From Season 1, points become voting weight for new launches. The weighting isn&apos;t final.</p>
+        <p className="text-[0.75rem] text-faint">From Season 1, points become voting weight for new launches. The weighting isn&apos;t final.</p>
       </div>
     </Section>
   );
@@ -463,22 +473,25 @@ function Points({ d }: { d: Portfolio }) {
  */
 function SignedOut() {
   const openSignIn = useUi((s) => s.openSignIn);
+  const devnet = useProtocolClient().mode === "devnet";
   return (
     <div className="flex flex-col gap-10">
-      <section aria-labelledby="pf-signin" className="flex flex-col gap-5 rounded-2xl bg-surface p-5 md:flex-row md:items-center md:justify-between md:p-6">
+      <section aria-labelledby="pf-signin" className="flex flex-col gap-5 rounded-2xl bg-surface ring-1 ring-edge ring-inset p-5 md:flex-row md:items-center md:justify-between md:p-6">
         <div className="flex flex-col gap-2">
-          <h1 id="pf-signin" className="text-[28px] leading-8 font-semibold tracking-[-0.02em] text-ink">
+          <h1 id="pf-signin" className="text-[2.125rem] leading-[1.06] font-semibold text-ink">
             Your players and payouts live here
           </h1>
-          <p className="max-w-[52ch] text-[15px] leading-relaxed text-soft">
-            Sign in with email, Google or Phantom and a wallet is made for you, with 1,000 test USDC on devnet. Or open a demo account that already holds a few players.
+          <p className="max-w-[52ch] text-[0.9375rem] leading-relaxed text-soft">
+            {devnet
+              ? "Sign in and a Solana wallet is made for you, with 1,000 test USDC on devnet to trade real markets."
+              : "Sign in with email, Google or Phantom and a wallet is made for you, with 1,000 test USDC on devnet. Or open a demo account that already holds a few players."}
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button size="lg" onClick={openSignIn}>
             Sign in
           </Button>
-          <DemoAccountButton />
+          {devnet ? null : <DemoAccountButton />}
         </div>
       </section>
       <ExamplePortfolio />
@@ -543,13 +556,13 @@ function ExamplePortfolio() {
   return (
     <section aria-labelledby="pf-example" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="pf-example" className="text-[20px] leading-7 font-semibold tracking-[-0.01em] text-ink">
+        <h2 id="pf-example" className="text-[1.25rem] leading-[1.4] font-semibold text-ink">
           An example portfolio
         </h2>
-        <p className="text-[13px] text-soft">Not a real account. Live prices, made-up holdings.</p>
+        <p className="text-[0.8125rem] text-soft">Not a real account. Live prices, made-up holdings.</p>
       </div>
       <div aria-hidden="true" inert className="flex flex-col gap-4 select-none">
-        <Hero d={example} />
+        <Hero d={example} example />
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {positions.map((p) => (
             <li key={p.playerId}>

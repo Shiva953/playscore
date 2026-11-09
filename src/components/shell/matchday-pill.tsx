@@ -16,14 +16,15 @@ export function MatchdayPill({ className }: { className?: string }) {
     <Link
       href="/matchday"
       className={cn(
-        "inline-flex h-8 items-center gap-2 rounded-full bg-surface px-3 text-[13px] whitespace-nowrap text-soft transition-colors duration-150 hover:bg-raised",
+        "inline-flex h-8 items-center gap-2 rounded-full bg-surface px-3 ring-1 ring-edge ring-inset text-[0.8125rem] whitespace-nowrap text-soft transition-colors duration-150 hover:bg-raised",
         className
       )}
-      aria-label={`Matchday ${round}: ${phase === "open" ? "before kickoff" : phase === "live" ? "live" : "full time"}`}
     >
+      {/* The name is the visible text plus this hint (WCAG 2.5.3: say what you see to activate it). */}
+      <span className="sr-only">Open matchday: </span>
       {phase === "live" ? (
         <>
-          <span className="size-2 rounded-full bg-up" aria-hidden="true" />
+          <span className="size-2 rounded-full bg-brand" aria-hidden="true" />
           <span className="font-medium text-ink">Live</span>
           <span className="hidden sm:inline">MD {round}</span>
         </>

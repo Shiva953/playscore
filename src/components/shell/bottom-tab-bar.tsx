@@ -27,7 +27,7 @@ export function BottomTabBar() {
               <Link
                 href={t.href}
                 aria-current={active ? "page" : undefined}
-                className={cn("flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors duration-150", active ? "text-ink" : "text-faint")}
+                className={cn("flex h-14 flex-col items-center justify-center gap-1 text-[0.75rem] font-medium transition-colors duration-150", active ? "text-ink" : "text-faint")}
               >
                 <Icon className="size-5" strokeWidth={1.75} aria-hidden="true" />
                 {t.label}

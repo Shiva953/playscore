@@ -284,6 +284,10 @@ fn describe(b: &Before, e: &Engine, c: &Cmd, out: &Outcome, ts: i64) -> String {
         (Cmd::RemoveLiquidity { user, position, .. }, Outcome::Liquidity { tokens, usdc, .. }) => {
             format!("REMOVE LIQUIDITY {} position #{position} (P{p}): got back {} + {} (incl. its share of fees)", who(user), usd(*usdc), tok(*tokens))
         }
+        (Cmd::ClaimAll { user, .. }, Outcome::ClaimedAll { rows }) => {
+            let (u_, t_) = rows.iter().fold((0u64, 0u64), |(a, b), r| (a + r.2, b + r.3));
+            format!("CLAIM ALL {}: {} rows → {} to free balance + {} as tokens (+10%)", who(user), rows.len(), usd(u_), tok(t_))
+        }
         (Cmd::Claim { user, round, player, .. }, Outcome::Claimed { usdc, tokens }) => {
             if *tokens > 0 {
                 format!("CLAIM {} round {round} P{player}: took the dividend as {} (+10%, from the reserve); the USDC stays in the vault", who(user), tok(*tokens))

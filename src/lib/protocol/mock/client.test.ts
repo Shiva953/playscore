@@ -34,8 +34,8 @@ describe("MockProtocolClient end to end", () => {
 
   it("runs the whole loop", async () => {
     const { client, events, advance } = makeClient();
-    expect(client.quoteBuy("kane", 10).ok).toBe(true);
-    await expect(client.buy("kane", 10)).rejects.toThrow(/Sign in/);
+    expect(client.quoteBuy("bellingham", 10).ok).toBe(true);
+    await expect(client.buy("bellingham", 10)).rejects.toThrow(/Sign in/);
 
     // Sign in → 1,000 test USDC, plus the faucet
     await client.signIn({ method: "google", country: "Germany", acceptedTerms: true });
@@ -43,57 +43,57 @@ describe("MockProtocolClient end to end", () => {
     expect((await client.getPortfolio())!.usdc).toBe(2_000);
 
     // Buy on a launching curve, hit the cap message
-    const capQuote = client.quoteBuy("haaland", 5_000);
+    const capQuote = client.quoteBuy("olise", 5_000);
     expect(capQuote.ok).toBe(false);
     expect(capQuote.error!.code).toBe("CAP_PER_PURCHASE");
-    await client.buy("haaland", 500);
-    const h = (await client.getPortfolio())!.positions.find((p) => p.playerId === "haaland")!;
+    await client.buy("olise", 500);
+    const h = (await client.getPortfolio())!.positions.find((p) => p.playerId === "olise")!;
     expect(h.tokens).toBeGreaterThan(0);
     expect(h.curvePurchased).toBe(h.tokens);
 
     // Push the curve near the threshold with synthetic demand, then bond it ourselves
-    client.simulateLaunchDemand("haaland", 0.97);
-    const before = await client.getPlayer("haaland");
+    client.simulateLaunchDemand("olise", 0.97);
+    const before = await client.getPlayer("olise");
     expect(before.status).toBe("launching");
     const vaultBefore = (await client.getProtocolStats()).vault;
-    const r = await client.buy("haaland", 1_000);
-    expect(r.bonded).toBe("haaland");
+    const r = await client.buy("olise", 1_000);
+    expect(r.bonded).toBe("olise");
     expect(r.refund).toBeGreaterThan(0);
-    expect(events.some((e) => e.type === "bonded" && e.playerId === "haaland" && e.mine)).toBe(true);
-    const after = await client.getPlayer("haaland");
+    expect(events.some((e) => e.type === "bonded" && e.playerId === "olise" && e.mine)).toBe(true);
+    const after = await client.getPlayer("olise");
     expect(after.status).toBe("trading");
     expect(after.pool!.usdc).toBeCloseTo(17_500, 6);
     expect(after.price).toBeCloseTo(0.0109375, 9);
     expect((await client.getProtocolStats()).vault).toBeCloseTo(vaultBefore + 5_000, 6);
 
     // Sell on the pool shows the 5% day-0 tax; fast-forward 30 days lowers it
-    const q0 = client.quoteSell("haaland", { usdc: 100 });
+    const q0 = client.quoteSell("olise", { usdc: 100 });
     expect(q0.fees[0]!.rate).toBeCloseTo(0.05, 6);
     client.fastForwardDays(30);
-    const q30 = client.quoteSell("haaland", { usdc: 100 });
+    const q30 = client.quoteSell("olise", { usdc: 100 });
     expect(q30.fees[0]!.rate).toBeCloseTo(0.035, 4);
     const vaultPreSell = (await client.getProtocolStats()).vault;
-    await client.sell("haaland", { usdc: 100 });
+    await client.sell("olise", { usdc: 100 });
     expect((await client.getProtocolStats()).vault).toBeCloseTo(vaultPreSell + 100 * 0.035 * 0.9, 4);
 
     // Also hold a seeded bonded player before kickoff
-    await client.buy("kane", 300);
+    await client.buy("bellingham", 300);
 
     // Kickoff → snapshot
     advance(PROTOCOL_CONFIG.curve.bondThresholdUsdc > 0 ? 40 : 0);
     let round = await client.getRound();
     expect(round.phase).toBe("live");
     expect(round.my.snapshotTaken).toBe(true);
-    const snapKane = round.my.players.find((p) => p.playerId === "kane")!;
-    expect(snapKane.tokens).toBeGreaterThan(0);
+    const snapJude = round.my.players.find((p) => p.playerId === "bellingham")!;
+    expect(snapJude.tokens).toBeGreaterThan(0);
 
     // Buying after kickoff doesn't change this round's eligibility; selling doesn't remove it
-    await client.buy("kane", 100);
-    const sellAll = (await client.getPortfolio())!.positions.find((p) => p.playerId === "haaland")!;
-    await client.sell("haaland", { tokens: sellAll.tokens });
+    await client.buy("bellingham", 100);
+    const sellAll = (await client.getPortfolio())!.positions.find((p) => p.playerId === "olise")!;
+    await client.sell("olise", { tokens: sellAll.tokens });
     round = await client.getRound();
-    expect(round.my.players.find((p) => p.playerId === "kane")!.tokens).toBeCloseTo(snapKane.tokens, 6);
-    expect(round.my.players.find((p) => p.playerId === "haaland")).toBeDefined();
+    expect(round.my.players.find((p) => p.playerId === "bellingham")!.tokens).toBeCloseTo(snapJude.tokens, 6);
+    expect(round.my.players.find((p) => p.playerId === "olise")).toBeDefined();
 
     // Live: events stream
     advance(50);
@@ -127,14 +127,14 @@ describe("MockProtocolClient end to end", () => {
     }
 
     // Claim in tokens: reserve minted, USDC stays in the vault
-    const kaneBefore = (await client.getPlayer("kane")).supply;
+    const judeBefore = (await client.getPlayer("bellingham")).supply;
     const vaultPreClaim = (await client.getProtocolStats()).vault;
     await client.claim("tokens");
-    const kaneAfter = (await client.getPlayer("kane")).supply;
-    const tokenLine = pf.claimable.tokens.lines.find((l) => l.playerId === "kane");
+    const judeAfter = (await client.getPlayer("bellingham")).supply;
+    const tokenLine = pf.claimable.tokens.lines.find((l) => l.playerId === "bellingham");
     if (tokenLine && tokenLine.tokens > 0) {
-      expect(kaneAfter.minted - kaneBefore.minted).toBeCloseTo(tokenLine.tokens, 6);
-      expect(kaneAfter.reserveLeft).toBeCloseTo(kaneBefore.reserveLeft - tokenLine.tokens, 6);
+      expect(judeAfter.minted - judeBefore.minted).toBeCloseTo(tokenLine.tokens, 6);
+      expect(judeAfter.reserveLeft).toBeCloseTo(judeBefore.reserveLeft - tokenLine.tokens, 6);
     }
     expect((await client.getProtocolStats()).vault).toBeCloseTo(vaultPreClaim + pf.claimable.tokens.vaultRetained, 6);
     const pf2 = (await client.getPortfolio())!;
@@ -156,27 +156,27 @@ describe("MockProtocolClient end to end", () => {
   it("adds and removes liquidity, keeping hold age", async () => {
     const { client, advance } = makeClient();
     await client.signIn({ method: "email", country: "Spain", acceptedTerms: true });
-    await client.buy("kane", 400);
+    await client.buy("bellingham", 400);
     client.fastForwardDays(60);
     const age0 = (await client.getPortfolio())!.positions[0]!.holdAgeDays;
-    const pair = client.quoteLiquidity("kane", 100, "pair");
+    const pair = client.quoteLiquidity("bellingham", 100, "pair");
     expect(pair.ok).toBe(true);
-    await client.addLiquidity("kane", 100, "pair");
+    await client.addLiquidity("bellingham", 100, "pair");
     const pf = (await client.getPortfolio())!;
     expect(pf.lp).toHaveLength(1);
     expect(pf.lp[0]!.tokens).toBeGreaterThan(0);
     // LP tokens count at kickoff
     advance(40);
     const round = await client.getRound();
-    const kane = round.my.players.find((p) => p.playerId === "kane")!;
+    const kane = round.my.players.find((p) => p.playerId === "bellingham")!;
     expect(kane.tokens).toBeGreaterThan(pf.positions[0]!.tokens);
-    await client.removeLiquidity("kane");
+    await client.removeLiquidity("bellingham");
     const pf2 = (await client.getPortfolio())!;
     expect(pf2.lp).toHaveLength(0);
     expect(pf2.positions[0]!.holdAgeDays).toBeCloseTo(age0, 3);
     // Zap works with USDC only
-    await client.addLiquidity("rodri", 200, "zap");
-    expect((await client.getPortfolio())!.lp[0]!.playerId).toBe("rodri");
+    await client.addLiquidity("mbappe", 200, "zap");
+    expect((await client.getPortfolio())!.lp[0]!.playerId).toBe("mbappe");
   });
 
   it("catches up after sleeping, without replaying a backlog", async () => {
@@ -193,7 +193,7 @@ describe("MockProtocolClient end to end", () => {
   it("reset restores the seed world", async () => {
     const { client } = makeClient();
     await client.signIn({ method: "google", country: "Japan", acceptedTerms: true });
-    await client.buy("kane", 100);
+    await client.buy("bellingham", 100);
     client.reset();
     expect(await client.getSession()).toBeNull();
     expect((await client.getProtocolStats()).vault).toBe(60_000);
@@ -246,11 +246,11 @@ describe("limit orders", () => {
   it("escrows a buy, fills it once the price crosses, and refunds on cancel", async () => {
     const { client, advance } = makeClient();
     await client.signIn({ method: "google", country: "Germany", acceptedTerms: true });
-    const spot = (await client.getPlayer("kane")).price;
+    const spot = (await client.getPlayer("bellingham")).price;
     const before = (await client.getPortfolio())!.usdc;
 
     // Below the price: rests, USDC escrowed
-    await client.placeLimit("kane", "buy", 50, spot * 0.5);
+    await client.placeLimit("bellingham", "buy", 50, spot * 0.5);
     let pf = (await client.getPortfolio())!;
     expect(pf.orders).toHaveLength(1);
     expect(pf.usdc).toBeCloseTo(before - 50, 6);
@@ -264,18 +264,18 @@ describe("limit orders", () => {
     expect(pf.usdc).toBeCloseTo(before, 6);
 
     // At or above the price: fills on the next tick
-    await client.placeLimit("kane", "buy", 40, spot * 1.5);
+    await client.placeLimit("bellingham", "buy", 40, spot * 1.5);
     advance(1);
     pf = (await client.getPortfolio())!;
     expect(pf.orders).toHaveLength(0);
-    expect(pf.positions.find((p) => p.playerId === "kane")!.tokens).toBeGreaterThan(0);
+    expect(pf.positions.find((p) => p.playerId === "bellingham")!.tokens).toBeGreaterThan(0);
   });
 
   it("rejects limits on players still on the launch curve, and sells beyond holdings", async () => {
     const { client } = makeClient();
     await client.signIn({ method: "google", country: "Germany", acceptedTerms: true });
-    await expect(client.placeLimit("haaland", "buy", 10, 0.01)).rejects.toThrow(/bonds/);
-    await expect(client.placeLimit("kane", "sell", 1_000, 0.02)).rejects.toThrow(/You hold/);
+    await expect(client.placeLimit("olise", "buy", 10, 0.01)).rejects.toThrow(/bonds/);
+    await expect(client.placeLimit("bellingham", "sell", 1_000, 0.02)).rejects.toThrow(/You hold/);
   });
 });
 
@@ -296,9 +296,9 @@ describe("sign-in identities", () => {
     const s = await client.signIn({ method: "email", country: "Germany", acceptedTerms: true, identity });
     expect(s.address).toBe(identity.address);
     expect(s.label).toBe("Email · fan@example.com");
-    await client.buy("kane", 25);
+    await client.buy("bellingham", 25);
     await client.signIn({ method: "email", country: "Germany", acceptedTerms: true, identity });
     const pf = (await client.getPortfolio())!;
-    expect(pf.positions.find((p) => p.playerId === "kane")).toBeDefined();
+    expect(pf.positions.find((p) => p.playerId === "bellingham")).toBeDefined();
   });
 });

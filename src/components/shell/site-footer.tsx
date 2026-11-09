@@ -4,7 +4,7 @@ import Link from "next/link";
 export function SiteFooter() {
   return (
     <footer className="mb-16 md:mb-0">
-      <div className="mx-auto grid w-full max-w-[1200px] gap-2 px-4 py-8 text-[13px] text-faint md:grid-cols-[1fr_auto_1fr] md:items-baseline md:px-6">
+      <div className="mx-auto grid w-full max-w-[1200px] gap-2 px-4 py-8 text-[0.8125rem] text-faint md:grid-cols-[1fr_auto_1fr] md:items-baseline md:px-6 [.w-full_&]:max-w-none">
         <span>Devnet demo · test USDC and simulated match data · dividends are not guaranteed</span>
         <span className="flex gap-6">
           <Link href="/terms" className="text-soft hover:text-ink">

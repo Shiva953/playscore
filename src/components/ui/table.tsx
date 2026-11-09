@@ -3,10 +3,33 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-/** Rules and alignment: 12px grey sentence-case headers, no band, 44px rows over 1px rules. */
+/**
+ * Rules and alignment: 12px grey sentence-case headers, no band, 44px rows over 1px rules.
+ * When the table is wider than its box (a phone), the box scrolls sideways and becomes a keyboard stop
+ * (tabIndex 0, a labelled region), so it can be scrolled without a pointer. Otherwise it's no tab stop.
+ */
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const box = React.useRef<HTMLDivElement>(null)
+  const [scrolls, setScrolls] = React.useState(false)
+  React.useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const check = () => setScrolls(el.scrollWidth > el.clientWidth + 1)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    if (el.firstElementChild) ro.observe(el.firstElementChild)
+    return () => ro.disconnect()
+  }, [])
   return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto overscroll-x-contain">
+    <div
+      ref={box}
+      data-slot="table-container"
+      tabIndex={scrolls ? 0 : undefined}
+      role={scrolls ? "region" : undefined}
+      aria-label={scrolls ? (props["aria-label"] ?? "Table, scrolls sideways") : undefined}
+      className="relative w-full overflow-x-auto overscroll-x-contain rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+    >
       <table data-slot="table" className={cn("num w-full caption-bottom text-sm", className)} {...props} />
     </div>
   )
@@ -39,7 +62,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-9 px-3 text-left align-middle text-xs font-normal whitespace-nowrap text-faint first:pl-0 last:pr-0 [&:has([role=checkbox])]:pr-0",
+        "h-9 px-3 text-left align-middle text-xs font-normal text-faint [&:not(:first-child)]:whitespace-nowrap first:pl-0 last:pr-0 [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -51,7 +74,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
       data-slot="table-cell"
-      className={cn("h-11 px-3 align-middle whitespace-nowrap first:pl-0 last:pr-0 [&:has([role=checkbox])]:pr-0", className)}
+      className={cn("h-11 px-3 align-middle [&:not(:first-child)]:whitespace-nowrap first:pl-0 last:pr-0 [&:has([role=checkbox])]:pr-0", className)}
       {...props}
     />
   )

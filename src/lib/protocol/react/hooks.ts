@@ -1,10 +1,11 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useSyncExternalStore } from "react";
+import { createElement, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import { OrbLink } from "@/components/common/orb-link";
 import { errorMessage, isProtocolError } from "../errors";
-import type { ClaimMode, PlayerFilter, PriceRange, RoundState, SignInInput } from "../types";
+import type { ClaimMode, PlayerFilter, PriceRange, RoundState, SignInInput, ValueRange } from "../types";
 import { qk } from "./keys";
 import { useProtocolClient } from "./provider";
 import { useUi } from "./ui-store";
@@ -63,22 +64,45 @@ export function usePortfolio() {
   return useQuery({ queryKey: qk.portfolio(), queryFn: () => c.getPortfolio() });
 }
 
+/** Your portfolio's value and P&L over a window (the portfolio chart). */
+export function useValueHistory(range: ValueRange) {
+  const c = useProtocolClient();
+  return useQuery({ queryKey: qk.value(range), queryFn: () => c.getValueHistory(range), placeholderData: (prev) => prev });
+}
+
 export function useStats() {
   const c = useProtocolClient();
   return useQuery({ queryKey: qk.stats(), queryFn: () => c.getProtocolStats() });
 }
 
-// ------------------------------------------------------------ quotes (sync, recomputed when the player's data refreshes)
+// ------------------------------------------------------------ quotes
+// The mock answers synchronously (recomputed when the player's data refreshes). The backend asks
+// the engine, so the quote is async: the last quote stays on screen while the next one loads.
+
+function useQuote<T>(key: readonly unknown[], enabled: boolean, run: () => T | Promise<T>, inputs: string): T | null {
+  const c = useProtocolClient();
+  const sync = c.mode === "mock";
+  // `inputs` names everything `run` reads (player, amount, data versions); `run` itself is a fresh closure.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const now = useMemo(() => (sync && enabled ? (run() as T) : null), [sync, enabled, inputs]);
+  const q = useQuery({
+    queryKey: ["quote", ...key, inputs],
+    queryFn: () => Promise.resolve(run()),
+    enabled: !sync && enabled,
+    placeholderData: keepPreviousData,
+    staleTime: 2_000,
+    gcTime: 15_000,
+    retry: 0,
+  });
+  if (!enabled) return null;
+  return sync ? now : (q.data ?? null);
+}
 
 export function useBuyQuote(id: string, usdc: number) {
   const c = useProtocolClient();
   const { dataUpdatedAt } = usePlayer(id);
   const portfolio = usePortfolio();
-  return useMemo(
-    () => (usdc > 0 ? c.quoteBuy(id, usdc) : null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [c, id, usdc, dataUpdatedAt, portfolio.dataUpdatedAt]
-  );
+  return useQuote(["buy", id], usdc > 0, () => c.quoteBuy(id, usdc), `${id}:${usdc}:${dataUpdatedAt}:${portfolio.dataUpdatedAt}`);
 }
 
 export function useSellQuote(id: string, input: { usdc: number } | { tokens: number } | null) {
@@ -86,33 +110,77 @@ export function useSellQuote(id: string, input: { usdc: number } | { tokens: num
   const { dataUpdatedAt } = usePlayer(id);
   const portfolio = usePortfolio();
   const key = input ? ("usdc" in input ? `u${input.usdc}` : `t${input.tokens}`) : "";
-  return useMemo(
-    () => (input && ("usdc" in input ? input.usdc > 0 : input.tokens > 0) ? c.quoteSell(id, input) : null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [c, id, key, dataUpdatedAt, portfolio.dataUpdatedAt]
-  );
+  const enabled = !!input && ("usdc" in input ? input.usdc > 0 : input.tokens > 0);
+  return useQuote(["sell", id], enabled, () => c.quoteSell(id, input!), `${id}:${key}:${dataUpdatedAt}:${portfolio.dataUpdatedAt}`);
 }
 
 export function useLiquidityQuote(id: string, usdc: number, mode: "pair" | "zap") {
   const c = useProtocolClient();
   const { dataUpdatedAt } = usePlayer(id);
-  return useMemo(
-    () => (usdc > 0 ? c.quoteLiquidity(id, usdc, mode) : null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [c, id, usdc, mode, dataUpdatedAt]
-  );
+  return useQuote(["lp", id], usdc > 0, () => c.quoteLiquidity(id, usdc, mode), `${id}:${usdc}:${mode}:${dataUpdatedAt}`);
+}
+
+/** Wallet and trading balances (devnet backend only). */
+export function useFunds() {
+  const c = useProtocolClient();
+  const session = useSession();
+  return useQuery({ queryKey: qk.funds(), queryFn: () => c.funds!.getFunds(), enabled: !!c.funds && !!session.data, refetchInterval: 15_000 });
+}
+
+/**
+ * Cash, the one balance the user sees: what's ready to trade. USDC that lands in their wallet (the
+ * deposit address) is moved in automatically (see AutoAddDeposits); until it lands it's `arriving`,
+ * shown beside the figure, never added to it. The two numbers come from different queries that
+ * refresh at different moments, so summing them would count a deposit twice for a second.
+ * `available` (for withdrawals, which draw on both) comes from one snapshot, so it's consistent.
+ */
+export function useCash() {
+  const pf = usePortfolio();
+  const funds = useFunds();
+  const c = useProtocolClient();
+  const total = pf.data?.usdc ?? 0;
+  const arriving = c.funds ? (funds.data?.wallet ?? 0) : 0;
+  const available = funds.data ? funds.data.app + funds.data.wallet : total;
+  return { total, trading: total, arriving, available, inOrders: funds.data?.inOrders ?? 0, loading: pf.isPending || (!!c.funds && funds.isPending), ready: !!pf.data };
+}
+
+/** Withdraw from cash to another Solana address (wallet first, then trading). */
+export function useWithdraw() {
+  const c = useProtocolClient();
+  return useAction((v: { to: string; amount: number }) => c.funds!.withdraw(v.to, v.amount));
+}
+
+/** Transfer: wallet → trading balance. */
+export function useToTrading({ silent = false }: { silent?: boolean } = {}) {
+  const c = useProtocolClient();
+  return useAction((amount: number) => c.funds!.toTrading(amount), { success: (r) => (silent ? null : r.summary) });
+}
+
+/** Transfer: trading balance → wallet. */
+export function useToWallet() {
+  const c = useProtocolClient();
+  return useAction((amount: number) => c.funds!.toWallet(amount), {
+    success: (r) => (r.mode === "request" ? `${r.summary.replace("moved to", "on its way to")}: large transfers are paid after the next batch, a few seconds` : r.summary),
+  });
+}
+
+/** Withdraw: wallet → another Solana address. */
+export function useSend() {
+  const c = useProtocolClient();
+  return useAction((v: { to: string; amount: number }) => c.funds!.send(v.to, v.amount));
 }
 
 // ------------------------------------------------------------ actions
 
-function useAction<V>(fn: (v: V) => Promise<{ summary: string }>, opts: { success?: (r: { summary: string }, v: V) => string | null } = {}) {
+function useAction<V, R extends { summary: string; signature?: string } = { summary: string; signature?: string }>(fn: (v: V) => Promise<R>, opts: { success?: (r: R, v: V) => string | null } = {}) {
   const qc = useQueryClient();
   const openSignIn = useUi((s) => s.openSignIn);
   return useMutation({
     mutationFn: fn,
     onSuccess: (r, v) => {
       const msg = opts.success ? opts.success(r, v) : r.summary;
-      if (msg) toast.success(msg);
+      // On-chain actions carry their signature: the toast links to it on Orb.
+      if (msg) toast.success(msg, r.signature ? { description: createElement(OrbLink, { signature: r.signature }), duration: 8_000 } : undefined);
       void qc.invalidateQueries();
     },
     onError: (e) => {
@@ -125,14 +193,15 @@ function useAction<V>(fn: (v: V) => Promise<{ summary: string }>, opts: { succes
   });
 }
 
-export function useBuy() {
+/** `silent`: the caller shows its own result (the ticket's receipt), so no success toast. Errors still toast. */
+export function useBuy({ silent = false }: { silent?: boolean } = {}) {
   const c = useProtocolClient();
-  return useAction((v: { id: string; usdc: number }) => c.buy(v.id, v.usdc));
+  return useAction((v: { id: string; usdc: number }) => c.buy(v.id, v.usdc), silent ? { success: () => null } : {});
 }
 
-export function useSell() {
+export function useSell({ silent = false }: { silent?: boolean } = {}) {
   const c = useProtocolClient();
-  return useAction((v: { id: string; input: { usdc: number } | { tokens: number } }) => c.sell(v.id, v.input));
+  return useAction((v: { id: string; input: { usdc: number } | { tokens: number } }) => c.sell(v.id, v.input), silent ? { success: () => null } : {});
 }
 
 export function usePlaceLimit() {
@@ -162,7 +231,8 @@ export function useClaim() {
 
 export function useFaucet() {
   const c = useProtocolClient();
-  return useAction((amount: number) => c.faucet(amount));
+  // The backend client shows its own progress toasts (mint → deposit → ready).
+  return useAction((amount: number) => c.faucet(amount), c.mode === "devnet" ? { success: () => null } : {});
 }
 
 export function useSignIn() {
@@ -171,9 +241,11 @@ export function useSignIn() {
   return useMutation({
     mutationFn: (v: SignInInput) => c.signIn(v),
     onSuccess: (_s, v) => {
-      toast.success(v.method === "demo" ? "Demo account ready" : "Signed in on devnet", {
-        description: v.method === "demo" ? "A few players bought from 1,000 test USDC." : "1,000 test USDC added to your balance.",
-      });
+      if (c.mode === "devnet") toast.success("Signed in on devnet");
+      else
+        toast.success(v.method === "demo" ? "Demo account ready" : "Signed in on devnet", {
+          description: v.method === "demo" ? "A few players bought from 1,000 test USDC." : "1,000 test USDC added to your balance.",
+        });
       void qc.invalidateQueries();
     },
   });

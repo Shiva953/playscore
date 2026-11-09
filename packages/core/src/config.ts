@@ -6,7 +6,7 @@
 export const POSITIONS = ["FWD", "MID", "DEF", "GK"] as const;
 export type PositionCode = (typeof POSITIONS)[number];
 
-export const LEAGUES = ["PL", "LAL", "BUN", "SA", "L1", "MLS", "SPL"] as const;
+export const LEAGUES = ["PL", "LAL", "BUN", "SA", "L1", "ERE", "BPL", "LPO"] as const;
 export type LeagueCode = (typeof LEAGUES)[number];
 
 export type CompetitionCode = LeagueCode | "UCL";
@@ -17,8 +17,9 @@ export const LEAGUE_NAMES: Record<LeagueCode, string> = {
   BUN: "Bundesliga",
   SA: "Serie A",
   L1: "Ligue 1",
-  MLS: "MLS",
-  SPL: "Saudi Pro League",
+  ERE: "Eredivisie",
+  BPL: "Belgian Pro League",
+  LPO: "Liga Portugal",
 };
 
 export const COMPETITION_NAMES: Record<CompetitionCode, string> = {
@@ -26,7 +27,11 @@ export const COMPETITION_NAMES: Record<CompetitionCode, string> = {
   UCL: "Champions League",
 };
 
-/** Competition coefficients (ARCHITECTURE §4.7). MLS and SPL are provisional. */
+/**
+ * Competition coefficients (ARCHITECTURE §4.7). Eredivisie, Belgian Pro League and Liga Portugal are
+ * provisional: the client set Portugal equal to the lowest league (they named Belgium); Eredivisie has
+ * no figure yet, so it takes the same lowest value (SPEC-QUESTION).
+ */
 export const COEFFICIENTS: Record<CompetitionCode, number> = {
   UCL: 1.05,
   PL: 1.0,
@@ -34,11 +39,12 @@ export const COEFFICIENTS: Record<CompetitionCode, number> = {
   BUN: 0.93,
   SA: 0.93,
   L1: 0.88,
-  MLS: 0.85,
-  SPL: 0.85,
+  ERE: 0.85,
+  BPL: 0.85,
+  LPO: 0.85,
 };
 
-export const PROVISIONAL_COEFFICIENTS: readonly CompetitionCode[] = ["MLS", "SPL"];
+export const PROVISIONAL_COEFFICIENTS: readonly CompetitionCode[] = ["ERE", "BPL", "LPO"];
 
 /** Points per event by position (ARCHITECTURE §4.7). Order: FWD, MID, DEF, GK. */
 export const EVENT_MATRIX = {

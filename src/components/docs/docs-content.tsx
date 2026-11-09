@@ -9,6 +9,7 @@ import {
   EVENT_MATRIX,
   LEAGUES,
   LEAGUE_NAMES,
+  PROVISIONAL_COEFFICIENTS,
   POSITIONS,
   displayScore,
   scorePoints,
@@ -36,7 +37,7 @@ import { cn } from "@/lib/utils";
 
 export function DocsNav({ active }: { active: DocSlug }) {
   return (
-    <nav aria-label="Docs" className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
+    <nav aria-label="Docs" className="flex gap-1 overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] lg:flex-col lg:overflow-visible lg:[mask-image:none]">
       {DOC_SECTIONS.map((s) => (
         <Link
           key={s.slug}
@@ -44,7 +45,7 @@ export function DocsNav({ active }: { active: DocSlug }) {
           aria-current={s.slug === active ? "page" : undefined}
           className={cn(
             "shrink-0 py-1.5 pr-4 text-sm whitespace-nowrap transition-colors duration-150 lg:py-2",
-            s.slug === active ? "text-ink" : "text-[#bbbbbb] hover:text-ink"
+            s.slug === active ? "text-ink" : "text-soft hover:text-ink"
           )}
         >
           {s.title}
@@ -100,7 +101,7 @@ function StatsDoc() {
       ) : q.isError || !q.data ? (
         <ErrorState error={q.error} onRetry={() => void q.refetch()} />
       ) : (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-6 rounded-2xl bg-surface p-5 sm:grid-cols-3 lg:grid-cols-4" data-testid="stats">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 rounded-2xl bg-surface ring-1 ring-edge ring-inset p-5 sm:grid-cols-3 lg:grid-cols-4" data-testid="stats">
           <Stat label="Platform TVL" value={formatUsd(q.data.tvl, { decimals: 0 })} />
           <Stat label="Dividend vault" value={formatUsd(q.data.vault, { decimals: 0 })} />
           <Stat label="Runway" value={Number.isFinite(q.data.runwayRounds) ? `${q.data.runwayRounds.toFixed(0)} rounds` : "n/a (no payouts yet)"} />
@@ -230,7 +231,7 @@ function ScoringDoc() {
       </p>
       <ScoreCalculator />
       <h2 className="text-lg font-semibold">Points per event</h2>
-      <div className="rounded-2xl bg-surface px-5 py-2">
+      <div className="rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-2">
         <Table>
           <TableHeader>
             <TableRow>
@@ -271,7 +272,7 @@ function ScoringDoc() {
             <CardContent className="flex flex-col">
               <span className="num text-lg font-semibold">
                 {COEFFICIENTS[c].toFixed(2)}
-                {c === "MLS" || c === "SPL" ? "*" : ""}
+                {(PROVISIONAL_COEFFICIENTS as readonly string[]).includes(c) ? "*" : ""}
               </span>
               <span className="text-xs text-soft">{c === "UCL" ? "Champions League" : LEAGUE_NAMES[c]}</span>
             </CardContent>
@@ -304,7 +305,7 @@ function BoardsDoc() {
         ]}
       />
       <h2 className="text-lg font-semibold">Board multipliers</h2>
-      <div className="rounded-2xl bg-surface px-5 py-2">
+      <div className="rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-2">
         <Table>
           <TableHeader>
             <TableRow>
@@ -346,7 +347,7 @@ function BoardsDoc() {
         are limited to ±10% a round, bounded 0.20–2.50%, and payouts can&apos;t exceed 12% of TVL a year. Dividends are never promised: the vault can
         shrink but never hit zero.
       </p>
-      <div className="rounded-2xl bg-surface px-5 py-2">
+      <div className="rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-2">
         <Table>
           <TableHeader>
             <TableRow>
@@ -373,7 +374,7 @@ function BoardsDoc() {
         </Table>
       </div>
       {stats.data ? (
-        <div className="grid grid-cols-2 gap-4 rounded-2xl bg-surface p-5 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 rounded-2xl bg-surface ring-1 ring-edge ring-inset p-5 sm:grid-cols-4">
           <Stat label="Pool this round" value={formatUsd(stats.data.roundPool.usd, { decimals: 0 })} hint={`${formatPct(stats.data.roundPool.effectiveRate)} of vault`} />
           <Stat label="Runway" value={Number.isFinite(stats.data.runwayRounds) ? `${stats.data.runwayRounds.toFixed(0)} rounds` : "n/a"} />
         </div>
@@ -474,7 +475,7 @@ function GovernanceDoc() {
         ["Launches", "10 launches a week for 20 weeks to reach 200 players, then 1 a week."],
         ["Choosing", "From Season 1, holders vote on each new launch, weighted by activity rank."],
         ["Visibility", "Voting power and tiers are shown once Season 1 begins."],
-        ["Delisting", "Only if a player leaves the seven covered leagues (top five, MLS, Saudi Pro League) or retires. Never for form."],
+        ["Delisting", "Only if a player leaves the eight covered leagues (the top five, Eredivisie, Belgian Pro League, Liga Portugal) or retires. Never for form."],
         ["Process", "Announced at least 2 rounds ahead. Then trading locks and holders redeem pro rata from the pool with no sell tax."],
         ["Parameters", "Changed only through a published, time-locked process."],
       ]}

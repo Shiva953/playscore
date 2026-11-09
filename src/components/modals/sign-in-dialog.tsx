@@ -13,6 +13,7 @@ import { errorMessage } from "@/lib/protocol/errors";
 import type { SignInMethod } from "@/lib/protocol/types";
 import { useSignIn } from "@/lib/protocol/react/hooks";
 import { useUi } from "@/lib/protocol/react/ui-store";
+import { useProtocolClient } from "@/lib/protocol/react/provider";
 import { useAuthBridge } from "@/lib/auth/auth-provider";
 
 export function SignInDialog() {
@@ -31,6 +32,7 @@ function SignInBody({ onDone }: { onDone: () => void }) {
   const [blocked, setBlocked] = useState<string | null>(null);
   const signIn = useSignIn();
   const auth = useAuthBridge();
+  const devnet = useProtocolClient().mode === "devnet";
   const restricted = (RESTRICTED_COUNTRIES as readonly string[]).includes(country);
 
   const go = (method: SignInMethod) => {
@@ -81,7 +83,9 @@ function SignInBody({ onDone }: { onDone: () => void }) {
         <DialogDescription>
           {auth.privy
             ? "A Solana wallet is created for you when you sign in. No SOL or seed phrase needed. Devnet, with test USDC."
-            : "A wallet is created for you. No SOL or seed phrase needed. Devnet only: simulated sign-in."}
+            : devnet
+              ? "A test wallet is created in this browser. No SOL needed. Devnet, with test USDC."
+              : "A wallet is created for you. No SOL or seed phrase needed. Devnet only: simulated sign-in."}
         </DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-4">
@@ -103,7 +107,7 @@ function SignInBody({ onDone }: { onDone: () => void }) {
         </div>
         <div className="flex items-start gap-2">
           <Checkbox id="terms" checked={accepted} onCheckedChange={(v) => setAccepted(v === true)} className="mt-0.5" />
-          <Label htmlFor="terms" className="text-sm leading-snug font-normal">
+          <Label htmlFor="terms" className="block text-sm leading-snug font-normal">
             I&apos;m 18 or older, I accept the{" "}
             <Link href="/terms" className="underline" onClick={onDone}>
               Terms
@@ -120,7 +124,11 @@ function SignInBody({ onDone }: { onDone: () => void }) {
         <div className="grid gap-2">
           {auth.privy ? (
             <Button onClick={() => go("email")} disabled={!ready && !restricted}>
-              Continue with email, Google or Phantom
+              Sign in
+            </Button>
+          ) : devnet ? (
+            <Button onClick={() => go("demo")} disabled={!ready && !restricted}>
+              Continue with a test wallet
             </Button>
           ) : (
             <>
@@ -135,9 +143,11 @@ function SignInBody({ onDone }: { onDone: () => void }) {
               </Button>
             </>
           )}
-          <Button variant="ghost" onClick={() => go("demo")} disabled={!ready && !restricted}>
-            Try a demo account
-          </Button>
+          {devnet ? null : (
+            <Button variant="ghost" onClick={() => go("demo")} disabled={!ready && !restricted}>
+              Try a demo account
+            </Button>
+          )}
         </div>
         {!country || !accepted ? <p className="text-xs text-soft">Choose your country and accept the Terms to continue.</p> : null}
       </div>

@@ -81,7 +81,7 @@ export function WalletButton() {
               ))}
             </div>
             {status === "connecting" && (
-              <p className="mt-2 text-xs text-muted">Connecting...</p>
+              <p className="mt-2 text-xs text-muted">Connecting…</p>
             )}
             {error != null && (
               <p className="mt-2 text-xs text-destructive">
@@ -101,14 +101,14 @@ export function WalletButton() {
         className="flex cursor-pointer items-center gap-2 rounded-lg border border-border-low bg-card px-3 py-2 text-xs font-medium transition hover:bg-cream"
       >
         <span className="h-2 w-2 rounded-full bg-green-500" />
-        <span className="font-mono">{ellipsify(address!, 4)}</span>
+        <span className="mono-id">{ellipsify(address!, 4)}</span>
       </button>
 
       {isOpen && (
         <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-border-low bg-card p-4 shadow-lg">
           <div className="mb-3">
             <p className="text-xs text-muted">Balance</p>
-            <p className="text-lg font-bold tabular-nums">
+            <p className="text-lg font-semibold tabular-nums">
               {balance.lamports != null
                 ? lamportsToSolString(balance.lamports)
                 : "\u2014"}{" "}
@@ -117,7 +117,7 @@ export function WalletButton() {
           </div>
 
           <div className="mb-3 rounded-lg border border-border-low bg-cream/50 px-3 py-2">
-            <p className="break-all font-mono text-xs">{address}</p>
+            <p className="mono-id break-all text-xs">{address}</p>
           </div>
 
           <div className="flex gap-2">

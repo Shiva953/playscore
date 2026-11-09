@@ -1,7 +1,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-/** Cards are a lightness step above the ground (#111), radius 16, no border, no shadow. */
+/** Cards sit on the ground with a hairline edge (ink at 8%), radius 16, no fill, no shadow. */
 function Card({
   className,
   size = "default",
@@ -12,7 +12,7 @@ function Card({
       data-slot="card"
       data-size={size}
       className={cn(
-        "group/card flex flex-col gap-(--card-spacing) rounded-2xl bg-surface py-(--card-spacing) text-sm text-ink [--card-spacing:--spacing(5)] has-data-[slot=card-footer]:pb-0 data-[size=sm]:[--card-spacing:--spacing(4)]",
+        "group/card flex flex-col gap-(--card-spacing) rounded-2xl bg-surface py-(--card-spacing) ring-1 ring-edge ring-inset text-sm text-ink [--card-spacing:--spacing(5)] has-data-[slot=card-footer]:pb-0 data-[size=sm]:[--card-spacing:--spacing(4)]",
         className
       )}
       {...props}
@@ -37,7 +37,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-title"
-      className={cn("text-base leading-6 font-medium text-ink", className)}
+      className={cn("text-base leading-[1.5] font-medium text-ink", className)}
       {...props}
     />
   )
