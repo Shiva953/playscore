@@ -1,5 +1,6 @@
 "use client";
 
+import { toWs } from "@/lib/solana/solana-client";
 import { PrivyProvider, useLogin, useLogout, usePrivy, type User } from "@privy-io/react-auth";
 import { toSolanaWalletConnectors, useCreateWallet, useExportWallet, useSignMessage, useSignTransaction, useWallets } from "@privy-io/react-auth/solana";
 import { createSolanaRpc, createSolanaRpcSubscriptions } from "@solana/kit";
@@ -70,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           rpcs: {
             "solana:devnet": {
               rpc: createSolanaRpc(DEVNET_RPC),
-              rpcSubscriptions: createSolanaRpcSubscriptions(DEVNET_RPC.replace(/^http/, "ws")),
+              rpcSubscriptions: createSolanaRpcSubscriptions(toWs(DEVNET_RPC)),
               blockExplorerUrl: "https://explorer.solana.com/?cluster=devnet",
             },
           },

@@ -12,9 +12,14 @@ export const CLUSTERS: ClusterMoniker[] = [
 
 const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_DEVNET || "https://api.devnet.solana.com";
 
-/** Websocket endpoint for an http(s) RPC URL (Helius serves both on the same host and query string). */
-function toWs(url: string): string {
-  return url.replace(/^http/, "ws");
+/**
+ * Websocket endpoint for an http(s) RPC URL. Helius serves both on the same host and query string;
+ * a local validator serves websockets on its RPC port + 1.
+ */
+export function toWs(url: string): string {
+  const ws = url.replace(/^http/, "ws");
+  const local = ws.match(/^(ws:\/\/(?:127\.0\.0\.1|localhost):)(\d+)(.*)$/);
+  return local ? `${local[1]}${Number(local[2]) + 1}${local[3]}` : ws;
 }
 
 const CLUSTER_URLS: Record<ClusterMoniker, string> = {

@@ -26,8 +26,24 @@ impl Rpc {
         Rpc { http: reqwest::Client::builder().timeout(Duration::from_secs(20)).build().expect("http client"), url: url.to_string() }
     }
 
+    /// `SOLANA_WS_URL` if set. Otherwise the RPC URL with a ws scheme: same host and port for hosted
+    /// RPCs (Helius), the next port for a local validator (it serves websockets on RPC port + 1).
     pub fn ws_url(&self) -> String {
-        self.url.replacen("https://", "wss://", 1).replacen("http://", "ws://", 1)
+        if let Ok(ws) = std::env::var("SOLANA_WS_URL") {
+            if !ws.is_empty() {
+                return ws;
+            }
+        }
+        let ws = self.url.replacen("https://", "wss://", 1).replacen("http://", "ws://", 1);
+        for host in ["ws://127.0.0.1:", "ws://localhost:"] {
+            if let Some(rest) = ws.strip_prefix(host) {
+                let (port, tail) = rest.split_at(rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len()));
+                if let Ok(p) = port.parse::<u16>() {
+                    return format!("{host}{}{tail}", p + 1);
+                }
+            }
+        }
+        ws
     }
 
     pub async fn call(&self, method: &str, params: Value) -> Result<Value> {
