@@ -1,11 +1,17 @@
-# Keep secrets, build output and review media out of Vercel uploads.
+# Only the Next.js app ships to Vercel. Never keys, env files, state or build output.
+/.devnet
 .env*
 !.env.example
-node_modules
-.next
-coverage
-.taste-skill
-docs/screenshots
-docs/inspiration
-docs/*.png
-anchor/target
+/deploy/seed
+/.claude
+/.next
+/.next-*
+/node_modules
+**/target
+/anchor/.anchor
+/test-ledger
+/backend
+/engine
+/services
+/docs
+*.log
