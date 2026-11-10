@@ -1456,7 +1456,8 @@ export class ApiProtocolClient implements ProtocolClient {
   }
 
   async signIn(input: SignInInput): Promise<UserSession> {
-    if ((RESTRICTED_COUNTRIES as readonly string[]).includes(input.country)) throw new ProtocolError("RESTRICTED", `score isn't available to people located in ${input.country}.`);
+    const country = input.country ?? "";
+    if ((RESTRICTED_COUNTRIES as readonly string[]).includes(country)) throw new ProtocolError("RESTRICTED", `score isn't available to people located in ${country}.`);
     if (!input.acceptedTerms) throw new ProtocolError("TERMS_NOT_ACCEPTED", "Accept the Terms to continue.");
     let address = input.identity?.address;
     let id = input.identity?.id;
@@ -1471,7 +1472,9 @@ export class ApiProtocolClient implements ProtocolClient {
     }
     const label = { google: "Google", email: "Email", phantom: "Phantom", demo: "Test wallet" }[input.method];
     const same = this.session?.address === address;
-    const session: UserSession = same ? { ...this.session!, country: input.country } : { id: id!, method: input.method, label: `${label} · ${handle}`, address, country: input.country, createdAt: Date.now() };
+    const session: UserSession = same
+      ? { ...this.session!, country: input.country }
+      : { id: id!, method: input.method, label: `${label} · ${handle}`, address, country: input.country, createdAt: Date.now() };
     this.session = session;
     saveJson(SESSION_KEY, session);
     this.seenSeq = 0;

@@ -258,7 +258,7 @@ function BoardCard({ b, projection }: { b: BoardView; projection: boolean }) {
 
 function Boards({ r }: { r: RoundState }) {
   const boards = r.boards;
-  const title = r.projection ? "Boards · projection" : r.phase === "ended" ? "Boards · final whistle" : "Boards · provisional";
+  const title = r.projection ? "Reward boards · projected" : r.phase === "ended" ? "Reward boards · final" : "Reward boards · provisional";
   return (
     <Section
       title={title}

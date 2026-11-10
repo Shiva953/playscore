@@ -192,7 +192,8 @@ export interface UserSession {
   /** Display handle, e.g. "Google · k3x9qa". */
   label: string;
   address: string;
-  country: string;
+  /** No longer collected at sign-in; the gate is the Terms attestation plus edge/IP geofencing. */
+  country?: string;
   createdAt: number;
 }
 
@@ -623,7 +624,8 @@ export interface AuthClient {
  */
 export interface SignInInput {
   method: SignInMethod;
-  country: string;
+  /** Not asked at sign-in any more: the gate is the Terms attestation plus edge/IP geofencing. */
+  country?: string;
   acceptedTerms: boolean;
   identity?: { id: string; address: string; handle: string };
 }

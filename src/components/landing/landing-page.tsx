@@ -25,6 +25,7 @@ export function LandingPage() {
     <div data-fullbleed className="flex flex-col bg-ground">
       <HomeHeader />
       <Hero />
+      <HowItWorks />
       <Launches />
       <Money />
       <Close />
@@ -42,7 +43,7 @@ function HomeHeader() {
         <Logo />
         <nav aria-label="Product" className="hidden items-center gap-6 text-[0.875rem] md:flex">
           <Link href="/launch" className="text-soft transition-colors duration-150 hover:text-ink">
-            Launches
+            Launch
           </Link>
           <Link href="/trade" className="text-soft transition-colors duration-150 hover:text-ink">
             Trade
@@ -96,23 +97,26 @@ function Hero() {
 
   return (
     <section aria-labelledby="hero-title" className={cn(FRAME, "flex min-h-[calc(100svh-4rem)] flex-col justify-center gap-10 py-16 md:gap-12")}>
-      <h1 id="hero-title" className="hero-mask text-[clamp(56px,10.5vw,168px)] leading-[0.92] font-semibold tracking-[-0.01em] text-ink">
+      <h1 id="hero-title" className="hero-mask text-[clamp(34px,8.2vw,118px)] leading-[0.96] font-semibold tracking-[-0.03em] text-ink">
         <span className="flex flex-wrap items-center gap-x-[0.22em]">
           <span>Buy</span>
-          <PlayerSlot p={p} onNext={next} />
+          <span className="inline-flex items-center">
+            <PlayerSlot p={p} onNext={next} />
+            <span></span>
+          </span>
         </span>
-        <span className="block">before kickoff.</span>
+        <span className="block text-soft">Earn when they perform</span>
       </h1>
       <div className="flex max-w-[720px] flex-col gap-8">
         <p className="text-[clamp(17px,1.5vw,21px)] leading-[1.5] text-ink">
-          Real footballers trade as shares. Hold one when a matchday kicks off, and if they finish top five on a board, you share the prize in USDC.
+          Buy a player when they launch. Trade them, and earn rewards for players you hold when they perform.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Button asChild size="lg" className="h-12 px-6 text-[1rem]">
-            <Link href={p ? `/trade/${p.id}` : "/trade"}>Buy player shares</Link>
+            <Link href="/launch">Explore launches</Link>
           </Button>
           <Button asChild size="lg" variant="secondary" className="h-12 px-6 text-[1rem]">
-            <Link href="/launch">Explore launches</Link>
+            <Link href="/docs/stats">How it works</Link>
           </Button>
         </div>
       </div>
@@ -149,6 +153,48 @@ function PlayerSlot({ p, onNext }: { p: PlayerSummary | null; onNext: () => void
       {/* Name = what's shown, then the hint (WCAG 2.5.3: visible text is part of the name). */}
       <span className="sr-only">, show another player</span>
     </button>
+  );
+}
+
+// ---------------------------------------------------------------- how score works
+
+/** The three steps, in the client's words: launch, trade, earn on matchday. */
+const STEPS = [
+  {
+    n: "01",
+    title: "Launch",
+    body: "Get in early. Every player launches on a bonding curve, so the earlier you buy, the cheaper they are. Once the bond curve bonds, the liquidity is locked and the player becomes tradeable.",
+  },
+  {
+    n: "02",
+    title: "Trade",
+    body: "Buy and sell shares in your favourite footballers, and hold the players you believe in.",
+  },
+  {
+    n: "03",
+    title: "Matchday rewards",
+    body: "Hold players in your portfolio, and when they finish in an earning position on the leaderboard, you earn USDC rewards.",
+  },
+] as const;
+
+function HowItWorks() {
+  return (
+    <section aria-labelledby="how-title" className="bg-surface">
+      <div className={cn(FRAME, "flex flex-col gap-12 py-24 md:py-32")}>
+        <h2 id="how-title" className="max-w-[18ch] text-[clamp(36px,4.4vw,68px)] leading-[1.0] font-semibold tracking-[-0.01em] text-ink">
+          How score works
+        </h2>
+        <ol data-ui className="grid gap-8 md:grid-cols-3 md:gap-6">
+          {STEPS.map((s) => (
+            <li key={s.title} className="flex flex-col gap-3">
+              <span className="fig text-[0.8125rem] font-semibold text-soft">{s.n}</span>
+              <h3 className="text-[1.375rem] leading-tight font-semibold text-ink">{s.title}</h3>
+              <p className="max-w-[42ch] text-[1.0625rem] leading-[1.55] text-soft">{s.body}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
   );
 }
 
@@ -265,8 +311,8 @@ function Money() {
             <span className="block text-ink">the top five.</span>
           </h2>
           <p className="max-w-[44ch] text-[1.0625rem] leading-[1.55] text-ink">
-            One snapshot at each matchday&apos;s first kickoff decides who earns. Every position and league has a board; claim your share in USDC, or in more of the
-            same player with a 10% bonus. Trading stays open all weekend.
+            One snapshot at each matchday&apos;s first kickoff decides who earns. Every position has a board, plus a Champions League board in midweek; claim
+            your share in USDC, or in more of the same player with a 10% bonus. Trading stays open all weekend.
           </p>
           <p className="text-[0.9375rem] text-soft">
             {r ? (

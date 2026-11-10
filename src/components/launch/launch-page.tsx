@@ -51,8 +51,7 @@ export function LaunchPage({ selected }: { selected?: string }) {
         <div className="flex max-w-[60ch] flex-col gap-1.5">
           <h1 className="text-[2rem] leading-[1.12] font-semibold text-ink">Launch</h1>
           <p className="text-sm text-soft">
-            Every player starts on a bonding curve: the earlier you buy, the lower the price. At $25,000 raised the player bonds, a trading pool opens, and holders
-            start earning from matchday boards.
+            Players launch on a bonding curve: the earlier you buy, the cheaper they are. Once the curve bonds, a trading pool is launched.
           </p>
         </div>
         <dl className="flex gap-6 text-[0.8125rem]">
@@ -158,10 +157,11 @@ function LaunchCard({ p, active, next, onPick }: { p: PlayerSummary; active: boo
         aria-pressed={active}
         className={cn("flex h-full w-full flex-col gap-3 rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-4 text-left transition-colors duration-150 hover:bg-surface-hover", active && "outline-1 -outline-offset-1 outline-brand/50")}
       >
-        <div className="relative">
+        {/* pr-20 keeps the avatar row clear of the quick-buy pill in the card's top-right corner. */}
+        <div className="flex items-center gap-2 pr-20">
           <PlayerAvatar id={p.id} size={44} />
           {next ? (
-            <span className="absolute top-0 right-0 rounded-full bg-brand-tint px-2 py-0.5 text-[0.75rem] font-medium text-brand">Bonds next</span>
+            <span className="truncate rounded-full bg-brand-tint px-2 py-0.5 text-[0.75rem] font-medium text-brand">Bonds next</span>
           ) : null}
         </div>
         <span className="flex flex-col gap-0.5">

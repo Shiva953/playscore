@@ -22,8 +22,8 @@ import { PRIVY_APP_ID } from "./privy-config";
 interface AuthBridge {
   /** True when Privy is configured. */
   privy: boolean;
-  /** Opens Privy's login. Country and Terms were already checked by our dialog. */
-  login: (gate: { country: string; acceptedTerms: boolean }) => void;
+  /** Opens Privy's login. The Terms attestation was already taken by our dialog. */
+  login: (gate: { acceptedTerms: boolean }) => void;
   /** Ends the Privy session too (the mock session is ended by the caller). */
   logout: () => Promise<void>;
   /**
@@ -132,13 +132,13 @@ function handleOf(user: User, address: string): string {
  * Our country + Terms answers, kept across Privy's login. Google sign-in leaves the page and comes back,
  * so this lives in sessionStorage (this tab only), not in memory.
  */
-type Gate = { country: string; acceptedTerms: boolean; method?: string; newUser?: boolean };
+type Gate = { acceptedTerms: boolean; method?: string; newUser?: boolean };
 const GATE_KEY = "score:signin-gate:v1";
 const gateStore = {
   get(): Gate | null {
     try {
       const v = JSON.parse(window.sessionStorage.getItem(GATE_KEY) ?? "null");
-      return v && typeof v.country === "string" ? v : null;
+      return v && typeof v.acceptedTerms === "boolean" ? v : null;
     } catch {
       return null;
     }
@@ -226,7 +226,7 @@ function PrivyBridge({ children }: { children: ReactNode }) {
     waitingSince.current = null;
     nudged.current = false;
     signIn.mutate(
-      { method: methodOf(g.method ?? null, user), country: g.country, acceptedTerms: g.acceptedTerms, identity: { id: user.id, address, handle: handleOf(user, address) } },
+      { method: methodOf(g.method ?? null, user), acceptedTerms: g.acceptedTerms, identity: { id: user.id, address, handle: handleOf(user, address) } },
       {
         onSuccess: () => {
           gateStore.set(null);
@@ -246,7 +246,7 @@ function PrivyBridge({ children }: { children: ReactNode }) {
   }, [ready, authenticated, user, session.isPending, session.data, tick, signIn, openSignIn, privyLogout, createWallet, showWallet]);
 
   const start = useCallback(
-    (g: { country: string; acceptedTerms: boolean }) => {
+    (g: { acceptedTerms: boolean }) => {
       gateStore.set(g);
       memGate.current = g;
       // Already signed in with Privy (we only lacked the answers): finish without another login.
