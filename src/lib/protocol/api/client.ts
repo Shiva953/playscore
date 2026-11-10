@@ -937,20 +937,14 @@ export class ApiProtocolClient implements ProtocolClient {
     return {
       tvl,
       vault,
-      treasury: usd(st.treasury),
       runwayRounds: avgPay > 0 ? vault / avgPay : Infinity,
       vaultToTvl: tvl > 0 ? vault / tvl : 0,
-      roundPool: { ...r.pool, capPerRound: (tvl * 0.12) / 38, matrixBps: r.pool.bps },
+      roundPool: { ...r.pool, capPerRound: (tvl * 0.12) / 38 },
       bondedCount: bonded,
       launchingCount: reg.filter((s) => s === "launching").length,
-      scheduledCount: reg.filter((s) => s === "scheduled").length,
       volume24h: usd(st.volume24h),
       totalPaidOut: usd(st.paidOut),
       roundsSettled: results.length,
-      reserveLeftTotal: usd(st.reserveLeft),
-      externalLpDepth: usd(st.externalLp),
-      poolUsdcTotal: usd(st.poolUsdc),
-      curveUsdcTotal: usd(st.curveUsdc),
       feesCollected: usd(st.fees),
     };
   }

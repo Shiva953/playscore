@@ -103,24 +103,10 @@ function StatsDoc() {
       ) : q.isError || !q.data ? (
         <ErrorState error={q.error} onRetry={() => void q.refetch()} />
       ) : (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-6 rounded-2xl bg-surface ring-1 ring-edge ring-inset p-5 sm:grid-cols-3 lg:grid-cols-4" data-testid="stats">
+        <div className="grid grid-cols-1 gap-x-4 gap-y-6 rounded-2xl bg-surface ring-1 ring-edge ring-inset p-5 sm:grid-cols-3" data-testid="stats">
           <Stat label="Platform TVL" value={formatUsd(q.data.tvl, { decimals: 0 })} />
-          <Stat
-            label="Pool this round"
-            value={formatUsd(q.data.roundPool.usd, { decimals: 0 })}
-            hint={q.data.roundPool.capped ? "Annual cap applies" : undefined}
-          />
-          <Stat label="Controller rate" value={`${(q.data.roundPool.bps / 100).toFixed(2)}%`} hint={`matrix ${(q.data.roundPool.matrixBps / 100).toFixed(2)}%`} />
-          <Stat label="Treasury" value={formatUsd(q.data.treasury, { decimals: 0 })} />
           <Stat label="Paid out (session)" value={formatUsd(q.data.totalPaidOut, { decimals: 0 })} hint={`${q.data.roundsSettled} rounds settled`} />
-          <Stat label="Players bonded" value={q.data.bondedCount} />
-          <Stat label="Live launches" value={q.data.launchingCount} />
-          <Stat label="Scheduled" value={q.data.scheduledCount} />
           <Stat label="24h volume" value={formatUsd(q.data.volume24h, { decimals: 0 })} />
-          <Stat label="USDC in pools" value={formatUsd(q.data.poolUsdcTotal, { decimals: 0 })} />
-          <Stat label="USDC on launch curves" value={formatUsd(q.data.curveUsdcTotal, { decimals: 0 })} />
-          <Stat label="Reserve tokens left" value={`${(q.data.reserveLeftTotal / 1e6).toFixed(1)}M`} />
-          <Stat label="Third-party LP depth" value={formatUsd(q.data.externalLpDepth, { decimals: 0 })} />
         </div>
       )}
       <p className="text-xs text-soft">

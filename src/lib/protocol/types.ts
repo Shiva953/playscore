@@ -421,20 +421,14 @@ export interface ProtocolStats {
   /** Controller TVL: bonded × 17,500 + vault (SQ-2). */
   tvl: number;
   vault: number;
-  treasury: number;
   runwayRounds: number;
   vaultToTvl: number;
-  roundPool: RoundPoolView & { capPerRound: number; matrixBps: number };
+  roundPool: RoundPoolView & { capPerRound: number };
   bondedCount: number;
   launchingCount: number;
-  scheduledCount: number;
   volume24h: number;
   totalPaidOut: number;
   roundsSettled: number;
-  reserveLeftTotal: number;
-  externalLpDepth: number;
-  poolUsdcTotal: number;
-  curveUsdcTotal: number;
   feesCollected: number;
 }
 

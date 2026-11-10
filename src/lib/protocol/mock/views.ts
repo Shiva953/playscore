@@ -608,7 +608,6 @@ export function statsOf(s: MockState, now: number): ProtocolStats {
   return {
     tvl: ctrl.tvl,
     vault: s.vault,
-    treasury: s.treasury,
     runwayRounds: ctrl.runwayRounds,
     vaultToTvl: ctrl.tvl > 0 ? s.vault / ctrl.tvl : 0,
     roundPool: {
@@ -618,18 +617,12 @@ export function statsOf(s: MockState, now: number): ProtocolStats {
       effectiveRate: ctrl.effectiveRate,
       capped: ctrl.capped,
       capPerRound: ctrl.capPerRound,
-      matrixBps: ctrl.matrixBps,
     },
     bondedCount: players.filter((p) => p.status === "trading").length,
     launchingCount: players.filter((p) => p.status === "launching").length,
-    scheduledCount: players.filter((p) => p.status === "scheduled").length,
     volume24h: players.reduce((a, p) => a + volume24h(p, now), 0),
     totalPaidOut: s.totalPaidOut,
     roundsSettled: s.results.length,
-    reserveLeftTotal: players.filter((p) => p.status === "trading").reduce((a, p) => a + p.reserveLeft, 0),
-    externalLpDepth: players.reduce((a, p) => a + (p.pool ? lpValueUsd(p.pool, p.pool.totalShares - p.pool.protocolShares) : 0), 0),
-    poolUsdcTotal: players.reduce((a, p) => a + (p.pool?.usdc ?? 0), 0),
-    curveUsdcTotal: players.filter((p) => p.status === "launching").reduce((a, p) => a + p.curve.raised, 0),
     feesCollected: s.feesCollected,
   };
 }
