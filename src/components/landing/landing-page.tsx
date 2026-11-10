@@ -288,12 +288,11 @@ function compact(n: number): string {
 
 function Money() {
   const stats = useStats();
-  const round = useRound((r) => ({ round: r.round, phase: r.phase, endsAt: r.phaseEndsAt, pool: r.pool.usd, rate: r.pool.effectiveRate }));
+  const round = useRound((r) => ({ round: r.round, phase: r.phase, endsAt: r.phaseEndsAt, pool: r.pool.usd }));
   const s = stats.data;
   const r = round.data;
   const rows: { value: string; caption: string }[] = [
-    { value: s ? compact(s.vault) : "—", caption: "in the dividend vault, topped up by every bond and every fee" },
-    { value: r ? compact(r.pool) : "—", caption: r ? `paid out at the end of matchday ${r.round}, ${formatPct(r.rate, { decimals: 1 })} of the vault` : "paid out this matchday" },
+    { value: r ? compact(r.pool) : "—", caption: r ? `paid out at the end of matchday ${r.round}` : "paid out this matchday" },
     { value: s ? compact(s.totalPaidOut) : "—", caption: "paid to holders of top-five finishers so far" },
     { value: s ? String(s.bondedCount) : "—", caption: "players trading now, with more launching" },
   ];

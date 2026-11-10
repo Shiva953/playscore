@@ -105,13 +105,10 @@ function StatsDoc() {
       ) : (
         <div className="grid grid-cols-2 gap-x-4 gap-y-6 rounded-2xl bg-surface ring-1 ring-edge ring-inset p-5 sm:grid-cols-3 lg:grid-cols-4" data-testid="stats">
           <Stat label="Platform TVL" value={formatUsd(q.data.tvl, { decimals: 0 })} />
-          <Stat label="Dividend vault" value={formatUsd(q.data.vault, { decimals: 0 })} />
-          <Stat label="Runway" value={Number.isFinite(q.data.runwayRounds) ? `${q.data.runwayRounds.toFixed(0)} rounds` : "n/a (no payouts yet)"} />
-          <Stat label="Vault / TVL" value={formatPct(q.data.vaultToTvl, { decimals: 1 })} />
           <Stat
             label="Pool this round"
             value={formatUsd(q.data.roundPool.usd, { decimals: 0 })}
-            hint={`${formatPct(q.data.roundPool.effectiveRate)} of vault${q.data.roundPool.capped ? " · annual cap applies" : ""}`}
+            hint={q.data.roundPool.capped ? "Annual cap applies" : undefined}
           />
           <Stat label="Controller rate" value={`${(q.data.roundPool.bps / 100).toFixed(2)}%`} hint={`matrix ${(q.data.roundPool.matrixBps / 100).toFixed(2)}%`} />
           <Stat label="Treasury" value={formatUsd(q.data.treasury, { decimals: 0 })} />
@@ -128,7 +125,7 @@ function StatsDoc() {
       )}
       <p className="text-xs text-soft">
         TVL here is the controller&apos;s definition: $17,500 per bonded player (the locked seed) plus the dividend vault. It ignores pool growth and
-        curve funds. Runway = vault ÷ average payout of the last 8 rounds.
+        curve funds.
       </p>
     </div>
   );
@@ -377,8 +374,7 @@ function BoardsDoc() {
       </div>
       {stats.data ? (
         <div className="grid grid-cols-2 gap-4 rounded-2xl bg-surface ring-1 ring-edge ring-inset p-5 sm:grid-cols-4">
-          <Stat label="Pool this round" value={formatUsd(stats.data.roundPool.usd, { decimals: 0 })} hint={`${formatPct(stats.data.roundPool.effectiveRate)} of vault`} />
-          <Stat label="Runway" value={Number.isFinite(stats.data.runwayRounds) ? `${stats.data.runwayRounds.toFixed(0)} rounds` : "n/a"} />
+          <Stat label="Pool this round" value={formatUsd(stats.data.roundPool.usd, { decimals: 0 })} />
         </div>
       ) : null}
     </div>

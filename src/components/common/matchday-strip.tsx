@@ -2,7 +2,7 @@
 
 import { Countdown } from "@/components/common/bits";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatPct, formatUsd } from "@/lib/format";
+import { formatUsd } from "@/lib/format";
 import type { RoundState } from "@/lib/protocol/types";
 import { useNow, useRound } from "@/lib/protocol/react/hooks";
 import { cn } from "@/lib/utils";
@@ -58,7 +58,7 @@ export function MatchdayStrip({ round: r, showPool = true, className }: { round:
         <p className="text-sm text-soft">{phaseLine(r)}</p>
         {showPool ? (
           <p className="num text-sm text-soft">
-            Round pool <span className="text-ink">{formatUsd(r.pool.usd, { decimals: 0 })}</span> · {formatPct(r.pool.effectiveRate)} of the vault
+            Round pool <span className="text-ink">{formatUsd(r.pool.usd, { decimals: 0 })}</span>
           </p>
         ) : null}
       </div>
