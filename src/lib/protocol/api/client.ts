@@ -359,8 +359,10 @@ export class ApiProtocolClient implements ProtocolClient {
     ws.onclose = () => {
       this.sockets = this.sockets.filter((s) => s !== ws);
       if (!this.running || gen !== this.gen) return;
-      // Only say "reconnecting" once per outage, and only if we'd been connected.
-      if (opened || attempt === 0) this.emit({ type: "connection", online: false });
+      // Say "reconnecting" only when a stream we had actually been reading drops. A socket that
+      // never opened (a slow first connect, a devnet blip) retries quietly: the app still reads
+      // everything over HTTP, so a notice then is noise, not news.
+      if (opened) this.emit({ type: "connection", online: false });
       setTimeout(() => this.connect(url, onMsg, gen, attempt + 1), Math.min(10_000, 500 * 2 ** Math.min(attempt, 5)));
     };
   }
