@@ -72,6 +72,8 @@ function Cards({ items }: { items: [string, string][] }) {
 
 export function DocSection({ slug }: { slug: DocSlug }) {
   switch (slug) {
+    case "how-it-works":
+      return <HowItWorksDoc />;
     case "stats":
       return <StatsDoc />;
     case "scoring":
@@ -411,6 +413,35 @@ function SellTaxSlider() {
         </svg>
       </CardContent>
     </Card>
+  );
+}
+
+function HowItWorksDoc() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Cards
+        items={[
+          ["Launch", "Every player starts on a bonding curve, so the earlier you buy the cheaper they are. At $25,000 raised the player bonds: the liquidity is locked and the player becomes tradeable."],
+          ["Trade", "Buy and sell shares in any bonded player at any time, including through a matchday. Buys pay 0.05%; sells pay a tax that falls from 5% to 0.5% over 90 days of holding."],
+          ["Matchday rewards", "Hold a player when a matchday kicks off and you share the pool if they finish in an earning position on a board. Paid in USDC, or in more of the same player with a 10% bonus."],
+          ["The vault", "Every bond and every sell-side fee tops up the dividend vault. Each matchday pays out a slice of it, set by the controller."],
+          ["Boards", "Four position boards across all leagues (FWD, MID, DEF, GK), plus a Champions League board in midweek. Forwards, midfielders and defenders pay the top 5; goalkeepers the top 3."],
+          ["Snapshot", "One snapshot at each matchday's first kickoff decides who is eligible. Trading stays open all weekend; only tokens held at that snapshot count."],
+        ]}
+      />
+      <h2 className="text-lg font-semibold">The maths</h2>
+      <Cards
+        items={[
+          ["Curve", "USDC raised after S tokens sold: R(S) = 0.00039·S + S³ / 1.1649e16. Spot price is the derivative, P(S) = 0.00039 + S² / 3.883e15, so each buy moves the price up."],
+          ["Bonding", "At $25,000 raised about 6.4M tokens have sold (80% of the 8M float). The pool opens at about $0.0109 with the remaining 1.6M."],
+          ["Score", "A player's raw points P come from goals, assists, minutes and clean sheets, scaled by the league and competition coefficient. Display score = 10·P / (P + 6), shown 0-10."],
+          ["Board weight", "weight = players ranked (capped at the paid places: 5, or 3 for goalkeepers) × the board multiplier. Each board's share of the pool is its weight over the total weight."],
+          ["Payout split", "Forwards, midfielders, defenders: 35 / 25 / 20 / 12 / 8%. Goalkeepers: 44 / 31 / 25%. Rank only, no market-cap weighting."],
+          ["Holder share", "A board's USD is split across holders pro rata to tokens held at the kickoff snapshot, including liquidity-pool shares."],
+          ["Tie-breaks", "Points, then goals + assists, then fewer minutes, then player ID ascending."],
+        ]}
+      />
+    </div>
   );
 }
 

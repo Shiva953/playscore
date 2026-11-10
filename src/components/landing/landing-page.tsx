@@ -51,7 +51,7 @@ function HomeHeader() {
           <Link href="/matchday" className="text-soft transition-colors duration-150 hover:text-ink">
             Matchday
           </Link>
-          <Link href="/docs/stats" className="text-soft transition-colors duration-150 hover:text-ink">
+          <Link href="/docs/how-it-works" className="text-soft transition-colors duration-150 hover:text-ink">
             How it works
           </Link>
         </nav>
@@ -81,19 +81,15 @@ function useCast(): PlayerSummary[] {
 function Hero() {
   const cast = useCast();
   const [i, setI] = useState(0);
-  const [held, setHeld] = useState(false);
-  // The slot moves on by itself until the visitor picks someone.
+  // The slot keeps moving on by itself, including after a tap: tapping just skips ahead.
   useEffect(() => {
-    if (held || cast.length < 2) return;
+    if (cast.length < 2) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const t = setInterval(() => setI((n) => n + 1), 4000);
     return () => clearInterval(t);
-  }, [held, cast.length]);
+  }, [cast.length]);
   const p = cast.length ? cast[i % cast.length]! : null;
-  const next = () => {
-    setHeld(true);
-    setI((n) => n + 1);
-  };
+  const next = () => setI((n) => n + 1);
 
   return (
     <section aria-labelledby="hero-title" className={cn(FRAME, "flex min-h-[calc(100svh-4rem)] flex-col justify-center gap-10 py-16 md:gap-12")}>
@@ -102,7 +98,6 @@ function Hero() {
           <span>Buy</span>
           <span className="inline-flex items-center">
             <PlayerSlot p={p} onNext={next} />
-            <span></span>
           </span>
         </span>
         <span className="block text-soft">Earn when they perform</span>
@@ -116,7 +111,7 @@ function Hero() {
             <Link href="/launch">Explore launches</Link>
           </Button>
           <Button asChild size="lg" variant="secondary" className="h-12 px-6 text-[1rem]">
-            <Link href="/docs/stats">How it works</Link>
+            <Link href="/docs/how-it-works">How it works</Link>
           </Button>
         </div>
       </div>

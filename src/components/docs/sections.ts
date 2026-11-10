@@ -1,4 +1,5 @@
 export const DOC_SECTIONS = [
+  { slug: "how-it-works", title: "How score works" },
   { slug: "stats", title: "Stats" },
   { slug: "scoring", title: "Scoring" },
   { slug: "boards", title: "Boards & payouts" },
