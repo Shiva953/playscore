@@ -557,7 +557,7 @@ function broadcast(msg: unknown): void {
 // The clock between phase changes: lets the app's countdowns stay honest without polling.
 setInterval(() => broadcast({ type: "clock" }), 15_000);
 
-const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type, authorization, x-admin-token", "access-control-allow-methods": "GET, POST, OPTIONS" };
+const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type, authorization, x-admin-token", "access-control-allow-methods": "GET, POST, OPTIONS", "access-control-max-age": "7200" };
 const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { "content-type": "application/json", ...CORS } });
 
 async function faucet(req: Request): Promise<Response> {

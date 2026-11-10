@@ -603,14 +603,17 @@ export class ApiProtocolClient implements ProtocolClient {
     const n = this.engineId(id);
     const summary = this.summaryOf(id);
     const listed = this.markets.has(n);
-    const [d, user, results] = await Promise.all([
+    // The impact ladder only needs to know the market is bonded, which the cached market list says,
+    // so it runs beside the detail read instead of after it (one round trip, not two).
+    const [d, user, results, early] = await Promise.all([
       listed ? this.node.get<MarketDetail>(`/v1/view/markets/${n}?${this.after()}${this.me() ? `&user=${this.me()}` : ""}`).catch(rethrow) : Promise.resolve(null),
       this.loadUser().catch(() => null),
       this.oracleResults(),
+      this.markets.get(n)?.state === "bonded" ? this.impactLadder(n) : Promise.resolve(null),
     ]);
     const o = this.oraclePlayers.get(id);
     const bondedNow = d?.state === "bonded";
-    const ladder = bondedNow ? await this.impactLadder(n) : null;
+    const ladder = bondedNow ? (early ?? (await this.impactLadder(n))) : null;
     const sold = tok(d?.sold);
     const emitted = d ? 2_000_000 - tok(d.reserveLeft) : 0;
     const minted = tok(d?.minted);

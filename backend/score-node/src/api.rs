@@ -135,7 +135,7 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/v1/blockhash", get(blockhash))
         .route("/v1/wallet/{pk}", get(wallet))
         .route("/v1/tx/{sig}", get(tx_status))
-        .layer(tower_http::cors::CorsLayer::new().allow_origin(tower_http::cors::Any).allow_methods(tower_http::cors::Any).allow_headers(tower_http::cors::Any))
+        .layer(tower_http::cors::CorsLayer::new().allow_origin(tower_http::cors::Any).allow_methods(tower_http::cors::Any).allow_headers(tower_http::cors::Any).max_age(std::time::Duration::from_secs(7200)))
         .with_state(app)
 }
 
