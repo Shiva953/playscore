@@ -1,4 +1,4 @@
-import { PLAYERS_BY_ID } from "@score/core";
+import { PLAYERS_BY_ID, SHIRT_NUMBERS } from "@score/core";
 
 /**
  * Club identity drawn in code: each club's kit colours and pattern, never its crest or a photo.
@@ -99,13 +99,6 @@ export function clubIdentity(club: string): ClubIdentity {
   return CLUBS[club] ?? FALLBACK;
 }
 
-/** Shirt numbers for the 30 listed players (display only; the protocol never reads them). */
-const NUMBERS: Record<string, number> = {
-  kane: 9, yamal: 10, mbappe: 10, rodri: 16, messi: 10, dembele: 10, bellingham: 5, haaland: 9, olise: 17, cubarsi: 5,
-  vinicius: 7, kvara: 7, vitinha: 17, hakimi: 2, mendes: 25, neves: 87, pacho: 51, marquinhos: 5, fabian: 8, torres: 19,
-  saliba: 2, upamecano: 2, gabriel: 6, rice: 41, bruno: 8, diaz: 14, lautaro: 10, cucurella: 24, mane: 10, quinones: 33,
-};
-
 export interface PlayerIdentity {
   id: string;
   name: string;
@@ -118,5 +111,5 @@ export interface PlayerIdentity {
 export function playerIdentity(id: string): PlayerIdentity | null {
   const p = PLAYERS_BY_ID[id];
   if (!p) return null;
-  return { id, name: p.name, ticker: p.ticker, club: p.club, number: NUMBERS[id] ?? null, kit: clubIdentity(p.club) };
+  return { id, name: p.name, ticker: p.ticker, club: p.club, number: SHIRT_NUMBERS[id] ?? null, kit: clubIdentity(p.club) };
 }

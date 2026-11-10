@@ -70,6 +70,26 @@ function seedForm(index: number, total: number, id: string): number {
   return Math.round(Math.min(9.1, Math.max(6.3, v)) * 10) / 10;
 }
 
+/** Shirt numbers we have (display and tickers; the protocol never reads them). */
+export const SHIRT_NUMBERS: Readonly<Record<string, number>> = {
+  kane: 9, yamal: 10, mbappe: 10, rodri: 16, messi: 10, dembele: 10, bellingham: 5, haaland: 9, olise: 17, cubarsi: 5,
+  junior: 7, kvaratskhelia: 7, vitinha: 17, hakimi: 2, mendes: 25, neves: 87, pacho: 51, marquinhos: 5, ruiz: 8, torres: 19,
+  saliba: 2, upamecano: 2, gabriel: 6, rice: 41, "bruno-fernandes": 8, diaz: 14, lautaro: 10, cucurella: 24, mane: 10, quinones: 33,
+};
+
+/** Client rule: ticker = initials + shirt number (Jude Bellingham = JB5). A clash takes more surname letters; no number, no digits. */
+const taken = new Set<string>();
+function tickerFor(id: string, name: string): string {
+  const parts = name.normalize("NFKD").toUpperCase().replace(/[^A-Z\s-]/g, "").split(/[\s-]+/).filter(Boolean);
+  const initials = parts.map((w) => w[0]).join("");
+  const extra = parts[parts.length - 1]!.slice(1) + parts[0]!.slice(1);
+  for (let k = 0; k <= extra.length; k++) {
+    const t = `${initials}${extra.slice(0, k)}${SHIRT_NUMBERS[id] ?? ""}`;
+    if (!taken.has(t)) return taken.add(t), t;
+  }
+  throw new Error(`No unique ticker for ${id}`);
+}
+
 export const PLAYERS: readonly PlayerProfile[] = REGISTRY.map((r, index) => ({
   id: r[0],
   index,
@@ -80,7 +100,7 @@ export const PLAYERS: readonly PlayerProfile[] = REGISTRY.map((r, index) => ({
   league: r[5],
   position: r[6],
   avgScore: seedForm(index, REGISTRY.length, r[0]),
-  ticker: r[7],
+  ticker: tickerFor(r[0], r[1]),
   inUcl: (UCL_CLUBS as readonly string[]).includes(r[3]),
   ico: r[8],
 }));
