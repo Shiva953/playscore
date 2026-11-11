@@ -172,8 +172,8 @@ function YourLp({ player }: { player: PlayerDetail }) {
   return (
     <Card size="sm">
       <CardHeader>
-        <CardTitle>Your </CardTitle>
-      </CardHeader>liquidity
+        <CardTitle>Your liquidity</CardTitle>
+      </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <KeyValue
           rows={[

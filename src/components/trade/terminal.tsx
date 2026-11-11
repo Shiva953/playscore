@@ -15,6 +15,7 @@ import { TradeFeed } from "@/components/live/trade-feed";
 import { QuickBuy, QuickBuyAmount } from "@/components/live/quick-buy";
 import { PlayerAvatar } from "@/components/common/kit";
 import { PositionsMini } from "@/components/player/positions-mini";
+import { LiquidityPanel } from "@/components/player/liquidity-panel";
 import { TradePanel } from "@/components/player/trade-panel";
 import { formatPct, formatPrice, formatUsd } from "@/lib/format";
 import type { LimitOrder, PlayerDetail, PlayerSummary, PriceRange } from "@/lib/protocol/types";
@@ -360,6 +361,7 @@ function BottomTabs({ p, orders, className }: { p: PlayerDetail; orders: LimitOr
               Trades
             </TabsTrigger>
             <TabsTrigger value="positions">Positions</TabsTrigger>
+            {p.status === "trading" ? <TabsTrigger value="liquidity">Liquidity</TabsTrigger> : null}
             <TabsTrigger value="orders">
               Open orders{orders.length ? <span className="fig ml-1.5 text-soft">{orders.length}</span> : null}
             </TabsTrigger>
@@ -370,6 +372,11 @@ function BottomTabs({ p, orders, className }: { p: PlayerDetail; orders: LimitOr
           <TabsContent value="positions">
             <PositionsMini />
           </TabsContent>
+          {p.status === "trading" ? (
+            <TabsContent value="liquidity">
+              <LiquidityPanel player={p} />
+            </TabsContent>
+          ) : null}
           <TabsContent value="orders">
             <OpenOrders orders={orders} current={p.id} />
           </TabsContent>
