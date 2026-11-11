@@ -169,9 +169,6 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
         if (e.stage === "pending") toast.loading(e.message, { id: "funds" });
         else if (e.stage === "done") toast.success(e.message, { id: "funds", ...(e.signature ? { description: <OrbLink signature={e.signature} />, duration: 8_000 } : {}) });
         else toast.error(e.title ?? "Test USDC didn't arrive", { id: "funds", description: e.message });
-      } else if (e.type === "connection") {
-        if (e.online) toast.success("Back online", { id: "connection", description: "Live prices and matches are flowing again." });
-        else toast.loading("Reconnecting to score…", { id: "connection", description: "Prices may be a few seconds old." });
       } else if (e.type === "launched") {
         const names = e.playerIds.map((id) => PLAYERS_BY_ID[id]?.name ?? id).join(" and ");
         toast(`Now launching: ${names}`);
