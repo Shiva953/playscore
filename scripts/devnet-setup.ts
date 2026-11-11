@@ -38,12 +38,20 @@ if (config.exists) {
   process.exit(ok ? 0 : 1);
 }
 
-const mintRent = await rpc.getMinimumBalanceForRentExemption(82n).send();
-await send(me, [
-  getCreateAccountInstruction({ payer: me, newAccount: mint, lamports: mintRent, space: 82, programAddress: TOKEN_PROGRAM_ADDRESS }),
-  getInitializeMint2Instruction({ mint: mint.address, decimals: 6, mintAuthority: me.address, freezeAuthority: null }),
-], 50_000);
-console.log(`test USDC mint ${mint.address}`);
+// Each step is skipped when its account already landed: a run that fails part-way (a slow validator,
+// a timeout on the big init transaction) must be retryable rather than wedged on "already in use".
+const exists = async (addr: string) => (await rpc.getAccountInfo(address(addr), { commitment: "finalized" }).send()).value !== null;
+
+if (await exists(mint.address)) {
+  console.log(`test USDC mint ${mint.address} (already created)`);
+} else {
+  const mintRent = await rpc.getMinimumBalanceForRentExemption(82n).send();
+  await send(me, [
+    getCreateAccountInstruction({ payer: me, newAccount: mint, lamports: mintRent, space: 82, programAddress: TOKEN_PROGRAM_ADDRESS }),
+    getInitializeMint2Instruction({ mint: mint.address, decimals: 6, mintAuthority: me.address, freezeAuthority: null }),
+  ], 50_000);
+  console.log(`test USDC mint ${mint.address}`);
+}
 
 const PENDING_SPACE = 8n + 1024n * 40n + 1024n * 56n;
 const pendingRent = await rpc.getMinimumBalanceForRentExemption(PENDING_SPACE).send();

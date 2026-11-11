@@ -157,6 +157,9 @@ const gateStore = {
 const WALLET_NUDGE_MS = 4_000;
 const WALLET_GIVE_UP_MS = 20_000;
 
+/** How long Privy must stay `authenticated: false` before we drop the app session. */
+const PRIVY_SIGNOUT_GRACE_MS = 8_000;
+
 function PrivyBridge({ children }: { children: ReactNode }) {
   const signIn = useSignIn();
   const session = useSession();
@@ -307,10 +310,14 @@ function WalletSigner() {
     });
   }, [api, wallet, signMessage, signTransaction]);
 
-  // Privy's session ended (expired, or signed out in another tab): end ours too.
+  // Privy's session ended (expired, or signed out in another tab): end ours too — but not the moment
+  // `authenticated` dips. Privy flips it false during a token refresh and whenever auth.privy.io
+  // hiccups, then back to true a beat later; signing out on that first false logged people out
+  // mid-session. Wait for it to stay false, and treat a still-`ready:false` Privy as "unknown".
   useEffect(() => {
     if (!api || !ready || authenticated || !session.data || session.data.id.startsWith("burner:")) return;
-    signOut.mutate();
+    const t = setTimeout(() => signOut.mutate(), PRIVY_SIGNOUT_GRACE_MS);
+    return () => clearTimeout(t);
   }, [api, ready, authenticated, session.data, signOut]);
 
   void walletsReady;
