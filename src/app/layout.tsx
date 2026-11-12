@@ -18,6 +18,7 @@ const text = Barlow({ subsets: ["latin"], weight: ["400", "500", "600"], variabl
 const display = Barlow_Condensed({ subsets: ["latin"], weight: ["600"], variable: "--font-display" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://playscore.fun"),
   title: { default: "score · own the players", template: "%s · score" },
   description: "Own the players. Earn when they perform. A football player trading protocol on Solana (devnet demo).",
   icons: { icon: "/icon.svg" },
