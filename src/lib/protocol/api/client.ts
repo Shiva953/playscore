@@ -882,14 +882,20 @@ export class ApiProtocolClient implements ProtocolClient {
     const unrealized = positions.reduce((a, p) => a + p.pnl, 0) + lp.reduce((a, p) => a + p.pnl, 0);
     const realizedPnl = usd(u.realized);
     const points = emptyPoints();
+    // One command can log several rows for the same player (claim-all across rounds), and the node's id is
+    // only seq-kind-player, so repeats get a suffix to stay unique.
+    const seenIds = new Map<string, number>();
     const history: ActivityItem[] = u.activity.map((a) => {
+      const dup = seenIds.get(a.id) ?? 0;
+      seenIds.set(a.id, dup + 1);
+      const rowId = dup ? `${a.id}-${dup}` : a.id;
       const id = a.player != null ? this.slugs.get(a.player) : undefined;
       const kind = a.kind as ActivityKind;
       if (kind === "buy" && a.detail.startsWith("Launch")) points.launch += Math.abs(usd(a.usdc));
       if (kind === "buy" || kind === "sell" || kind === "order-fill") points.volume += Math.abs(usd(a.usdc));
       if (kind === "lp-add") points.liquidity += Math.abs(usd(a.usdc));
       if (kind === "dividend") points.dividends += usd(a.usdc);
-      return { id: a.id, at: a.ts * 1000, kind, playerId: id, ticker: id ? PLAYERS_BY_ID[id]?.ticker : undefined, usdc: Math.abs(usd(a.usdc)), tokens: a.tokens ? Math.abs(tok(a.tokens)) : undefined, detail: a.detail };
+      return { id: rowId, at: a.ts * 1000, kind, playerId: id, ticker: id ? PLAYERS_BY_ID[id]?.ticker : undefined, usdc: Math.abs(usd(a.usdc)), tokens: a.tokens ? Math.abs(tok(a.tokens)) : undefined, detail: a.detail };
     });
     points.fees = usd(u.fees);
     const orders: LimitOrder[] = u.orders

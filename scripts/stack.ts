@@ -41,6 +41,25 @@ function stop(code = 0) {
 process.on("SIGINT", () => stop(0));
 process.on("SIGTERM", () => stop(0));
 
+// A local score-node must never run against a shared cluster. `program::program_id()` is compiled in
+// (score::ID), and Anchor.toml gives localnet and devnet the same program ID, so the config/state/
+// custody/vault PDAs are the *same accounts* prod uses on devnet. A local committer also signs with the
+// same operator key, so it would append batches to prod's chain instead of a throwaway ledger.
+// Local dev on devnet talks to the deployed backend instead (NEXT_PUBLIC_SCORE_NODE) — see README.
+const RPC = process.env.DEVNET_RPC || process.env.NEXT_PUBLIC_SOLANA_RPC_DEVNET || "";
+if (RPC && !/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/.test(RPC)) {
+  console.error(
+    `\x1b[31mrefusing to start a local backend\x1b[0m\n` +
+      `NEXT_PUBLIC_SOLANA_RPC_DEVNET points at ${new URL(RPC).host}, not a local validator.\n` +
+      `This node would commit to the shared cluster with prod's operator key and PDAs.\n\n` +
+      `For local dev on devnet, skip this script and point the app at the deployed backend:\n` +
+      `  NEXT_PUBLIC_SCORE_NODE=https://score-node-production.up.railway.app\n` +
+      `  NEXT_PUBLIC_SCORE_ORACLE=https://score-oracle-production.up.railway.app\n` +
+      `For a throwaway chain, run a local validator and set the RPC to http://127.0.0.1:8899.`,
+  );
+  process.exit(1);
+}
+
 console.log("building score-node (release)…");
 const b = spawnSync("cargo", ["build", "--release", "--manifest-path", "backend/Cargo.toml"], { stdio: "inherit" });
 if (b.status !== 0) process.exit(b.status ?? 1);

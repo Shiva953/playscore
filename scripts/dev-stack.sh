@@ -12,6 +12,17 @@ RPC=http://127.0.0.1:8899
 NODE=http://127.0.0.1:8787
 ORACLE=http://127.0.0.1:8788
 
+# Refuse to run against a shared cluster. This script starts a local score-node, which commits batches
+# with the operator key to PDAs derived from a hardcoded program ID; Anchor.toml gives localnet and
+# devnet the same ID, so on devnet those are prod's live accounts. Local dev on devnet uses the
+# deployed backend instead and must not start a local node.
+WANT_RPC="${DEVNET_RPC:-${NEXT_PUBLIC_SOLANA_RPC_DEVNET:-}}"
+if [ -n "$WANT_RPC" ] && [ "$WANT_RPC" != "$RPC" ]; then
+  printf '\033[31mrefusing to run\033[0m NEXT_PUBLIC_SOLANA_RPC_DEVNET is %s, not %s.\n' "$WANT_RPC" "$RPC"
+  echo "A local score-node would write to the shared cluster's accounts. See scripts/stack.ts for details."
+  exit 1
+fi
+
 # macOS has no `xargs -r`; a for-loop over lsof output is portable.
 killport() {
   local p pids
