@@ -61,7 +61,7 @@ export function useTradeTicket(player: PlayerDetail) {
 
   const canSubmit = !signedIn || (!!quote && quote.ok && !pending);
   const verb = side === "buy" ? (quote?.bonds ? "Buy and bond" : "Buy") : "Sell";
-  const cta = !signedIn ? `Sign in to ${side}` : pending ? "Confirming…" : `${verb} $${player.ticker}`;
+  const cta = !signedIn ? `Sign in to ${side}` : pending ? "Confirming" : `${verb} $${player.ticker}`;
   /** The sell tax that applies right now, shown before any sell. */
   const sellTaxNow = holding?.sellTaxNow ?? null;
 

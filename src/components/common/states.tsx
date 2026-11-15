@@ -3,6 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FeedSkeleton } from "@/components/common/skeletons";
 import { errorMessage } from "@/lib/protocol/errors";
 import { useUi } from "@/lib/protocol/react/ui-store";
 import { cn } from "@/lib/utils";
@@ -32,18 +33,18 @@ export function ErrorState({ error, onRetry, className }: { error: unknown; onRe
   );
 }
 
+/** Rows that haven't loaded, drawn as rows: a face, two lines, a figure (see common/skeletons). */
 export function LoadingRows({ rows = 4, className }: { rows?: number; className?: string }) {
-  return (
-    <div className={cn("flex flex-col gap-2", className)} aria-busy="true" aria-label="Loading" data-state="loading">
-      {Array.from({ length: rows }, (_, i) => (
-        <Skeleton key={i} className="h-11 w-full rounded-xl" />
-      ))}
-    </div>
-  );
+  return <FeedSkeleton rows={rows} className={className} />;
 }
 
+/** A single block whose insides aren't known yet. Prefer a skeleton from common/skeletons that draws the layout. */
 export function LoadingBlock({ className, style }: { className?: string; style?: CSSProperties }) {
-  return <Skeleton className={cn("h-40 w-full rounded-2xl", className)} style={style} aria-busy="true" aria-label="Loading" data-state="loading" />;
+  return (
+    <div role="status" aria-busy="true" aria-label="Loading" data-state="loading" className={cn("h-40 w-full", className)} style={style}>
+      <Skeleton className="size-full rounded-2xl" />
+    </div>
+  );
 }
 
 export function SignedOutState({ title = "Sign in to see this", children }: { title?: string; children?: ReactNode }) {

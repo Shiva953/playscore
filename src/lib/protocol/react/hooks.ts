@@ -144,10 +144,14 @@ export function useCash() {
   return { total, trading: total, arriving, available, inOrders: funds.data?.inOrders ?? 0, loading: pf.isPending || (!!c.funds && funds.isPending), ready: !!pf.data };
 }
 
-/** Withdraw from cash to another Solana address (wallet first, then trading). */
-export function useWithdraw() {
+/**
+ * Withdraw from cash to another Solana address (wallet first, then trading).
+ * `shown`: the caller confirms it in place (the dialog's "Sent" step) and returns true while that is on
+ * screen, so there's no second confirmation as a toast. If the dialog was closed mid-send, the toast speaks.
+ */
+export function useWithdraw({ shown }: { shown?: () => boolean } = {}) {
   const c = useProtocolClient();
-  return useAction((v: { to: string; amount: number }) => c.funds!.withdraw(v.to, v.amount));
+  return useAction((v: { to: string; amount: number }) => c.funds!.withdraw(v.to, v.amount), { success: (r) => (shown?.() ? null : r.summary) });
 }
 
 /** Transfer: wallet → trading balance. */
@@ -224,9 +228,10 @@ export function useRemoveLiquidity() {
   return useAction((v: { id: string; fraction?: number }) => c.removeLiquidity(v.id, v.fraction));
 }
 
-export function useClaim() {
+/** `shown`: as in useWithdraw. The claim panel confirms a claim in place; the toast only speaks if it's gone. */
+export function useClaim({ shown }: { shown?: () => boolean } = {}) {
   const c = useProtocolClient();
-  return useAction((mode: ClaimMode) => c.claim(mode));
+  return useAction((mode: ClaimMode) => c.claim(mode), { success: (r) => (shown?.() ? null : r.summary) });
 }
 
 export function useFaucet() {

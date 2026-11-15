@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/status";
 import { LiveFigure } from "@/components/common/bits";
 import { UsdcIcon } from "@/components/common/usdc";
 import { UserAvatar } from "@/components/common/user-avatar";
@@ -156,8 +157,8 @@ export function AccountMenu() {
         </DropdownMenuItem>
         {devnet ? (
           <DropdownMenuItem onSelect={() => faucet.mutate(1_000)} disabled={faucet.isPending} className="gap-2.5">
-            <Plus className="size-4 text-soft" aria-hidden="true" />
-            {faucet.isPending ? "Getting test USDC…" : "Get 1,000 test USDC"}
+            {faucet.isPending ? <Spinner className="size-4 text-soft" /> : <Plus className="size-4 text-soft" aria-hidden="true" />}
+            {faucet.isPending ? "Minting 1,000 test USDC" : "Get 1,000 test USDC"}
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem onSelect={() => setDemoOpen(true)} className="gap-2.5">

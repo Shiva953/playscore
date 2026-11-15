@@ -20,7 +20,8 @@ import {
 import { useEffect, useMemo, useRef } from "react";
 import { S_MAX, priceAt } from "@score/core";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { ErrorState, LoadingBlock } from "@/components/common/states";
+import { ErrorState } from "@/components/common/states";
+import { ChartSkeleton } from "@/components/common/skeletons";
 import { formatPct, formatPrice, formatTokensCompact } from "@/lib/format";
 import { bollinger, ema, rsi, sma } from "@/lib/indicators";
 import type { PricePoint, PriceRange } from "@/lib/protocol/types";
@@ -182,7 +183,7 @@ function useChartMarks(playerId: string): ChartMark[] {
 export function PriceChart({ playerId, range, indicators, height = 280 }: { playerId: string; range: PriceRange; indicators?: Indicators; height?: number }) {
   const q = usePriceHistory(playerId, range);
   const marks = useChartMarks(playerId);
-  if (q.isPending) return <LoadingBlock style={{ height }} />;
+  if (q.isPending) return <ChartSkeleton height={height} />;
   if (q.isError || !q.data) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
   return <LwChart points={q.data} indicators={indicators} height={height} marks={marks} />;
 }

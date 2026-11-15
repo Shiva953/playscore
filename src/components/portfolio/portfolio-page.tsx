@@ -7,9 +7,11 @@ import { toast } from "sonner";
 import { PLAYERS_BY_ID } from "@score/core";
 import { PlayerAvatar } from "@/components/common/kit";
 import { orbAddressUrl } from "@/lib/solana/explorer";
+import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import { Delta, LiveFigure, Section, Sparkline, Ticker } from "@/components/common/bits";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/common/states";
+import { PortfolioSkeleton } from "@/components/common/skeletons";
 import { UsdcIcon } from "@/components/common/usdc";
 import { UserAvatar } from "@/components/common/user-avatar";
 import { formatCountdown, formatDate, formatPct, formatRelative, formatTokens, formatUsd, shortAddress } from "@/lib/format";
@@ -30,24 +32,20 @@ import { useProtocolClient } from "@/lib/protocol/react/provider";
 export function PortfolioPage() {
   const session = useSession();
   const pf = usePortfolio();
+  // A claim empties `claimable` the moment it lands; the card stays until it has shown what it paid.
+  const [claiming, setClaiming] = useState(false);
   if (session.isPending || (session.data && pf.isPending)) {
-    return (
-      <div className="flex flex-col gap-4" aria-busy="true">
-        <LoadingBlock className="h-16" />
-        <LoadingBlock className="h-44" />
-        <LoadingBlock className="h-64" />
-      </div>
-    );
+    return <PortfolioSkeleton />;
   }
   if (!session.data) return <SignedOut />;
   if (pf.isError || !pf.data) return <ErrorState error={pf.error} onRetry={() => void pf.refetch()} />;
   const d = pf.data;
   return (
-    <div className="flex flex-col gap-10">
+    <div className="content-in flex flex-col gap-10">
       <div className="flex flex-col gap-4">
         <Profile d={d} />
         <Hero d={d} />
-        {d.claimable.totalUsd > 0.005 ? <ClaimCard /> : <NextChance d={d} />}
+        {d.claimable.totalUsd > 0.005 || claiming ? <ClaimCard onBusy={setClaiming} /> : <NextChance d={d} />}
       </div>
       <Squad d={d} />
       {d.lp.length ? <Liquidity d={d} /> : null}
@@ -111,13 +109,16 @@ function Profile({ d }: { d: Portfolio }) {
 
 // ---------------------------------------------------------------- the headline figure and its split
 
-/** Dark-mode slots 1–3 of the dataviz reference palette, checked on the surface token (night ink). */
+/**
+ * What you own, by kind, each in the hue it has everywhere else (15 Nov: this was three greys, and the
+ * biggest block of colourless chrome on the page). Cash is USDC's blue, the coin beside every cash figure;
+ * players are gold, the colour of holding and of what pays; liquidity is pool water. One hue per kind,
+ * three kinds: a chart telling series apart, which is where colour belongs. Dark labels measure 7:1+ on each.
+ */
 const SPLIT = [
-  // Neutral steps, not hues (colorize, unslop: one accent, the rest neutral). Players, what you own, are the
-  // lightest; cash a mid grey; liquidity the darkest. Dark labels measure 7.4:1 or more on each.
-  { key: "cash", label: "Cash", color: "#9e9e9e" },
-  { key: "players", label: "Players", color: "#e4e4e4" },
-  { key: "lp", label: "Liquidity", color: "#8a8a8a" },
+  { key: "cash", label: "Cash", color: "var(--cash)" },
+  { key: "players", label: "Players", color: "var(--brand)" },
+  { key: "lp", label: "Liquidity", color: "var(--pool)" },
 ] as const;
 
 function Hero({ d, example = false }: { d: Portfolio; example?: boolean }) {
@@ -181,10 +182,10 @@ function Split({ values, total }: { values: Record<(typeof SPLIT)[number]["key"]
 
 // ---------------------------------------------------------------- the moment
 
-function ClaimCard() {
+function ClaimCard({ onBusy }: { onBusy: (busy: boolean) => void }) {
   return (
     <section id="claim" aria-label="Claimable dividends" className="rounded-2xl bg-surface p-5 ring-1 ring-brand/30 md:p-6">
-      <ClaimPanel />
+      <ClaimPanel onBusy={onBusy} />
     </section>
   );
 }
@@ -205,7 +206,7 @@ function NextChance({ d }: { d: Portfolio }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface ring-1 ring-edge ring-inset px-5 py-4">
       <p className="text-[0.875rem] text-soft">
-        <span className={cn("mr-2 inline-block size-2 rounded-full align-middle", r.data.phase === "live" ? "bg-brand" : "bg-soft")} aria-hidden="true" />
+        <span className={cn("mr-2 inline-block size-2 rounded-full align-middle", r.data.phase === "ended" ? "bg-soft" : "bg-brand")} aria-hidden="true" />
         {line}
       </p>
       <Link href="/matchday" className="text-[0.8125rem] text-ink underline decoration-control underline-offset-4 hover:decoration-ink">
@@ -503,14 +504,16 @@ function SignedOut() {
 function DemoAccountButton() {
   const signIn = useSignIn();
   return (
-    <Button
+    <ActionButton
       size="lg"
       variant="secondary"
-      disabled={signIn.isPending}
+      phase={signIn.isPending ? "pending" : signIn.isSuccess ? "success" : "idle"}
+      pending="Setting up your account"
+      success="Account ready"
       onClick={() => signIn.mutate({ method: "demo", country: "Germany", acceptedTerms: true })}
     >
-      {signIn.isPending ? "Opening…" : "Try a demo account"}
-    </Button>
+      Try a demo account
+    </ActionButton>
   );
 }
 

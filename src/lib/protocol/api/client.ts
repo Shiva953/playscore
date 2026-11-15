@@ -1257,14 +1257,14 @@ export class ApiProtocolClient implements ProtocolClient {
     const s = await this.needSigner(20_000);
     if (this.funding) throw new ProtocolError("INVALID_AMOUNT", "Test USDC is already on its way.");
     this.funding = true;
-    this.emit({ type: "funds", stage: "pending", amount, message: "Minting test USDC to your wallet…" });
+    this.emit({ type: "funds", stage: "pending", amount, message: "Minting test USDC to your wallet" });
     try {
       const token = (await this.accessToken?.()) ?? null;
       const r = await fetch(`${this.oracle}/v1/faucet`, { method: "POST", headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ address: s.address }) });
       const j = (await r.json().catch(() => ({}))) as { error?: string; amount?: number };
       if (!r.ok) throw new ProtocolError("NETWORK", j.error ?? "The faucet couldn't send right now.");
       const got = j.amount ?? amount;
-      this.emit({ type: "funds", stage: "pending", amount: got, message: "Depositing it into score…" });
+      this.emit({ type: "funds", stage: "pending", amount: got, message: "Depositing it into score" });
       const res = await this.depositAndWait(s, got);
       this.emit({ type: "funds", stage: "done", amount: got, message: `${fmtUsd(got)} test USDC is ready to trade.`, signature: res.signature });
       return { ...res, summary: `${fmtUsd(got)} test USDC added to your balance` };
@@ -1435,7 +1435,7 @@ export class ApiProtocolClient implements ProtocolClient {
         // Whole cents only; sub-cent dust stays put rather than costing a transaction.
         const amount = Math.floor(w / 10_000) / 100;
         if (amount < min) return null;
-        this.emit({ type: "funds", stage: "pending", amount, message: `Adding ${fmtUsd(amount)} to your cash…` });
+        this.emit({ type: "funds", stage: "pending", amount, message: `Adding ${fmtUsd(amount)} to your cash` });
         try {
           const r = await this.depositAndWait(s, amount);
           this.emit({ type: "funds", stage: "done", amount, message: `${fmtUsd(amount)} received. Ready to trade.`, signature: r.signature });

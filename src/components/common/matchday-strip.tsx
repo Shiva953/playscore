@@ -1,7 +1,7 @@
 "use client";
 
 import { Countdown } from "@/components/common/bits";
-import { Skeleton } from "@/components/ui/skeleton";
+import { StripSkeleton } from "@/components/common/skeletons";
 import { formatUsd } from "@/lib/format";
 import type { RoundState } from "@/lib/protocol/types";
 import { useNow, useRound } from "@/lib/protocol/react/hooks";
@@ -28,7 +28,7 @@ function phaseLine(r: StripRound) {
   if (r.phase === "open") {
     return (
       <>
-        Snapshot at first kickoff in <Countdown to={r.phaseEndsAt} className="text-ink" />
+        Snapshot at first kickoff in <Countdown to={r.phaseEndsAt} className="text-brand" />
       </>
     );
   }
@@ -58,20 +58,20 @@ export function MatchdayStrip({ round: r, showPool = true, className }: { round:
         <p className="text-sm text-soft">{phaseLine(r)}</p>
         {showPool ? (
           <p className="num text-sm text-soft">
-            Round pool <span className="text-ink">{formatUsd(r.pool.usd, { decimals: 0 })}</span>
+            Round pool <span className={r.pool.usd >= 0.5 ? "text-brand" : "text-ink"}>{formatUsd(r.pool.usd, { decimals: 0 })}</span>
           </p>
         ) : null}
       </div>
       <div className="relative h-10" role="img" aria-label={`Matchday ${r.round}: ${r.phase === "open" ? "before kickoff" : r.phase === "live" ? "live" : "full time, data freezing"}`}>
         {/* track */}
         <div className="absolute inset-x-0 top-4 h-1 rounded-full bg-raised" />
-        {/* elapsed: grey before kickoff, lime while live, grey while freezing */}
-        <div className="absolute top-4 left-0 h-1 rounded-full bg-soft" style={{ width: `${Math.min(pos, liveStart) * 100}%` }} />
+        {/* elapsed, in gold: quieter before kickoff and while freezing, full while the matches are live */}
+        <div className="absolute top-4 left-0 h-1 rounded-full bg-brand/55" style={{ width: `${Math.min(pos, liveStart) * 100}%` }} />
         {pos > liveStart ? (
           <div className="absolute top-4 h-1 bg-brand" style={{ left: `${liveStart * 100}%`, width: `${(Math.min(pos, liveEnd) - liveStart) * 100}%` }} />
         ) : null}
         {pos > liveEnd ? (
-          <div className="absolute top-4 h-1 rounded-r-full bg-soft" style={{ left: `${liveEnd * 100}%`, width: `${(pos - liveEnd) * 100}%` }} />
+          <div className="absolute top-4 h-1 rounded-r-full bg-brand/55" style={{ left: `${liveEnd * 100}%`, width: `${(pos - liveEnd) * 100}%` }} />
         ) : null}
         {/* kickoffs */}
         {r.fixtures.map((f) => (
@@ -87,7 +87,7 @@ export function MatchdayStrip({ round: r, showPool = true, className }: { round:
         <span className="absolute top-2 h-5 w-0.5 rounded-full bg-faint" style={{ left: `${liveEnd * 100}%` }} />
         {/* now */}
         <span
-          className="absolute top-[11px] size-[14px] -translate-x-1/2 rounded-full border-2 border-ground bg-ink motion-safe:transition-[left] motion-safe:duration-1000 motion-safe:ease-linear"
+          className="absolute top-[11px] size-[14px] -translate-x-1/2 rounded-full border-2 border-ground bg-brand motion-safe:transition-[left] motion-safe:duration-1000 motion-safe:ease-linear"
           style={{ left: `${pos * 100}%` }}
           aria-hidden="true"
         />
@@ -119,6 +119,6 @@ export function LiveMatchdayStrip({ showPool = true, className }: { showPool?: b
     pool: r.pool,
     liveProgress: r.liveProgress,
   }));
-  if (!q.data) return <Skeleton className={cn("h-[88px] w-full", className)} />;
+  if (!q.data) return <StripSkeleton className={className} />;
   return <MatchdayStrip round={q.data} showPool={showPool} className={className} />;
 }

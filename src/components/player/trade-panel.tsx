@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type * as React from "react";
 import { PROTOCOL_CONFIG } from "@score/core";
+import { ActionButton, usePhase, type Phase } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { CheckDraw } from "@/components/ui/status";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AutoHeight } from "@/components/common/auto-height";
 import { Countdown, KeyValue, LiveFigure, TickUp } from "@/components/common/bits";
 import { PlayerAvatar } from "@/components/common/kit";
 import { UsdcIcon } from "@/components/common/usdc";
@@ -41,14 +44,23 @@ type Side = "buy" | "sell";
 type SellInput = { usdc: number } | { tokens: number };
 
 /**
- * The ticket's lifecycle, explicit: you edit an order, send it, and see what it did. Only `edit`
- * accepts input; `sending` locks the button; `done` shows the receipt until you go again.
- * (A failed send goes back to `edit` with the amount kept; the error is a toast.)
+ * The ticket's lifecycle, explicit: you edit an order, send it, see it land, and read what it did.
+ * Only `edit` accepts input. `sending` turns the button into a working ring; `confirmed` draws the tick
+ * on that same button for a beat, so the press is answered where it was made; then `done` opens the
+ * receipt until you go again. A failed send shows on the button too (`failed`, with the amount kept and
+ * the reason in a toast) and returns to `edit`.
  */
+type Fill = { side: Side; tokens: number; usdc: number };
 type Ticket =
   | { step: "edit" }
   | { step: "sending" }
-  | { step: "done"; side: Side; tokens: number; usdc: number };
+  | ({ step: "confirmed" } & Fill)
+  | { step: "failed" }
+  | ({ step: "done" } & Fill);
+
+/** How long the tick stays on the button before the receipt opens, and the cross before you can retry. */
+const CONFIRM_MS = 850;
+const FAILED_MS = 1900;
 
 /** Same place, same shape in both states: launching (curve) and trading (pool). */
 export function TradePanel({
@@ -102,12 +114,30 @@ export function TradePanel({
   const sellValue = sellQuote?.ok ? sellQuote.receive : sellTokensNow * player.price;
   const holding = player.holding;
   const launching = player.status === "launching";
-  const pending = ticket.step === "sending";
+  const phase: Phase = ticket.step === "sending" ? "pending" : ticket.step === "confirmed" ? "success" : ticket.step === "failed" ? "error" : "idle";
+  const faucetPhase = usePhase(faucet);
 
   const reset = () => {
     setAmount("");
     setSellTokens(null);
   };
+
+  // The beats between states: the tick holds, then the receipt opens; the cross holds, then you can retry.
+  useEffect(() => {
+    if (ticket.step === "confirmed") {
+      const fill: Fill = { side: ticket.side, tokens: ticket.tokens, usdc: ticket.usdc };
+      const t = setTimeout(() => {
+        setAmount("");
+        setSellTokens(null);
+        setTicket({ step: "done", ...fill });
+      }, CONFIRM_MS);
+      return () => clearTimeout(t);
+    }
+    if (ticket.step === "failed") {
+      const t = setTimeout(() => setTicket({ step: "edit" }), FAILED_MS);
+      return () => clearTimeout(t);
+    }
+  }, [ticket]);
 
   // Latest values for the key handler without re-binding it on every keystroke.
   const keys = useRef({ side, holding: player.holding });
@@ -174,11 +204,8 @@ export function TradePanel({
       openSignIn();
       return;
     }
-    const done = (r: { tokens?: number; usdc?: number }) => {
-      reset();
-      setTicket({ step: "done", side, tokens: r.tokens ?? quote?.tokens ?? 0, usdc: r.usdc ?? 0 });
-    };
-    const failed = () => setTicket({ step: "edit" });
+    const done = (r: { tokens?: number; usdc?: number }) => setTicket({ step: "confirmed", side, tokens: r.tokens ?? quote?.tokens ?? 0, usdc: r.usdc ?? 0 });
+    const failed = () => setTicket({ step: "failed" });
     if (side === "buy") {
       setTicket({ step: "sending" });
       buy.mutate({ id: player.id, usdc }, { onSuccess: done, onError: failed });
@@ -203,8 +230,14 @@ export function TradePanel({
         : `Buy $${player.ticker}`
       : `Sell $${player.ticker}`;
 
-  const chip =
-    "fig h-9 min-w-0 flex-1 rounded-full bg-raised px-2 text-[0.875rem] font-medium text-ink transition-[background-color,transform] duration-150 hover:bg-raised-hover motion-safe:active:scale-[0.96] disabled:opacity-40";
+  // The amount chips wear the side you're on: green to buy, red to sell (15 Nov; they were grey pills).
+  const chip = cn(
+    "fig h-9 min-w-0 flex-1 rounded-full px-2 text-[0.875rem] font-medium transition-[background-color,box-shadow,transform] duration-150 motion-safe:active:scale-[0.96] disabled:opacity-40",
+    side === "buy"
+      ? "bg-up-tint/55 text-up hover:bg-up-tint aria-pressed:bg-up-tint aria-pressed:ring-1 aria-pressed:ring-up/45 aria-pressed:ring-inset"
+      : "bg-down-tint/55 text-down hover:bg-down-tint aria-pressed:bg-down-tint aria-pressed:ring-1 aria-pressed:ring-down/45 aria-pressed:ring-inset"
+  );
+  const locked = ticket.step !== "edit";
   const maxUsdc = capProbe?.cap
     ? Math.floor(capProbe.cap.maxUsdcNow * 100) / 100
     : null;
@@ -221,11 +254,20 @@ export function TradePanel({
             setTicket({ step: "edit" });
           }}
         >
-          <TabsList variant="segmented" className="h-11 w-full">
-            <TabsTrigger value="buy" className="text-[1rem] font-semibold data-active:!bg-up-tint data-active:text-up">
+          <TabsList variant="segmented" className="relative isolate h-11 w-full">
+            {/* One fill that slides between the two sides and changes colour on the way (a transition, so a
+                second press mid-move turns it round instead of snapping). */}
+            <span
+              aria-hidden="true"
+              className={cn(
+                "pointer-events-none absolute inset-y-1 left-1 -z-10 w-[calc(50%-0.25rem)] rounded-full transition-[translate,background-color] duration-200 ease-out-strong motion-reduce:transition-none",
+                side === "buy" ? "translate-x-0 bg-up-tint" : "translate-x-full bg-down-tint"
+              )}
+            />
+            <TabsTrigger value="buy" className="text-[1rem] font-semibold data-active:!bg-transparent data-active:text-up">
               Buy
             </TabsTrigger>
-            <TabsTrigger value="sell" className="text-[1rem] font-semibold data-active:!bg-down-tint data-active:text-down">
+            <TabsTrigger value="sell" className="text-[1rem] font-semibold data-active:!bg-transparent data-active:text-down">
               Sell
             </TabsTrigger>
           </TabsList>
@@ -254,7 +296,8 @@ export function TradePanel({
               ))}
             </div>
           ) : null}
-          <TabsContent value={side} className="flex flex-col gap-4">
+          <TabsContent value={side}>
+           <AutoHeight innerClassName="flex flex-col gap-4">
             {limit ? (
               <LimitForm player={player} side={side} />
             ) : ticket.step === "done" ? (
@@ -286,7 +329,7 @@ export function TradePanel({
                         setSellTokens(null);
                       }}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && session.data && quote?.ok && !pending) submit();
+                        if (e.key === "Enter" && session.data && quote?.ok && !locked) submit();
                       }}
                       className="fig fig-prop w-full min-w-0 bg-transparent text-[2rem] text-ink outline-none placeholder:text-faint"
                       autoComplete="off"
@@ -309,6 +352,7 @@ export function TradePanel({
                             key={v}
                             type="button"
                             className={chip}
+                            aria-pressed={amount === String(v)}
                             onClick={() => setAmount(String(v))}
                           >
                             ${v}
@@ -341,7 +385,7 @@ export function TradePanel({
 
                 <QuoteBreakdown quote={quote} player={player} />
 
-                {quote?.error ? (
+                {quote?.error && phase !== "success" ? (
                   <p
                     className="flex items-start gap-2 text-sm text-ink"
                     role="alert"
@@ -360,25 +404,26 @@ export function TradePanel({
                 ))}
 
                 <div className="flex flex-col gap-2">
-                  <Button
+                  <ActionButton
                     size="lg"
                     variant={side === "buy" ? "buy" : "sell"}
                     className="h-12 w-full text-[1rem]"
                     onClick={submit}
-                    disabled={
-                      !!session.data && (!quote || !quote.ok || pending)
-                    }
+                    disabled={phase === "idle" && !!session.data && (!quote || !quote.ok)}
+                    phase={phase}
+                    pending={side === "buy" ? `Buying $${player.ticker}` : `Selling $${player.ticker}`}
+                    success={side === "buy" ? "Bought" : "Sold"}
                     data-testid="trade-submit"
                   >
-                    {pending ? "Confirming…" : cta}
-                  </Button>
+                    {cta}
+                  </ActionButton>
                   {shortcuts ? (
                     <p className="hidden text-center text-[0.75rem] text-faint lg:block">
                       <kbd className="font-sans text-soft">b</kbd> buy · <kbd className="font-sans text-soft">s</kbd> sell · <kbd className="font-sans text-soft">1</kbd>–<kbd className="font-sans text-soft">4</kbd> amounts · <kbd className="font-sans text-soft">enter</kbd> to send
                     </p>
                   ) : null}
-                  {quote?.error?.code === "INSUFFICIENT_USDC" ? (
-                    <ShortOfFunds need={quote.usdc} have={pf.data?.usdc ?? 0} onTopUp={() => faucet.mutate(1_000)} topUpBusy={faucet.isPending} />
+                  {quote?.error?.code === "INSUFFICIENT_USDC" && phase !== "success" ? (
+                    <ShortOfFunds need={quote.usdc} have={pf.data?.usdc ?? 0} onTopUp={() => faucet.mutate(1_000)} topUpPhase={faucetPhase} />
                   ) : null}
                 </div>
               </>
@@ -389,6 +434,7 @@ export function TradePanel({
             ) : (
               <HoldAgeMeter player={player} />
             )}
+           </AutoHeight>
           </TabsContent>
         </Tabs>
       </CardContent>
@@ -405,7 +451,7 @@ function Receipt({ player, result, onAgain }: { player: PlayerDetail; result: Ex
     <div className="receipt-enter flex flex-col gap-4 rounded-2xl bg-ground p-4" role="status" data-testid="trade-receipt">
       <div className="flex items-center gap-3">
         <PlayerAvatar id={player.id} size={52} className="[--kit-ring:var(--ground)]" />
-        <div className="flex min-w-0 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <span className="text-sm text-soft">{bought ? "You bought" : "You sold"}</span>
           <span className={cn("text-[2.125rem] leading-[1.06]", bought ? "text-up" : "text-ink")}>
             <TickUp value={result.tokens} format={(n) => formatTokens(n)} className="fig-prop" />
@@ -414,6 +460,8 @@ function Receipt({ player, result, onAgain }: { player: PlayerDetail; result: Ex
             ${player.ticker} {bought ? "for" : "and received"} <span className="fig text-ink">{formatUsd(result.usdc)}</span>
           </span>
         </div>
+        {/* The order landed: a ring closes and a tick draws in it, once. */}
+        <CheckDraw ring className={cn("size-8 self-start", bought ? "text-up" : "text-ink")} />
       </div>
       <KeyValue
         rows={[
@@ -539,16 +587,17 @@ function CapMeter({ player }: { player: PlayerDetail }) {
  * (normally added on its own within seconds), add it in one tap; otherwise deposit. On the mock: the
  * test top-up.
  */
-function ShortOfFunds({ need, have, onTopUp, topUpBusy }: { need: number; have: number; onTopUp: () => void; topUpBusy: boolean }) {
+function ShortOfFunds({ need, have, onTopUp, topUpPhase }: { need: number; have: number; onTopUp: () => void; topUpPhase: Phase }) {
   const devnet = !useMockClient();
   const funds = useFunds();
   const toTrading = useToTrading();
+  const addPhase = usePhase(toTrading);
   const openFunds = useUi((s) => s.openFunds);
   if (!devnet) {
     return (
-      <Button variant="secondary" className="w-full" onClick={onTopUp} disabled={topUpBusy}>
+      <ActionButton variant="secondary" className="w-full" onClick={onTopUp} phase={topUpPhase} pending="Adding test USDC" success="1,000 added">
         Top up
-      </Button>
+      </ActionButton>
     );
   }
   const short = need - have;
@@ -556,9 +605,9 @@ function ShortOfFunds({ need, have, onTopUp, topUpBusy }: { need: number; have: 
   const wallet = Math.floor((funds.data?.wallet ?? 0) * 100) / 100;
   if (short > 0 && wallet + 1e-9 >= short) {
     return (
-      <Button variant="secondary" className="w-full" onClick={() => toTrading.mutate(wallet)} disabled={toTrading.isPending}>
-        {toTrading.isPending ? "Adding…" : `Add your ${formatUsd(wallet)} deposit`}
-      </Button>
+      <ActionButton variant="secondary" className="w-full" onClick={() => toTrading.mutate(wallet)} phase={addPhase} pending={`Adding ${formatUsd(wallet)}`} success="Added to your cash">
+        Add your {formatUsd(wallet)} deposit
+      </ActionButton>
     );
   }
   return (
@@ -615,6 +664,7 @@ function KickoffNote({ launching }: { launching: boolean }) {
   const r = useRound((x) => ({ phase: x.phase, endsAt: x.phaseEndsAt }));
   if (!r.data) return null;
   let body;
+  let earning = false;
   if (launching)
     body = (
       <>
@@ -622,14 +672,16 @@ function KickoffNote({ launching }: { launching: boolean }) {
         before a kickoff.
       </>
     );
-  else if (r.data.phase === "open")
+  else if (r.data.phase === "open") {
+    earning = true;
     body = (
       <>
         Snapshot at kickoff in{" "}
-        <Countdown to={r.data.endsAt} className="text-ink" />. Hold before then
+        <Countdown to={r.data.endsAt} className="text-brand" />. Hold before then
         to earn this round.
       </>
     );
+  }
   else
     body = (
       <>
@@ -637,8 +689,9 @@ function KickoffNote({ launching }: { launching: boolean }) {
         next kickoff.
       </>
     );
+  // Gold is the colour of what pays: the note is tinted with it only while buying now still counts.
   return (
-    <p className="rounded-xl bg-raised/50 px-3 py-2.5 text-sm text-soft">{body}</p>
+    <p className={cn("rounded-xl px-3 py-2.5 text-sm", earning ? "bg-brand-tint/45 text-ink/85" : "bg-raised/50 text-soft")}>{body}</p>
   );
 }
 
@@ -656,7 +709,8 @@ function LimitForm({ player, side }: { player: PlayerDetail; side: Side }) {
   const tokensOut = side === "buy" && px > 0 ? amt / px : 0;
   const usdcIn = side === "sell" ? amt * px : 0;
   const away = px > 0 ? px / player.price - 1 : 0;
-  const ok = !!session.data && px > 0 && amt > 0 && !place.isPending;
+  const placePhase = usePhase(place);
+  const ok = !!session.data && px > 0 && amt > 0;
 
   const submit = () => {
     if (!session.data) return openSignIn();
@@ -757,20 +811,19 @@ function LimitForm({ player, side }: { player: PlayerDetail; side: Side }) {
           )}
         </p>
       ) : null}
-      <Button
+      <ActionButton
         size="lg"
         variant={side === "buy" ? "buy" : "sell"}
         className="h-12 w-full text-[1rem]"
         onClick={submit}
-        disabled={!!session.data && !ok}
+        disabled={placePhase === "idle" && !!session.data && !ok}
+        phase={placePhase}
+        pending="Placing order"
+        success="Order resting on the pool"
         data-testid="limit-submit"
       >
-        {!session.data
-          ? "Sign in to trade"
-          : place.isPending
-            ? "Placing…"
-            : `Place limit ${side}`}
-      </Button>
+        {!session.data ? "Sign in to trade" : `Place limit ${side}`}
+      </ActionButton>
     </div>
   );
 }

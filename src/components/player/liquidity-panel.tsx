@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { impermanentLoss } from "@score/core";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { ActionButton, usePhase, type Phase } from "@/components/ui/action-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -77,6 +77,7 @@ function AddLiquidity({ player }: { player: PlayerDetail }) {
   const usdc = parseAmount(amount);
   const quote = useLiquidityQuote(player.id, usdc > 0 ? usdc : 0, mode);
   const add = useAddLiquidity();
+  const addPhase = usePhase(add);
   const session = useSession();
   const openSignIn = useUi((s) => s.openSignIn);
   return (
@@ -143,8 +144,11 @@ function AddLiquidity({ player }: { player: PlayerDetail }) {
                 <AlertDescription>{quote.error.message}</AlertDescription>
               </Alert>
             ) : null}
-            <Button
-              disabled={!!session.data && (!quote?.ok || add.isPending)}
+            <ActionButton
+              phase={addPhase}
+              pending="Adding liquidity"
+              success="Liquidity added"
+              disabled={addPhase === "idle" && !!session.data && !quote?.ok}
               onClick={() => {
                 if (!session.data) return openSignIn();
                 add.mutate(
@@ -153,12 +157,8 @@ function AddLiquidity({ player }: { player: PlayerDetail }) {
                 );
               }}
             >
-              {!session.data
-                ? "Sign in to add liquidity"
-                : add.isPending
-                  ? "Confirming…"
-                  : "Add liquidity"}
-            </Button>
+              {!session.data ? "Sign in to add liquidity" : "Add liquidity"}
+            </ActionButton>
           </TabsContent>
         </Tabs>
       </CardContent>
@@ -169,6 +169,9 @@ function AddLiquidity({ player }: { player: PlayerDetail }) {
 function YourLp({ player }: { player: PlayerDetail }) {
   const lp = player.lpPosition!;
   const remove = useRemoveLiquidity();
+  const removePhase = usePhase(remove);
+  // One mutation, three buttons: the fraction you pressed shows the state.
+  const phaseOf = (f: number): Phase => (remove.variables?.fraction === f ? removePhase : "idle");
   return (
     <Card size="sm">
       <CardHeader>
@@ -189,15 +192,19 @@ function YourLp({ player }: { player: PlayerDetail }) {
         />
         <div className="flex flex-wrap gap-2">
           {[0.25, 0.5, 1].map((f) => (
-            <Button
+            <ActionButton
               key={f}
               size="sm"
               variant="outline"
-              disabled={remove.isPending}
+              phase={phaseOf(f)}
+              pending="Removing"
+              success="Removed"
+              error="Try again"
+              disabled={removePhase !== "idle" && phaseOf(f) === "idle"}
               onClick={() => remove.mutate({ id: player.id, fraction: f })}
             >
               Remove {f === 1 ? "all" : `${f * 100}%`}
-            </Button>
+            </ActionButton>
           ))}
         </div>
         <p className="text-xs text-soft">

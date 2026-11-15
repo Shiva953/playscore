@@ -7,7 +7,8 @@ import { Countdown, Delta, LiveFigure, PositionBadge, Ticker } from "@/component
 import { PlayerAvatar } from "@/components/common/kit";
 import { BuyerStack } from "@/components/live/buyer-stack";
 import { QuickBuy } from "@/components/live/quick-buy";
-import { EmptyState, LoadingBlock } from "@/components/common/states";
+import { EmptyState } from "@/components/common/states";
+import { LaunchFocusSkeleton, LaunchSkeleton } from "@/components/common/skeletons";
 import { Progress } from "@/components/ui/progress";
 import { BondingCurveChart } from "@/components/player/charts";
 import { TradePanel } from "@/components/player/trade-panel";
@@ -30,12 +31,7 @@ export function LaunchPage({ selected }: { selected?: string }) {
   const focus = live.find((p) => p.id === selected) ?? live[0];
 
   if (q.isPending) {
-    return (
-      <div className="flex flex-col gap-4" aria-busy="true">
-        <LoadingBlock className="h-16" />
-        <LoadingBlock className="h-[420px]" />
-      </div>
-    );
+    return <LaunchSkeleton />;
   }
 
   // Picking a launch swaps the panel at the top, so bring it into view (instant under reduced motion).
@@ -101,11 +97,11 @@ export function LaunchPage({ selected }: { selected?: string }) {
 /** The launch in focus: curve, raise and an inline ticket (buys fill on the curve). */
 function Focus({ id }: { id: string }) {
   const q = usePlayer(id);
-  if (!q.data) return <LoadingBlock className="h-[420px]" />;
+  if (!q.data) return <LaunchFocusSkeleton />;
   const p = q.data;
   const left = Math.max(0, p.curve.threshold - p.raised);
   return (
-    <section aria-label={`${p.name} launch`} className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <section aria-label={`${p.name} launch`} className="content-in grid gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="flex min-w-0 flex-col gap-5 rounded-2xl bg-surface ring-1 ring-edge ring-inset p-5 md:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-4">

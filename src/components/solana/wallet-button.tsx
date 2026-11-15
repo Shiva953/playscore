@@ -81,7 +81,7 @@ export function WalletButton() {
               ))}
             </div>
             {status === "connecting" && (
-              <p className="mt-2 text-xs text-muted">Connecting…</p>
+              <p className="mt-2 text-xs text-muted">Connecting</p>
             )}
             {error != null && (
               <p className="mt-2 text-xs text-destructive">

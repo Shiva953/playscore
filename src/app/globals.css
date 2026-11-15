@@ -59,11 +59,17 @@
   --pos-def: oklch(0.78 0.08 245);
   --pos-gk: oklch(0.8 0.07 350);
 
+  /* what you own, by kind (15 Nov: the split was three greys). Cash is USDC's own blue, players are gold
+     ("you hold"), liquidity is pool water. Each sits 25° or more from up and down; dark text measures 7:1+. */
+  --cash: oklch(0.74 0.115 252);
+  --pool: oklch(0.8 0.09 196);
+
   /* motion */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --dur-fast: 150ms;
   --dur-menu: 200ms;
   --dur-dialog: 300ms;
+  --dur-swap: 300ms; /* a label or icon changing state (better-ui icon swap) */
 
   /* shadcn roles mapped onto score roles */
   --background: var(--ground);
@@ -140,6 +146,8 @@
   --color-pos-mid: var(--pos-mid);
   --color-pos-def: var(--pos-def);
   --color-pos-gk: var(--pos-gk);
+  --color-cash: var(--cash);
+  --color-pool: var(--pool);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -476,5 +484,152 @@
   }
   .feed-enter.tint-down {
     animation: feed-fade 300ms var(--ease-out) both, tint-down 1200ms var(--ease-out);
+  }
+}
+
+/*
+ * Loading. A bone sits where its element will be, at that element's size and radius, so nothing moves when
+ * the data lands. One soft band of light crosses the whole screen in step (the gradient is fixed to the
+ * viewport, so every bone shows the same sweep) and says "still working"; under reduced motion the bones
+ * hold still.
+ */
+[data-slot="skeleton"] {
+  background-color: color-mix(in oklab, var(--raised) 58%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-slot="skeleton"] {
+    background-image: linear-gradient(100deg, transparent 0%, rgba(243, 243, 243, 0.075) 50%, transparent 100%);
+    background-repeat: no-repeat;
+    background-size: 45vw 100vh;
+    background-attachment: fixed;
+    animation: bone-sweep 1900ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+}
+@keyframes bone-sweep {
+  from {
+    background-position: -45vw 0;
+  }
+  70%,
+  to {
+    background-position: 100vw 0;
+  }
+}
+/* Data arriving where bones were: a short fade, opacity only, so it holds under reduced motion too. */
+.content-in {
+  animation: feed-fade 240ms var(--ease-out) both;
+}
+
+/*
+ * Transactions. Idle → working → done (or failed) is shown on the control you pressed: a ring that turns
+ * while it works, a tick that draws itself when it lands, a cross and a short nudge when it doesn't.
+ */
+.spinner {
+  animation: spinner-turn 760ms linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: spinner-breathe 1400ms ease-in-out infinite;
+  }
+}
+@keyframes spinner-turn {
+  to {
+    rotate: 360deg;
+  }
+}
+@keyframes spinner-breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+.status-draw path,
+.status-draw circle {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .status-draw .ring {
+    animation: status-draw 420ms var(--ease-out) both;
+  }
+  .status-draw .mark {
+    animation: status-draw 300ms var(--ease-out) 140ms both;
+  }
+  .status-draw .mark + .mark {
+    animation-delay: 220ms;
+  }
+  /* Just landed: one ring leaves the control and fades. Transform and opacity only. */
+  .confirm-ring {
+    position: relative;
+  }
+  .confirm-ring::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 0 1.5px currentColor;
+    pointer-events: none;
+    animation: confirm-ring 640ms var(--ease-out) both;
+  }
+  .nudge {
+    animation: nudge 340ms var(--ease-out);
+  }
+}
+@keyframes status-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes confirm-ring {
+  from {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.05, 1.42);
+  }
+}
+@keyframes nudge {
+  20% {
+    translate: -5px 0;
+  }
+  45% {
+    translate: 4px 0;
+  }
+  70% {
+    translate: -2px 0;
+  }
+}
+
+/* One step of a flow replacing another in place (review → sent, form → receipt): a short rise with a fade. */
+@media (prefers-reduced-motion: no-preference) {
+  .step-in {
+    animation: step-in 300ms var(--ease-out) both;
+  }
+  .step-in > * {
+    animation: step-in 300ms var(--ease-out) both;
+  }
+  .step-in > :nth-child(2) {
+    animation-delay: 50ms;
+  }
+  .step-in > :nth-child(3) {
+    animation-delay: 100ms;
+  }
+  .step-in > :nth-child(4) {
+    animation-delay: 150ms;
+  }
+  .step-in > :nth-child(n + 5) {
+    animation-delay: 200ms;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-in {
+    animation: feed-fade 200ms var(--ease-out) both;
+  }
+}
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(4px);
   }
 }

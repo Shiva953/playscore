@@ -135,7 +135,7 @@ function Bar({ client }: { client: MockProtocolClient }) {
       <span style={{ width: 1, height: 18, background: "#3a3a3a" }} />
       {MOMENTS.map((m) => (
         <button key={m.id} type="button" style={btn} title={m.hint} disabled={!!busy} onClick={() => void pin(m.id)}>
-          {busy === m.id ? "Setting…" : m.label}
+          {busy === m.id ? "Setting" : m.label}
         </button>
       ))}
       <button type="button" style={pinned ? on : btn} onClick={() => (pinned ? releaseMoment(client) : client.setPinned(true))} title="Hold or release the current moment">

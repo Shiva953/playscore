@@ -99,6 +99,43 @@ export function clubIdentity(club: string): ClubIdentity {
   return CLUBS[club] ?? FALLBACK;
 }
 
+/** sRGB hex → OKLCH lightness, chroma and hue (Björn Ottosson's OKLab). */
+function oklch(hex: string): { l: number; c: number; h: number } {
+  const n = parseInt(hex.slice(1), 16);
+  const lin = (v: number) => {
+    const x = v / 255;
+    return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  };
+  const r = lin((n >> 16) & 255);
+  const g = lin((n >> 8) & 255);
+  const b = lin(n & 255);
+  const l_ = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m_ = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s_ = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  const L = 0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_;
+  const A = 1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_;
+  const B = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_;
+  return { l: L, c: Math.hypot(A, B), h: ((Math.atan2(B, A) * 180) / Math.PI + 360) % 360 };
+}
+
+const TILES = new Map<string, string | null>();
+
+/**
+ * The tile behind a club's shirt, in that club's own hue: the first of its body, pattern and trim colours
+ * that is a colour at all (so Real Madrid's tile is its gold, Spurs' its navy), at one fixed dark
+ * lightness and a low chroma, so a list of players reads as a row of clubs and no tile outshouts its shirt.
+ * A dark shirt gets a darker tile, to stay off it. Black-and-white clubs keep the neutral tile (null).
+ */
+export function clubTile(club: string): string | null {
+  const hit = TILES.get(club);
+  if (hit !== undefined) return hit;
+  const kit = clubIdentity(club);
+  const hue = [kit.base, kit.second, kit.trim].map(oklch).find((x) => x.c >= 0.07);
+  const tile = hue ? `oklch(${oklch(kit.base).l < 0.42 ? 0.2 : 0.29} 0.052 ${hue.h.toFixed(0)})` : null;
+  TILES.set(club, tile);
+  return tile;
+}
+
 export interface PlayerIdentity {
   id: string;
   name: string;

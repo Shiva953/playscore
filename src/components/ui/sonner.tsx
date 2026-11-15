@@ -2,7 +2,8 @@
 
 import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
-import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { InfoIcon, TriangleAlertIcon } from "lucide-react"
+import { CheckDraw, CrossDraw, Spinner } from "@/components/ui/status"
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
@@ -12,8 +13,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       icons={{
+        // One vocabulary for "it landed" everywhere: the tick that draws itself, in the gain colour.
         success: (
-          <CircleCheckIcon className="size-4" />
+          <CheckDraw ring className="size-[18px] text-up" />
         ),
         info: (
           <InfoIcon className="size-4" />
@@ -22,10 +24,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
           <TriangleAlertIcon className="size-4" />
         ),
         error: (
-          <OctagonXIcon className="size-4" />
+          <CrossDraw className="size-4 text-down" />
         ),
         loading: (
-          <Loader2Icon className="size-4 animate-spin" />
+          <Spinner className="size-4 text-soft" />
         ),
       }}
       style={

@@ -100,7 +100,7 @@ function Hero() {
             <PlayerSlot p={p} onNext={next} />
           </span>
         </span>
-        <span className="block text-soft">Earn when they perform</span>
+        <span className="block text-brand">Earn when they perform</span>
       </h1>
       <div className="flex max-w-[720px] flex-col gap-8">
         <p className="text-[clamp(17px,1.5vw,21px)] leading-[1.5] text-ink">

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Copy, KeyRound, ShieldAlert } from "lucide-react";
 import QRCode from "qrcode";
 import { toast } from "sonner";
+import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -156,9 +157,9 @@ function Backup({ address, exportKey }: { address: string; exportKey: (address: 
           Anyone with this key controls the wallet. Write it down or keep it in a password manager. Never share it, and never paste it into a website or chat. score will never ask for it.
         </span>
       </div>
-      <Button variant="secondary" onClick={backup} disabled={busy}>
-        {busy ? "Opening…" : done ? "Show my key again" : "Back up private key"}
-      </Button>
+      <ActionButton variant="secondary" onClick={backup} phase={busy ? "pending" : "idle"} pending="Opening the secure window">
+        {done ? "Show my key again" : "Back up private key"}
+      </ActionButton>
     </div>
   );
 }

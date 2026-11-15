@@ -5,7 +5,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PositionBadge, StatusBadge, Ticker } from "@/components/common/bits";
-import { EmptyState, ErrorState, LoadingBlock } from "@/components/common/states";
+import { EmptyState, ErrorState } from "@/components/common/states";
+import { PlayerHubSkeleton } from "@/components/common/skeletons";
 import { formatDateTime, formatPrice, formatScore, formatUsd } from "@/lib/format";
 import { isProtocolError } from "@/lib/protocol/errors";
 import { ChevronDown, ChevronUp } from "lucide-react";
@@ -23,16 +24,7 @@ export function PlayerHub({ id }: { id: string }) {
   const q = usePlayer(id);
 
   if (q.isPending) {
-    return (
-      <div className="flex flex-col gap-6" aria-busy="true">
-        <LoadingBlock className="h-24" />
-        <LoadingBlock className="h-20" />
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <LoadingBlock className="h-[360px]" />
-          <LoadingBlock className="h-[360px]" />
-        </div>
-      </div>
-    );
+    return <PlayerHubSkeleton />;
   }
   if (q.isError || !q.data) {
     if (isProtocolError(q.error) && q.error.code === "NOT_FOUND") {
@@ -53,7 +45,7 @@ export function PlayerHub({ id }: { id: string }) {
   }
   const p = q.data;
   return (
-    <div className="flex flex-col gap-6">
+    <div className="content-in flex flex-col gap-6">
       <TitleRow player={p} />
       <StandardLayout player={p} />
     </div>

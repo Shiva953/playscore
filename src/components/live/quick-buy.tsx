@@ -2,6 +2,8 @@
 
 import { Zap } from "lucide-react";
 import { useState } from "react";
+import { usePhase } from "@/components/ui/action-button";
+import { CheckDraw, CrossDraw, Spinner } from "@/components/ui/status";
 import { formatTokens, formatUsd, parseAmount } from "@/lib/format";
 import { useBuy, useSession } from "@/lib/protocol/react/hooks";
 import { useUi } from "@/lib/protocol/react/ui-store";
@@ -17,15 +19,18 @@ export function QuickBuy({ playerId, ticker, className }: { playerId: string; ti
   const openSignIn = useUi((s) => s.openSignIn);
   const session = useSession();
   const buy = useBuy({ silent: true });
+  const phase = usePhase(buy, { hold: 1200, errorHold: 1400 });
   return (
     <button
       type="button"
       aria-label={`Buy ${formatUsd(usd, { decimals: 0 })} of $${ticker}`}
       title={`Buy ${formatUsd(usd, { decimals: 0 })} of $${ticker} at market`}
-      disabled={buy.isPending}
+      aria-busy={phase === "pending" || undefined}
+      data-phase={phase}
       onClick={(e) => {
         e.stopPropagation();
         e.preventDefault();
+        if (phase !== "idle") return;
         if (!session.data) return openSignIn();
         buy.mutate(
           { id: playerId, usdc: usd },
@@ -42,12 +47,15 @@ export function QuickBuy({ playerId, ticker, className }: { playerId: string; ti
         );
       }}
       className={cn(
-        "fig inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-up-tint px-2.5 text-[0.75rem] font-semibold text-up transition-[background-color,transform,opacity] duration-150 hover:bg-up-tint-hover motion-safe:active:scale-[0.96] disabled:opacity-50",
+        "fig inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-up-tint px-2.5 text-[0.75rem] font-semibold text-up transition-[background-color,transform,opacity] duration-150 hover:bg-up-tint-hover motion-safe:active:scale-[0.96]",
+        phase === "success" && "confirm-ring",
+        phase === "error" && "nudge bg-down-tint text-down hover:bg-down-tint",
         className
       )}
     >
-      <Zap className="size-3" aria-hidden="true" />
-      {buy.isPending ? "…" : formatUsd(usd, { decimals: 0 })}
+      {/* The amount stays put, so the pill never changes width; only the mark beside it changes. */}
+      {phase === "pending" ? <Spinner className="size-3" /> : phase === "success" ? <CheckDraw className="size-3" /> : phase === "error" ? <CrossDraw className="size-3" /> : <Zap className="size-3" aria-hidden="true" />}
+      {formatUsd(usd, { decimals: 0 })}
     </button>
   );
 }

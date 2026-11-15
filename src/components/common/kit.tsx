@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { clubIdentity, playerIdentity, type ClubIdentity } from "@/lib/identity/clubs";
+import { clubIdentity, clubTile, playerIdentity, type ClubIdentity } from "@/lib/identity/clubs";
 import { cn } from "@/lib/utils";
 
 /** A front-on shirt in a 64-unit box: collar at the top, sleeves out to the sides. */
@@ -118,7 +118,7 @@ export function PlayerAvatar({ id, size = 36, className, mark = true }: { id: st
   if (!p) return <span className={cn("inline-block shrink-0 rounded-xl bg-kit-tile", className)} style={{ width: size, height: size }} aria-hidden="true" />;
   const markSize = Math.max(10, Math.round(size * 0.36));
   return (
-    <span className={cn("kit-tile relative inline-flex shrink-0 items-end justify-center rounded-[28%] bg-kit-tile", className)} style={{ width: size, height: size }} aria-hidden="true">
+    <span className={cn("kit-tile relative inline-flex shrink-0 items-end justify-center rounded-[28%] bg-kit-tile", className)} style={{ width: size, height: size, backgroundColor: clubTile(p.club) ?? undefined }} aria-hidden="true">
       <Kit club={p.club} number={p.number} size={Math.round(size * 0.86)} className="kit-shirt -mb-[2%]" />
       {mark ? <ClubMark club={p.club} size={markSize} className="absolute -right-[8%] -bottom-[8%]" /> : null}
     </span>

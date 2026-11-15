@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
+import { ActionButton, usePhase } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toggle } from "@/components/ui/toggle";
 import { Delta, LiveFigure, PositionBadge, StatusBadge, Ticker } from "@/components/common/bits";
-import { EmptyState, LoadingBlock, SignedOutState } from "@/components/common/states";
+import { EmptyState, SignedOutState } from "@/components/common/states";
+import { TerminalSkeleton, WatchlistRowsSkeleton } from "@/components/common/skeletons";
 import { BondingCurveChart, PriceChart, RangeControl, type Indicators } from "@/components/player/charts";
 import { TradeFeed } from "@/components/live/trade-feed";
 import { QuickBuy, QuickBuyAmount } from "@/components/live/quick-buy";
@@ -28,6 +30,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SORT_LABEL, filterPlayers, neighbours, orderPlayers, sortPlayers, type LeagueFilter, type PlayerSort, type PositionFilter } from "./player-order";
 
 const POSITIONS: PositionFilter[] = ["ALL", "FWD", "MID", "DEF", "GK"];
+/** A chosen position is shown in that position's hue, the pair its badge uses everywhere else. */
+const POSITION_ON: Record<PositionFilter, string> = {
+  ALL: "bg-raised text-ink",
+  FWD: "bg-pos-fwd/14 text-pos-fwd",
+  MID: "bg-pos-mid/14 text-pos-mid",
+  DEF: "bg-pos-def/14 text-pos-def",
+  GK: "bg-pos-gk/14 text-pos-gk",
+};
 
 /**
  * The trade terminal (the v1 prototype's #/trade): a player list on the left (click, or ↑/↓ and j/k,
@@ -73,13 +83,7 @@ export function TradeTerminal({ id }: { id: string }) {
   }, [router]);
 
   if (!p) {
-    return (
-      <div data-fullbleed className="mx-auto grid w-full max-w-[1680px] gap-3 px-3 py-3 md:px-4 lg:grid-cols-[260px_minmax(0,1fr)_320px]" aria-busy="true">
-        <LoadingBlock className="h-[640px]" />
-        <LoadingBlock className="h-[640px]" />
-        <LoadingBlock className="h-[640px]" />
-      </div>
-    );
+    return <TerminalSkeleton />;
   }
 
   return (
@@ -87,7 +91,7 @@ export function TradeTerminal({ id }: { id: string }) {
       data-fullbleed
       // While the next player loads, the last one stays on screen (no empty flash) but reads as stale.
       aria-busy={q.isPlaceholderData || undefined}
-      className={cn("mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-3 pt-3 pb-24 transition-opacity duration-150 md:px-4 md:pb-6", q.isPlaceholderData && "opacity-60")}
+      className={cn("content-in mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-3 pt-3 pb-24 transition-opacity duration-150 md:px-4 md:pb-6", q.isPlaceholderData && "opacity-60")}
     >
       {/*
         Phones: chart, ticket and book, the tabs, then the list. Desktop: list | chart + tabs | ticket + book,
@@ -224,7 +228,7 @@ function Watchlist({
             role="radio"
             aria-checked={position === x}
             onClick={() => setPosition(x)}
-            className={cn("h-7 flex-1 rounded-full text-[0.75rem] font-semibold transition-colors duration-150", position === x ? "bg-raised text-ink" : "text-soft hover:text-ink")}
+            className={cn("h-7 flex-1 rounded-full text-[0.75rem] font-semibold transition-colors duration-150", position === x ? POSITION_ON[x] : "text-soft hover:text-ink")}
           >
             {x === "ALL" ? "All" : x}
           </button>
@@ -259,7 +263,7 @@ function Watchlist({
       </div>
       <QuickBuyAmount className="self-start" />
       <ul ref={box} className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 max-lg:max-h-[420px]" aria-label="Players">
-        {loading ? <li className="px-2 py-3 text-[0.8125rem] text-soft">Loading players…</li> : null}
+        {loading ? <WatchlistRowsSkeleton /> : null}
         {!loading && list.length === 0 ? <li className="px-2 py-3 text-[0.8125rem] text-soft">No players match.</li> : null}
         {list.map((p) => (
           <li key={p.id} data-id={p.id} className="group/row relative">
@@ -408,6 +412,7 @@ function TerminalTrades({ p }: { p: PlayerDetail }) {
 function OpenOrders({ orders, current }: { orders: LimitOrder[]; current: string }) {
   const session = useSession();
   const cancel = useCancelOrder();
+  const cancelPhase = usePhase(cancel, { hold: 900 });
   if (!session.data) return <SignedOutState title="Sign in to place limit orders" />;
   if (!orders.length) return <p className="py-3 text-sm text-soft">No open orders. Switch the ticket to Limit to rest one on the pool.</p>;
   const sorted = [...orders].sort((a, b) => Number(b.playerId === current) - Number(a.playerId === current) || b.createdAt - a.createdAt);
@@ -425,9 +430,18 @@ function OpenOrders({ orders, current }: { orders: LimitOrder[]; current: string
               <span className="fig text-ink">{formatPrice(o.price)}</span>
             </span>
           </span>
-          <Button variant="ghost" size="xs" onClick={() => cancel.mutate(o.id)} disabled={cancel.isPending}>
+          <ActionButton
+            variant="ghost"
+            size="xs"
+            onClick={() => cancel.mutate(o.id)}
+            phase={cancel.variables === o.id ? cancelPhase : "idle"}
+            disabled={cancelPhase !== "idle" && cancel.variables !== o.id}
+            pending="Cancelling"
+            success="Cancelled"
+            error="Try again"
+          >
             Cancel
-          </Button>
+          </ActionButton>
         </li>
       ))}
     </ul>

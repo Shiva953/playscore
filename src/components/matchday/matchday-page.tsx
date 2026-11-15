@@ -7,7 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LiveFigure, PositionBadge, Section, Stat, StatStrip, StripCell, Ticker } from "@/components/common/bits";
 import { PlayerAvatar } from "@/components/common/kit";
 import { useArrivals } from "@/components/live/use-arrivals";
-import { EmptyState, ErrorState, LoadingBlock, LoadingRows, QueryState, SignedOutState } from "@/components/common/states";
+import { EmptyState, ErrorState, LoadingRows, QueryState, SignedOutState } from "@/components/common/states";
+import { MatchdaySkeleton } from "@/components/common/skeletons";
 import { MatchdayStrip } from "@/components/common/matchday-strip";
 import { ClaimPanel } from "@/components/portfolio/claim-panel";
 import { formatPct, formatPoints, formatScore, formatTokens, formatUsd } from "@/lib/format";
@@ -20,19 +21,12 @@ import { useProtocolClient } from "@/lib/protocol/react/provider";
 export function MatchdayPage() {
   const q = useRound();
   if (q.isPending) {
-    return (
-      <div className="flex flex-col gap-6" aria-busy="true">
-        <LoadingBlock className="h-16" />
-        <LoadingBlock className="h-28" />
-        <LoadingBlock className="h-40" />
-        <LoadingBlock className="h-72" />
-      </div>
-    );
+    return <MatchdaySkeleton />;
   }
   if (q.isError || !q.data) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
   const r = q.data;
   return (
-    <div className="flex flex-col gap-10">
+    <div className="content-in flex flex-col gap-10">
       <div className="flex flex-col gap-6">
         <TitleRow r={r} />
         <Card>
@@ -75,12 +69,14 @@ function TitleRow({ r }: { r: RoundState }) {
 
 function ClaimMoment() {
   const pf = usePortfolio();
-  if (!pf.data || pf.data.claimable.totalUsd <= 0.005) return null;
+  // Stays through the claim's confirmation, though the claimable amount is already zero by then.
+  const [claiming, setClaiming] = useState(false);
+  if (!pf.data || (pf.data.claimable.totalUsd <= 0.005 && !claiming)) return null;
   return (
     <Card data-testid="claim-moment">
       <CardContent className="flex flex-col gap-3">
         <h2 className="text-base font-medium text-ink">Your dividends are ready</h2>
-        <ClaimPanel compact />
+        <ClaimPanel compact onBusy={setClaiming} />
       </CardContent>
     </Card>
   );
@@ -228,14 +224,15 @@ function BoardCard({ b, projection }: { b: BoardView; projection: boolean }) {
       <ol className="mt-2 flex flex-col">
         {rows.map((row) => (
           <li key={row.playerId} className="num flex items-center gap-3 py-2 text-sm">
-            <span className="w-4 text-xs text-faint">{row.rank}</span>
+            <span className={cn("w-4 text-xs", row.rank === 1 ? "font-semibold text-brand" : "text-faint")}>{row.rank}</span>
             <Link href={`/player/${row.playerId}`} className={cn("flex min-w-0 flex-1 items-center gap-2.5 hover:underline", row.mine ? "text-ink" : "text-soft")}>
               <PlayerAvatar id={row.playerId} size={26} mark={false} className="rounded-[8px]" />
               <span className="truncate">{row.name}</span>
             </Link>
             {row.mine ? <span className="size-1.5 shrink-0 rounded-full bg-brand" role="img" aria-label="You hold this player" /> : null}
             <span className="w-8 text-right text-faint">{projection ? formatScore(row.points) : formatScore(row.display)}</span>
-            <span className="w-12 text-right text-ink">{formatUsd(row.usd, { decimals: 0 })}</span>
+            {/* What a place pays is gold once it rounds to a dollar; a board with nothing in it stays quiet. */}
+            <span className={cn("w-12 text-right", row.usd >= 0.5 ? "text-brand" : "text-faint")}>{formatUsd(row.usd, { decimals: 0 })}</span>
           </li>
         ))}
         {Array.from({ length: Math.max(0, 3 - rows.length) }, (_, i) => (
